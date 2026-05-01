@@ -101,7 +101,7 @@ async def hardware():
     """Probe CPU, RAM, disk for the installer hardware-check screen."""
     cpu_count = psutil.cpu_count(logical=False) or psutil.cpu_count()
     ram = psutil.virtual_memory()
-    disk = psutil.disk_usage(Path.home())
+    disk = psutil.disk_usage(str(Path.home()))
 
     ram_gb = round(ram.total / 1024**3, 1)
     ram_free_gb = round(ram.available / 1024**3, 1)
@@ -304,6 +304,10 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
     """
     Execute the AgentSuite pipeline in a thread pool.
     Emits SSE-compatible events into _runs[run_id]["events"].
+
+    PipelineOrchestrator.on_progress signature:
+        Callable[[str, PipelineStepState, PipelineState], None]
+    Event strings emitted by orchestrator: "agent_start", "agent_done", "agent_waiting"
     """
     run = _runs[run_id]
 
@@ -311,44 +315,72 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
         run["events"].append({"type": event_type, "run_id": run_id, "ts": time.time(), **kwargs})
 
     try:
-        from agentsuite.agents import get_agent_class
         from agentsuite.pipeline.orchestrator import PipelineOrchestrator
 
-        workspace = _workspace()
-        project_dir = workspace / req.project
+        output_root = _workspace() / ".agentsuite"
 
         emit("agent_start", agent=req.agent_id, project=req.project)
 
         loop = asyncio.get_running_loop()
 
         def _run_sync():
-            def progress(stage: str, message: str, **kw):
+            def on_progress(event: str, step, pipeline):
+                # Map orchestrator events to SSE event types
+                evt = event if event in ("agent_start", "agent_done", "agent_waiting") else "stage_update"
                 run["events"].append(
                     {
-                        "type": "stage_update",
+                        "type": evt,
                         "run_id": run_id,
-                        "stage": stage,
-                        "message": message,
+                        "stage": event,
+                        "agent": step.agent,
                         "ts": time.time(),
-                        **kw,
                     }
                 )
 
-            agent_cls = get_agent_class(req.agent_id)
-            agent = agent_cls(
-                project_dir=project_dir,
-                goal=req.goal,
-                progress_callback=progress,
+            orch = PipelineOrchestrator(output_root=output_root)
+            return orch.run(
+                agents=[req.agent_id],
+                project_slug=req.project,
+                business_goal=req.goal,
+                inputs_dir=Path(req.inputs_dir) if req.inputs_dir else None,
+                on_progress=on_progress,
             )
-            result = agent.run()
-            return result
 
-        result = await loop.run_in_executor(None, _run_sync)
+        pipeline = await loop.run_in_executor(None, _run_sync)
 
-        run["artifacts"] = result.get("artifacts", [])
-        run["qa_score"] = result.get("qa_score")
+        # Extract artifacts and qa_score from the completed step's run directory
+        step = pipeline.steps[0] if pipeline.steps else None
+        artifacts: list[str] = []
+        qa_score: float | None = None
+
+        if step and step.run_id:
+            run_dir = output_root / "runs" / step.run_id
+            if run_dir.exists():
+                artifacts = [
+                    str(f.relative_to(run_dir))
+                    for f in run_dir.rglob("*")
+                    if f.is_file() and not f.name.startswith("_")
+                ]
+                qa_file = run_dir / "qa_scores.json"
+                if qa_file.exists():
+                    try:
+                        qa_data = json.loads(qa_file.read_text())
+                        # QARubric writes overall score under one of these keys
+                        qa_score = (
+                            qa_data.get("weighted_score")
+                            or qa_data.get("overall_score")
+                            or qa_data.get("score")
+                            or qa_data.get("overall")
+                        )
+                    except Exception:
+                        pass
+
+        # Store AgentSuite's internal run_id so _push_to_kernel finds the right dir
+        run["agentsuite_run_id"] = step.run_id if step else None
+        run["artifacts"] = artifacts
+        run["qa_score"] = qa_score
         run["status"] = "waiting"
-        emit("agent_waiting", qa_score=run["qa_score"], artifacts=run["artifacts"])
+        emit("agent_waiting", qa_score=qa_score, artifacts=artifacts)
 
     except Exception as exc:
         run["status"] = "error"
@@ -371,12 +403,15 @@ def _workspace() -> Path:
 def _push_to_kernel(run: dict) -> None:
     """
     Promote run artifacts to the project kernel directory.
-    Mirrors AgentSuite's approve_run logic for local use.
+    Uses AgentSuite's internal run_id (stored at run["agentsuite_run_id"]) to
+    locate the run directory; falls back to our own run_id if not set.
     """
     workspace = _workspace()
     project = run["project"]
     agent = run["agent"]
-    run_dir = workspace / ".agentsuite" / "runs" / run["id"]
+    # agentsuite_run_id is set by _execute_run after the pipeline completes
+    as_run_id = run.get("agentsuite_run_id") or run["id"]
+    run_dir = workspace / ".agentsuite" / "runs" / as_run_id
     kernel_dir = workspace / ".agentsuite" / "_kernel" / project / agent
     kernel_dir.mkdir(parents=True, exist_ok=True)
 
