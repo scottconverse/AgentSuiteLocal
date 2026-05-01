@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { WindowChrome } from "./components/ui/index.jsx";
 import { Sidebar } from "./components/shell/index.jsx";
 
+import { AGENTS } from "./data.js";
 import { ScreenWelcome }       from "./components/installer/ScreenWelcome.jsx";
 import { ScreenLicense }       from "./components/installer/ScreenLicense.jsx";
 import { ScreenHardware }      from "./components/installer/ScreenHardware.jsx";
@@ -39,7 +40,7 @@ export default function App() {
   const [mode, setMode]   = useState("installer"); // "installer" | "app"
   const [step, setStep]   = useState(1);
   const [tier, setTier]   = useState("balanced");
-  const [agents, setAgents] = useState(null); // null = all enabled
+  const [agents, setAgents] = useState(() => AGENTS.map(a => a.id)); // all enabled by default
 
   // ── App ───────────────────────────────────────────────────────────────────
   const [view, setView]   = useState("home");   // sidebar destination
