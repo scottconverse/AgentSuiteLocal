@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Icon, MetricCard } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-export const ScreenHardware = ({ onBack, onNext }) => {
+export const ScreenHardware = ({ onBack, onNext, totalSteps }) => {
   const [scanning, setScanning] = useState(true);
   const [specs, setSpecs] = useState(null);
 
@@ -30,7 +30,7 @@ export const ScreenHardware = ({ onBack, onNext }) => {
   }, []);
 
   return (
-    <InstallerShell step={3} totalSteps={12} onBack={onBack} onNext={onNext} nextDisabled={scanning}>
+    <InstallerShell step={3} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={scanning}>
       <SectionHeader eyebrow="Step 03" title="Checking your hardware"
         sub="We need to know what kind of model your machine can comfortably run. This takes a few seconds." />
 

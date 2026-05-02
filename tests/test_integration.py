@@ -11,54 +11,15 @@ No Ollama required. The pipeline will fail to import AgentSuite and emit an
 
 from __future__ import annotations
 
-import asyncio
 import json
-import socket
-import threading
 import time
 
 import httpx
 import pytest
-import uvicorn
 
 from agentsuitelocal.api.main import app, _runs
 
-
-# ---------------------------------------------------------------------------
-# Server fixture — starts a real uvicorn on a free port, tears down after
-# ---------------------------------------------------------------------------
-
-
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-@pytest.fixture(scope="module")
-def live_server():
-    port = _free_port()
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error")
-    server = uvicorn.Server(config)
-
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-
-    # Wait for server to be ready
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                break
-        except OSError:
-            time.sleep(0.05)
-    else:
-        raise RuntimeError("Server did not start within 5 seconds")
-
-    yield f"http://127.0.0.1:{port}"
-
-    server.should_exit = True
-    thread.join(timeout=3)
+# live_server is session-scoped and defined in tests/conftest.py
 
 
 @pytest.fixture(autouse=True)

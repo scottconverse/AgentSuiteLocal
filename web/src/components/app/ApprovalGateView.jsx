@@ -69,7 +69,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   if (error || (!runId && !loading)) {
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
-        <Icon name="alertCircle" size={32} style={{ color: "var(--warn)" }} />
+        <Icon name="alert" size={32} style={{ color: "var(--warn)" }} />
         <div style={{ fontSize: 14, color: "var(--ink-2)" }}>{error || "No run selected."}</div>
         <button className="btn" onClick={onReject}>Back</button>
       </div>

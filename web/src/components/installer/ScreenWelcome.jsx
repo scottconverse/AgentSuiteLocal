@@ -2,8 +2,8 @@ import React from "react";
 import { Icon, BrandMark } from "../ui/index.jsx";
 import { InstallerShell } from "./InstallerShell.jsx";
 
-export const ScreenWelcome = ({ onNext }) => (
-  <InstallerShell step={1} totalSteps={12} onNext={onNext} nextLabel="Get started" accent>
+export const ScreenWelcome = ({ onNext, totalSteps }) => (
+  <InstallerShell step={1} totalSteps={totalSteps} onNext={onNext} nextLabel="Get started" accent>
     <div style={{ paddingTop: 32 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 24 }}>
         <BrandMark size={56} />

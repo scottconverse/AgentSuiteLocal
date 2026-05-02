@@ -34,7 +34,7 @@ from sse_starlette.sse import EventSourceResponse
 # App + CORS
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="AgentSuiteLocal", version="0.1.0")
+app = FastAPI(title="AgentSuiteLocal", version="0.1.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -181,7 +181,7 @@ class PipelineRequest(BaseModel):
     name: str = Field(max_length=200)
     project: str
     goal: str = Field(max_length=2000)
-    agents: list[str]
+    agents: list[str] = Field(min_length=1)
     inputs_dir: str | None = None
     auto_approve: bool = False
 
@@ -189,6 +189,9 @@ class PipelineRequest(BaseModel):
     def validate_slugs_and_paths(self) -> "PipelineRequest":
         if not _SLUG_RE.match(self.project):
             raise ValueError("project must contain only letters, numbers, hyphens, and underscores")
+        for agent_id in self.agents:
+            if not _SLUG_RE.match(agent_id):
+                raise ValueError(f"agent id {agent_id!r} must contain only letters, numbers, hyphens, and underscores")
         if self.inputs_dir is not None:
             _validate_inputs_dir(self.inputs_dir)
         return self
@@ -692,6 +695,7 @@ async def create_pipeline(req: PipelineRequest):
                 "status": "running" if i == 0 else "todo",
                 "run_id": None,
                 "qa_score": None,
+                "qa_dimensions": [],
                 "artifacts": [],
             }
             for i, a in enumerate(req.agents)
@@ -702,6 +706,7 @@ async def create_pipeline(req: PipelineRequest):
         "started_at": time.time(),
         "updated_at": time.time(),
     }
+    _save_state()
     asyncio.create_task(_execute_pipeline_step(pid, 0))
     return {"pipeline_id": pid}
 
@@ -747,10 +752,13 @@ async def approve_pipeline_step(pipeline_id: str, body: ApproveRequest):
     if pipeline["status"] != "awaiting_approval":
         raise HTTPException(status_code=400, detail=f"Pipeline is {pipeline['status']}, not awaiting_approval")
     step_idx = pipeline["current_step"]
+    if step_idx >= len(pipeline["steps"]):
+        raise HTTPException(status_code=400, detail="No active step to approve")
     step = pipeline["steps"][step_idx]
     if step["run_id"]:
         _push_to_kernel_by_run_id(step["run_id"], pipeline["project"], step["agent"])
     step["status"] = "done"
+    _save_state()
     asyncio.create_task(_advance_pipeline(pipeline_id, step_idx))
     return {"status": "approved", "pipeline_id": pipeline_id, "step": step_idx}
 
@@ -761,6 +769,8 @@ async def reject_pipeline_step(pipeline_id: str):
         raise HTTPException(status_code=404, detail="Pipeline not found")
     pipeline = _pipelines[pipeline_id]
     step_idx = pipeline["current_step"]
+    if step_idx >= len(pipeline["steps"]):
+        raise HTTPException(status_code=400, detail="No active step to reject")
     pipeline["steps"][step_idx]["status"] = "rejected"
     pipeline["status"] = "rejected"
     pipeline["updated_at"] = time.time()
@@ -770,6 +780,7 @@ async def reject_pipeline_step(pipeline_id: str):
         "step": step_idx,
         "ts": time.time(),
     })
+    _save_state()
     return {"status": "rejected", "pipeline_id": pipeline_id}
 
 
@@ -833,22 +844,24 @@ async def list_projects():
 def _resolve_llm(settings: dict) -> Any:
     """Build an LLM provider from persisted settings.
 
-    Priority: Anthropic (if api_key set) → resolve_provider() (reads env vars) → Ollama fallback.
-    Sets ANTHROPIC_API_KEY in the environment so downstream code that reads env vars also sees it.
+    Routing: if an API key is set AND the model name starts with "claude-", use
+    resolve_provider() (Anthropic path). Otherwise always use OllamaProvider.
+    This prevents local model names (e.g. gemma4:e4b) from being silently routed
+    through Anthropic when an API key happens to be present.
     """
     api_key = settings.get("api_key")
     model_name = settings.get("model_name", "gemma4:e4b")
+    is_anthropic_model = model_name.startswith("claude-")
 
-    if api_key:
+    if api_key and is_anthropic_model:
         os.environ["ANTHROPIC_API_KEY"] = api_key
+        try:
+            from agentsuite.llm.resolver import resolve_provider
+            return resolve_provider(name=model_name)
+        except Exception:
+            pass
 
-    try:
-        from agentsuite.llm.resolver import resolve_provider
-        return resolve_provider(name=model_name)
-    except Exception:
-        pass
-
-    # Hard fallback to Ollama with the configured model
+    # Local Ollama path for all non-Claude models (and fallback)
     try:
         from agentsuite.llm.ollama import OllamaProvider
         return OllamaProvider(model=model_name)
@@ -952,10 +965,7 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
                         )
                         dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
                         if isinstance(dims, dict):
-                            qa_dimensions = [
-                                {"name": k, "score": float(v)}
-                                for k, v in dims.items()
-                            ]
+                            qa_dimensions = _sanitize_qa_dimensions(dims)
                         elif isinstance(dims, list):
                             qa_dimensions = dims
                     except Exception:
@@ -983,6 +993,23 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
 # Pipeline background helpers
 # ---------------------------------------------------------------------------
 
+_QA_KEY_RE = re.compile(r"[./]")
+
+
+def _sanitize_qa_dimensions(dims: dict) -> list[dict]:
+    """Reject keys that look like filenames or paths; drop non-numeric values."""
+    result = []
+    for k, v in dims.items():
+        if not isinstance(k, str):
+            continue
+        if len(k) > 60 or _QA_KEY_RE.search(k):
+            continue
+        try:
+            result.append({"name": k, "score": float(v)})
+        except (TypeError, ValueError):
+            pass
+    return result
+
 
 def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
     _pipelines[pipeline_id]["events"].append({
@@ -995,6 +1022,12 @@ def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
 
 async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
     pipeline = _pipelines[pipeline_id]
+    if step_idx >= len(pipeline["steps"]):
+        pipeline["status"] = "error"
+        pipeline["updated_at"] = time.time()
+        _emit_pipeline(pipeline_id, "pipeline_error", error="step index out of range", step=step_idx)
+        _save_state()
+        return
     step = pipeline["steps"][step_idx]
     agent_id = step["agent"]
 
@@ -1039,8 +1072,7 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
         result = await loop.run_in_executor(None, _run_sync)
         result_step = result.steps[0] if result.steps else None
 
-        actual_run_id = f"{step_orch_id}-{agent_id}"
-        step["run_id"] = actual_run_id
+        step["run_id"] = result_step.run_id if (result_step and result_step.run_id) else None
 
         if result_step and result_step.run_id:
             run_dir = output_root / "runs" / result_step.run_id
@@ -1060,11 +1092,17 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
                             or qa_data.get("score")
                             or qa_data.get("overall")
                         )
+                        dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
+                        if isinstance(dims, dict):
+                            step["qa_dimensions"] = _sanitize_qa_dimensions(dims)
+                        elif isinstance(dims, list):
+                            step["qa_dimensions"] = dims
                     except Exception:
                         pass
 
         if pipeline["auto_approve"]:
-            _push_to_kernel_by_run_id(actual_run_id, pipeline["project"], agent_id)
+            if step["run_id"]:
+                _push_to_kernel_by_run_id(step["run_id"], pipeline["project"], agent_id)
             step["status"] = "done"
             await _advance_pipeline(pipeline_id, step_idx)
         else:
@@ -1072,16 +1110,24 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
             pipeline["status"] = "awaiting_approval"
             pipeline["updated_at"] = time.time()
             _emit_pipeline(pipeline_id, "agent_waiting", agent=agent_id, step=step_idx, qa_score=step["qa_score"])
+            _save_state()
 
     except Exception as exc:
         step["status"] = "error"
         pipeline["status"] = "error"
         pipeline["updated_at"] = time.time()
         _emit_pipeline(pipeline_id, "pipeline_error", error=str(exc), step=step_idx)
+        _save_state()
 
 
 async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
     pipeline = _pipelines[pipeline_id]
+    if approved_step_idx >= len(pipeline["steps"]):
+        pipeline["status"] = "error"
+        pipeline["updated_at"] = time.time()
+        _emit_pipeline(pipeline_id, "pipeline_error", error="approved step index out of range", step=approved_step_idx)
+        _save_state()
+        return
     step = pipeline["steps"][approved_step_idx]
     step["status"] = "done"
     _emit_pipeline(pipeline_id, "agent_done", agent=step["agent"], step=approved_step_idx, qa_score=step["qa_score"])
@@ -1093,6 +1139,7 @@ async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
         pipeline["status"] = "done"
         pipeline["updated_at"] = time.time()
         _emit_pipeline(pipeline_id, "pipeline_done")
+        _save_state()
         return
 
     pipeline["steps"][next_idx]["status"] = "running"

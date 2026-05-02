@@ -3,11 +3,11 @@ import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 import { AGENTS } from "../../data.js";
 
-export const ScreenAgents = ({ onBack, onNext, enabled, setEnabled }) => {
+export const ScreenAgents = ({ onBack, onNext, enabled, setEnabled, totalSteps }) => {
   const toggle = id => setEnabled(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   return (
-    <InstallerShell step={8} totalSteps={12} onBack={onBack} onNext={onNext}
+    <InstallerShell step={8} totalSteps={totalSteps} onBack={onBack} onNext={onNext}
       nextDisabled={enabled.length === 0}
       secondary={<button className="btn btn-ghost" onClick={() => setEnabled(AGENTS.map(a => a.id))}>Select all</button>}
     >

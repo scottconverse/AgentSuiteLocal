@@ -145,7 +145,7 @@ function StepCard({ step }) {
         {step.status === "done"              && <Icon name="check" size={13} style={{ color: "var(--good)", marginLeft: "auto" }} stroke={3} />}
         {step.status === "running"           && <span className="dot pulse-dot" style={{ marginLeft: "auto", color: "var(--accent)" }} />}
         {step.status === "awaiting_approval" && <Icon name="clock" size={13} style={{ color: warnColor, marginLeft: "auto" }} />}
-        {step.status === "error"             && <Icon name="alert-triangle" size={13} style={{ color: "var(--bad)", marginLeft: "auto" }} />}
+        {step.status === "error"             && <Icon name="alert" size={13} style={{ color: "var(--bad)", marginLeft: "auto" }} />}
       </div>
       {step.qa_score != null && (
         <div className="mono" style={{ fontSize: 11, color: step.status === "done" ? "var(--good)" : warnColor }}>
@@ -280,7 +280,7 @@ export const PipelineView = () => {
 
         {pipelines.length === 0 && !showForm ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-3)" }}>
-            <Icon name="git-branch" size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
+            <Icon name="git2" size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8, color: "var(--ink-2)" }}>No pipelines yet</div>
             <div style={{ fontSize: 13, marginBottom: 20 }}>
               Chain multiple agents to run in sequence on the same project and goal.

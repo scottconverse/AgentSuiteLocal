@@ -174,7 +174,7 @@ pytest tests/test_api.py tests/test_integration.py -v
 # Live Ollama tests (requires Ollama running with a model loaded)
 pytest tests/test_ollama_live.py -v -m ollama
 
-# E2E browser tests (requires Vite dev server on :5175 and backend on :8765)
+# E2E browser tests (Vite on :5173, backend auto-started on :8766 by conftest)
 pytest tests/e2e/ -v -m e2e
 ```
 
@@ -219,7 +219,7 @@ Runs and kernel artifacts are written to `~/AgentSuite/` by default. Override wi
 ## Known issues (v0.1.1)
 
 - Run and pipeline state is held in memory + JSON sidecars under `~/.agentsuitelocal/`; a backend restart before a run completes may lose in-flight state.
-- E2E test suite requires a running Vite dev server (`:5175`) and backend (`:8766`) — these are not auto-started by the test runner.
+- E2E test suite requires a running Vite dev server (`:5173`); the backend on `:8766` is auto-started by `tests/e2e/conftest.py`.
 
 Security, thread-safety, and accessibility issues from the v0.1.0 audit were resolved in v0.1.1. See [CHANGELOG](CHANGELOG.md) for details.
 

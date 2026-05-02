@@ -3,8 +3,8 @@ import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 import { MODELS } from "../../data.js";
 
-export const ScreenTier = ({ onBack, onNext, tier, setTier }) => (
-  <InstallerShell step={4} totalSteps={12} onBack={onBack} onNext={onNext}>
+export const ScreenTier = ({ onBack, onNext, tier, setTier, totalSteps }) => (
+  <InstallerShell step={4} totalSteps={totalSteps} onBack={onBack} onNext={onNext}>
     <SectionHeader eyebrow="Step 04" title="Pick a model"
       sub="Bigger model = better output, slower runs, more disk. We've highlighted what fits your hardware." />
 

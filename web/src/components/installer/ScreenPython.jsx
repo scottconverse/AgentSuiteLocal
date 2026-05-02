@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-export const ScreenPython = ({ onBack, onNext }) => {
+export const ScreenPython = ({ onBack, onNext, totalSteps }) => {
   const [checks, setChecks] = useState([]);
   const [shown, setShown] = useState(0); // how many checks to render (for staggered animation)
   const [allOk, setAllOk] = useState(false);
@@ -30,7 +30,7 @@ export const ScreenPython = ({ onBack, onNext }) => {
   const anyFailed = checks.some(c => !c.ok);
 
   return (
-    <InstallerShell step={7} totalSteps={12} onBack={onBack} onNext={onNext} nextDisabled={shown < checks.length || !allOk}>
+    <InstallerShell step={7} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={shown < checks.length || !allOk}>
       <SectionHeader eyebrow="Step 07" title="Setting up the runtime"
         sub="The agents run inside a bundled Python environment. Verifying everything is intact." />
 

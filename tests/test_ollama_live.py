@@ -12,8 +12,6 @@ but it still exercises the full AgentSuite code path end-to-end.
 from __future__ import annotations
 
 import json
-import socket
-import threading
 import time
 from pathlib import Path
 
@@ -21,6 +19,8 @@ import httpx
 import pytest
 
 from agentsuitelocal.api.main import app, _runs
+
+# live_server is session-scoped and defined in tests/conftest.py
 
 # ---------------------------------------------------------------------------
 # Autoskip when Ollama is not reachable
@@ -40,47 +40,6 @@ pytestmark = pytest.mark.ollama
 # Apply module-level skip so the entire file is skipped gracefully in CI
 if not _ollama_reachable():
     pytest.skip("Ollama not reachable — skipping live tests", allow_module_level=True)
-
-
-# ---------------------------------------------------------------------------
-# Server fixture (same pattern as integration tests)
-# ---------------------------------------------------------------------------
-
-
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-@pytest.fixture(scope="module")
-def live_server(tmp_path_factory):
-    import uvicorn
-
-    port = _free_port()
-    workspace = tmp_path_factory.mktemp("agentsuite_workspace")
-    config = uvicorn.Config(
-        app,
-        host="127.0.0.1",
-        port=port,
-        log_level="error",
-    )
-    server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                break
-        except OSError:
-            time.sleep(0.05)
-
-    yield f"http://127.0.0.1:{port}", workspace
-
-    server.should_exit = True
-    thread.join(timeout=3)
 
 
 @pytest.fixture(autouse=True)
@@ -109,8 +68,7 @@ def test_ollama_model_loaded():
 
 
 def test_api_health_reports_ollama_up(live_server):
-    base, _ = live_server
-    r = httpx.get(f"{base}/api/health", timeout=5)
+    r = httpx.get(f"{live_server}/api/health", timeout=5)
     data = r.json()
     assert data["ollama"] is True
     assert data["status"] == "healthy"
@@ -118,8 +76,7 @@ def test_api_health_reports_ollama_up(live_server):
 
 
 def test_api_ollama_status_running(live_server):
-    base, _ = live_server
-    r = httpx.get(f"{base}/api/ollama/status", timeout=5)
+    r = httpx.get(f"{live_server}/api/ollama/status", timeout=5)
     data = r.json()
     assert data["running"] is True
     assert len(data["models"]) > 0
@@ -130,7 +87,7 @@ def test_api_ollama_status_running(live_server):
 # ---------------------------------------------------------------------------
 
 
-def test_smoke_run_reaches_waiting_or_error(live_server):
+def test_smoke_run_reaches_waiting_or_error(live_server, tmp_path):
     """
     Fire a real agent run against the local model and wait for the pipeline to
     either reach 'waiting' (success path) or 'error' (AgentSuite not installed
@@ -139,12 +96,11 @@ def test_smoke_run_reaches_waiting_or_error(live_server):
     Timeout: 120 s — generous for a slow model; real runs take 9–16 min but
     we use a trivial goal so only the orchestrator bootstrap matters.
     """
-    base, workspace = live_server
     import os
-    os.environ["AGENTSUITE_WORKSPACE"] = str(workspace)
+    os.environ["AGENTSUITE_WORKSPACE"] = str(tmp_path)
 
     r = httpx.post(
-        f"{base}/api/run",
+        f"{live_server}/api/run",
         json={
             "agent_id": "founder",
             "goal": "Name a dog grooming startup in one word.",
@@ -156,7 +112,7 @@ def test_smoke_run_reaches_waiting_or_error(live_server):
     run_id = r.json()["run_id"]
 
     events: list[dict] = []
-    with httpx.stream("GET", f"{base}/api/run/{run_id}/stream", timeout=120) as resp:
+    with httpx.stream("GET", f"{live_server}/api/run/{run_id}/stream", timeout=120) as resp:
         assert resp.status_code == 200
         for line in resp.iter_lines():
             if line.startswith("data:"):
@@ -174,14 +130,13 @@ def test_smoke_run_reaches_waiting_or_error(live_server):
     assert run["status"] in ("waiting", "error")
 
 
-def test_smoke_run_sse_events_have_required_fields(live_server):
+def test_smoke_run_sse_events_have_required_fields(live_server, tmp_path):
     """Every SSE event must carry run_id and ts fields."""
-    base, workspace = live_server
     import os
-    os.environ["AGENTSUITE_WORKSPACE"] = str(workspace)
+    os.environ["AGENTSUITE_WORKSPACE"] = str(tmp_path)
 
     r = httpx.post(
-        f"{base}/api/run",
+        f"{live_server}/api/run",
         json={
             "agent_id": "founder",
             "goal": "One word company name for a bakery.",
@@ -192,7 +147,7 @@ def test_smoke_run_sse_events_have_required_fields(live_server):
     run_id = r.json()["run_id"]
 
     events: list[dict] = []
-    with httpx.stream("GET", f"{base}/api/run/{run_id}/stream", timeout=120) as resp:
+    with httpx.stream("GET", f"{live_server}/api/run/{run_id}/stream", timeout=120) as resp:
         for line in resp.iter_lines():
             if line.startswith("data:"):
                 events.append(json.loads(line[5:].strip()))

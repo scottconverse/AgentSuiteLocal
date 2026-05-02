@@ -28,7 +28,7 @@ Roughly 9–16 minutes depending on the agent and your hardware tier. The Live R
 The most common cause is a vague goal. Rewrite it to be more specific and concrete, then re-run.
 
 **Can I stop a run once it starts?**  
-You can cancel from the Live Run screen. The pipeline continues on the backend regardless — closing the window doesn't stop it. If it completes while you're away, it will be waiting in the Runs screen for your review.
+No — once started, a run runs to completion on the backend. Navigating away from the Live Run screen does not stop the pipeline. If it completes while you're away, it will be waiting in the Runs screen for your review. To discard the output, reject it in the Approval Gate.
 
 ---
 

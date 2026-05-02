@@ -27,5 +27,5 @@ AgentSuiteLocal is a locally-run desktop app. The threat model is:
 - **No remote attack surface by default.** The FastAPI backend binds to `localhost` only. It is not exposed to the network.
 - **API key storage.** Anthropic API keys are stored in `~/.agentsuitelocal/settings.json` on disk and are never transmitted to Anthropic except as the authorization header in direct LLM calls. The `GET /api/settings` endpoint redacts the key to `"****"`.
 - **Path traversal protection.** Artifact paths are validated with a slug regex and a resolved-path prefix check before any file write.
-- **No authentication.** The app is single-user and assumes localhost trust. Do not expose port 8765 to an untrusted network.
+- **No authentication.** The app is single-user and assumes localhost trust. Do not expose port 8765 (distributable) or port 8766 (dev) to an untrusted network.
 - **Dependency chain.** The `agentsuite` package is pinned to a specific commit SHA in `pyproject.toml`. Update the pin intentionally before each distribution build.

@@ -33,7 +33,7 @@ Open http://localhost:5173.
 # Backend unit + integration tests (no Ollama required)
 pytest tests/test_api.py tests/test_integration.py -v
 
-# E2E tests (requires Vite on :5175 and backend on :8765)
+# E2E tests (Vite on :5173, backend auto-started on :8766 by conftest)
 playwright install chromium
 pytest tests/e2e/ -v -m e2e
 

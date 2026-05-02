@@ -3,8 +3,8 @@ import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
 // QA-002: apiKey/setApiKey lifted to App.jsx so enterApp() can persist them to /api/settings
-export const ScreenApiKey = ({ onBack, onNext, apiKey, setApiKey }) => (
-  <InstallerShell step={9} totalSteps={11} onBack={onBack} onNext={onNext}>
+export const ScreenApiKey = ({ onBack, onNext, apiKey, setApiKey, totalSteps }) => (
+  <InstallerShell step={9} totalSteps={totalSteps} onBack={onBack} onNext={onNext}>
     <SectionHeader eyebrow="Step 09" title="Cloud fallback (optional)"
       sub="If Ollama is unavailable or you want faster output, AgentSuiteLocal can fall back to the Anthropic API. Leave blank to run fully local." />
 

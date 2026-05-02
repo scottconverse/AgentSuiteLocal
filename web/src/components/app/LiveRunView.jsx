@@ -62,7 +62,7 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
   if (!runId) {
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
-        <Icon name="alertCircle" size={32} style={{ color: "var(--warn)" }} />
+        <Icon name="alert" size={32} style={{ color: "var(--warn)" }} />
         <div style={{ fontSize: 14, color: "var(--ink-2)" }}>No run ID. Go back and start a run.</div>
         <button className="btn" onClick={onCancel}>Back</button>
       </div>
@@ -104,7 +104,7 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
             {status === "error" && (
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-sm" onClick={onCancel}>
-                  <Icon name="arrowL" size={12} /> Back to Dashboard
+                  <Icon name="chevL" size={12} /> Back to Dashboard
                 </button>
               </div>
             )}

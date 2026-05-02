@@ -3,8 +3,8 @@ import { Icon } from "../ui/index.jsx";
 import { InstallerShell } from "./InstallerShell.jsx";
 
 // onNext is enterApp from App.jsx — it persists settings before switching to the app
-export const ScreenSuccess = ({ onBack, onNext }) => (
-  <InstallerShell step={11} totalSteps={11} onBack={onBack} onNext={onNext} nextLabel="Launch AgentSuiteLocal" accent>
+export const ScreenSuccess = ({ onBack, onNext, totalSteps }) => (
+  <InstallerShell step={11} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextLabel="Launch AgentSuiteLocal" accent>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", paddingTop: 24 }}>
       <div style={{ width: 72, height: 72, borderRadius: 18, background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24, boxShadow: "0 12px 32px rgba(194, 86, 43, 0.32)" }}>
         <Icon name="check" size={36} stroke={2.4} />

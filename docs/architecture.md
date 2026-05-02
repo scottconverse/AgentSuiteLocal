@@ -78,11 +78,17 @@ POST /api/run/{id}/approve
 
 ### In-memory store
 
-`_runs` is a plain dict — sufficient for a local single-user app. No database, no persistence between restarts. That's intentional: runs are cheap to re-run, and the kernel (promoted artifacts) is the durable state.
+`_runs` and `_pipelines` are plain dicts — sufficient for a local single-user app. Both are persisted to JSON sidecars (`~/.agentsuitelocal/runs.json`, `~/.agentsuitelocal/pipelines.json`) at every state transition and reloaded on startup. Runs that were in-flight at shutdown are marked as `"error"` on reload. The kernel (promoted artifacts) is the canonical durable state; the JSON sidecars are a best-effort history.
 
 ### Thread model
 
-The FastAPI event loop stays on one thread. `PipelineOrchestrator.run()` is synchronous (AgentSuite v0.1), so it runs in the default thread pool via `loop.run_in_executor(None, _run_sync)`. The `on_progress` callback appends to a list; the SSE generator reads that list. No locks needed — CPython GIL protects list appends, and SSE reads the snapshot length, not a reference.
+The FastAPI event loop stays on one thread. `PipelineOrchestrator.run()` is synchronous (AgentSuite v0.1), so it runs in the default thread pool via `loop.run_in_executor(None, _run_sync)`.
+
+The `on_progress` callback is invoked on the thread-pool thread. It pushes updates to the event-loop thread using `loop.call_soon_threadsafe(events.append, event)` — never mutating the event list directly from a non-event-loop thread. The SSE generator reads the event list exclusively on the event-loop thread.
+
+`_save_state` and `_apply_settings_patch` hold a `threading.Lock` guard for their read-modify-write sequences to prevent concurrent corruption of the JSON sidecars.
+
+> **v0.1.1 note:** Prior to v0.1.1, the `on_progress` callback appended directly to the list from the thread-pool thread. This was fixed (ENG-001, ENG-003) in v0.1.1 with `call_soon_threadsafe` and locking.
 
 ---
 

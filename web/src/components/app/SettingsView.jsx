@@ -115,7 +115,7 @@ export const SettingsView = () => {
                 <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8 }}>
                   <Icon name={a.icon} size={14} style={{ color: "var(--ink-2)" }} />
                   <span style={{ flex: 1, fontSize: 13 }}>{a.name}</span>
-                  <Toggle checked={enabled} onChange={() => toggleAgent(a.id)} size="sm" />
+                  <Toggle checked={enabled} onChange={() => toggleAgent(a.id)} size="sm" label={`Enable ${a.name} agent`} />
                 </div>
               );
             })}
@@ -134,7 +134,7 @@ export const SettingsView = () => {
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{r.l}</div>
                 <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{r.sub}</div>
               </div>
-              <Toggle checked={!!settings[r.key]} onChange={v => patch({ [r.key]: v })} />
+              <Toggle checked={!!settings[r.key]} onChange={v => patch({ [r.key]: v })} label={r.l} />
             </div>
           ))}
         </div>

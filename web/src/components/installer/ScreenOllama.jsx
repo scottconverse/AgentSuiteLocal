@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Icon, ProgressBar } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-export const ScreenOllama = ({ onBack, onNext }) => {
+export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
   const [phase, setPhase] = useState("detecting"); // detecting | not-found | installing | done | error
   const [installPct, setInstallPct] = useState(0);
   const [installMsg, setInstallMsg] = useState("");
@@ -71,7 +71,7 @@ export const ScreenOllama = ({ onBack, onNext }) => {
   };
 
   return (
-    <InstallerShell step={5} totalSteps={12} onBack={onBack} onNext={onNext} nextDisabled={phase !== "done"}>
+    <InstallerShell step={5} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={phase !== "done"}>
       <SectionHeader eyebrow="Step 05" title="Ollama runtime"
         sub="Ollama is the engine that runs the model on your machine." />
 

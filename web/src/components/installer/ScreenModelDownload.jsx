@@ -3,7 +3,7 @@ import { Icon, ProgressBar } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 import { MODELS } from "../../data.js";
 
-export const ScreenModelDownload = ({ onBack, onNext, tier }) => {
+export const ScreenModelDownload = ({ onBack, onNext, tier, totalSteps }) => {
   const model = MODELS.find(m => m.id === tier) || MODELS[1];
   const [pct, setPct] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | pulling | done | error
@@ -102,7 +102,7 @@ export const ScreenModelDownload = ({ onBack, onNext, tier }) => {
     : "Calculating…";
 
   return (
-    <InstallerShell step={6} totalSteps={12} onBack={onBack} onNext={onNext} nextDisabled={status !== "done"}>
+    <InstallerShell step={6} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={status !== "done"}>
       <SectionHeader eyebrow="Step 06" title="Downloading model"
         sub="One-time download. The model is shared with any other Ollama-based app you install later." />
 

@@ -90,18 +90,19 @@ export default function App() {
   const goBack = () => step > 1 && setStep(s => s - 1);
 
   const installerStep = () => {
+    const ts = TOTAL_STEPS;
     switch (step) {
-      case 1:  return <ScreenWelcome onNext={goNext} />;
-      case 2:  return <ScreenLicense onBack={goBack} onNext={goNext} />;
-      case 3:  return <ScreenHardware onBack={goBack} onNext={goNext} />;
-      case 4:  return <ScreenTier onBack={goBack} onNext={goNext} tier={tier} setTier={setTier} />;
-      case 5:  return <ScreenOllama onBack={goBack} onNext={goNext} />;
-      case 6:  return <ScreenModelDownload onBack={goBack} onNext={goNext} tier={tier} />;
-      case 7:  return <ScreenPython onBack={goBack} onNext={goNext} />;
-      case 8:  return <ScreenAgents onBack={goBack} onNext={goNext} enabled={agents} setEnabled={setAgents} />;
-      case 9:  return <ScreenApiKey onBack={goBack} onNext={goNext} apiKey={apiKey} setApiKey={setApiKey} />;
-      case 10: return <ScreenSmoke onBack={goBack} onNext={goNext} />;
-      case 11: return <ScreenSuccess onBack={goBack} onNext={enterApp} />;
+      case 1:  return <ScreenWelcome onNext={goNext} totalSteps={ts} />;
+      case 2:  return <ScreenLicense onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 3:  return <ScreenHardware onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 4:  return <ScreenTier onBack={goBack} onNext={goNext} tier={tier} setTier={setTier} totalSteps={ts} />;
+      case 5:  return <ScreenOllama onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 6:  return <ScreenModelDownload onBack={goBack} onNext={goNext} tier={tier} totalSteps={ts} />;
+      case 7:  return <ScreenPython onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 8:  return <ScreenAgents onBack={goBack} onNext={goNext} enabled={agents} setEnabled={setAgents} totalSteps={ts} />;
+      case 9:  return <ScreenApiKey onBack={goBack} onNext={goNext} apiKey={apiKey} setApiKey={setApiKey} totalSteps={ts} />;
+      case 10: return <ScreenSmoke onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 11: return <ScreenSuccess onBack={goBack} onNext={enterApp} totalSteps={ts} />;
       default: return null;
     }
   };

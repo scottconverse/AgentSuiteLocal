@@ -145,7 +145,7 @@ export const MetricCard = ({ icon, label, value, sub, status }) => (
   </div>
 );
 
-export const Toggle = ({ checked, onChange, size = "md" }) => {
+export const Toggle = ({ checked, onChange, size = "md", label }) => {
   const w = size === "sm" ? 28 : 36;
   const h = size === "sm" ? 16 : 20;
   const k = size === "sm" ? 12 : 16;
@@ -153,6 +153,7 @@ export const Toggle = ({ checked, onChange, size = "md" }) => {
     <button onClick={() => onChange(!checked)}
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       style={{
       width: w, height: h, padding: 0, borderRadius: 999,
       background: checked ? "var(--accent)" : "var(--line-2)",

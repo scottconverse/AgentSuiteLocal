@@ -2,14 +2,16 @@
 API endpoint tests — no AgentSuite required, no Ollama required.
 
 Tests cover: health, hardware, ollama/status, run CRUD, kernel, projects,
-pipeline state machine, pipeline SSE stream, inputs_dir validation.
+pipeline state machine, pipeline SSE stream, inputs_dir validation,
+pipeline validation (QA-001/QA-002), pipeline persistence (ENG-NEW-001),
+run_id correctness (ENG-NEW-005), QA dimension sanitization (ENG-NEW-002).
 All network calls degrade gracefully; the test suite runs from a clean clone.
 """
 
 import pytest
 from fastapi.testclient import TestClient
 
-from agentsuitelocal.api.main import app, _runs, _pipelines
+from agentsuitelocal.api.main import app, _runs, _pipelines, _sanitize_qa_dimensions
 
 client = TestClient(app)
 
@@ -505,3 +507,157 @@ def test_pipeline_rejects_invalid_project_slug():
         "agents": ["founder"],
     })
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# QA-001 / QA-002 — empty agents list and invalid agent slug
+# ---------------------------------------------------------------------------
+
+def test_pipeline_rejects_empty_agents_list():
+    """POST /api/pipelines with agents: [] must return 422, not 200."""
+    r = client.post("/api/pipelines", json={
+        "name": "Empty agents",
+        "project": "qa001-test",
+        "goal": "Should be rejected",
+        "agents": [],
+    })
+    assert r.status_code == 422
+
+
+def test_pipeline_rejects_invalid_agent_slug():
+    """Agent IDs must match the slug pattern; path-like strings must be rejected."""
+    r = client.post("/api/pipelines", json={
+        "name": "Bad agent slug",
+        "project": "qa002-test",
+        "goal": "Should be rejected",
+        "agents": ["../../etc/passwd"],
+    })
+    assert r.status_code == 422
+
+
+def test_pipeline_rejects_agent_slug_with_spaces():
+    r = client.post("/api/pipelines", json={
+        "name": "Bad agent slug",
+        "project": "qa002-test",
+        "goal": "Should be rejected",
+        "agents": ["founder agent"],
+    })
+    assert r.status_code == 422
+
+
+def test_pipeline_reject_with_no_steps_returns_400():
+    """Reject on a pipeline that advanced past all steps must not 500."""
+    r = client.post("/api/pipelines", json={
+        "name": "Bounds test",
+        "project": "bounds-test",
+        "goal": "Test bounds guard",
+        "agents": ["founder"],
+    })
+    pid = r.json()["pipeline_id"]
+    # Simulate pipeline fully done (current_step past end)
+    _pipelines[pid]["current_step"] = 99
+    _pipelines[pid]["status"] = "awaiting_approval"
+    r2 = client.post(f"/api/pipelines/{pid}/reject")
+    assert r2.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# ENG-NEW-001 — pipeline state persistence
+# ---------------------------------------------------------------------------
+
+def test_create_pipeline_persists_to_pipelines_dict():
+    """create_pipeline must call _save_state; pipeline must appear in _pipelines."""
+    r = client.post("/api/pipelines", json={
+        "name": "Persist test",
+        "project": "persist-test",
+        "goal": "Test persistence",
+        "agents": ["founder"],
+    })
+    assert r.status_code == 200
+    pid = r.json()["pipeline_id"]
+    assert pid in _pipelines
+
+
+def test_reject_pipeline_reflects_in_memory():
+    """reject_pipeline_step must update in-memory state (precondition for _save_state)."""
+    r = client.post("/api/pipelines", json={
+        "name": "Reject persist",
+        "project": "reject-persist",
+        "goal": "Test reject persistence",
+        "agents": ["founder", "design"],
+    })
+    pid = r.json()["pipeline_id"]
+    _pipelines[pid]["status"] = "awaiting_approval"
+    _pipelines[pid]["steps"][0]["status"] = "awaiting_approval"
+
+    client.post(f"/api/pipelines/{pid}/reject")
+    assert _pipelines[pid]["status"] == "rejected"
+
+
+# ---------------------------------------------------------------------------
+# ENG-NEW-005 — run_id stored is real (not synthetic)
+# ---------------------------------------------------------------------------
+
+def test_pipeline_step_run_id_initializes_to_none():
+    """Steps must initialize with run_id=None, not a synthetic string."""
+    r = client.post("/api/pipelines", json={
+        "name": "RunID test",
+        "project": "runid-test",
+        "goal": "Test run_id",
+        "agents": ["founder"],
+    })
+    pid = r.json()["pipeline_id"]
+    step = _pipelines[pid]["steps"][0]
+    # run_id starts None; only set once AgentSuite assigns a real ID
+    assert step["run_id"] is None
+
+
+# ---------------------------------------------------------------------------
+# ENG-NEW-002 — QA dimension key sanitization
+# ---------------------------------------------------------------------------
+
+def test_sanitize_qa_dimensions_rejects_filename_keys():
+    """Keys that look like filenames (contain '.') must be dropped."""
+    dims = {"founder_strategy.md": 0.9, "coherence": 0.8}
+    result = _sanitize_qa_dimensions(dims)
+    names = [d["name"] for d in result]
+    assert "founder_strategy.md" not in names
+    assert "coherence" in names
+
+
+def test_sanitize_qa_dimensions_rejects_path_keys():
+    """Keys containing '/' (path separators) must be dropped."""
+    dims = {"outputs/strategy.md": 0.7, "relevance": 0.9}
+    result = _sanitize_qa_dimensions(dims)
+    names = [d["name"] for d in result]
+    assert "outputs/strategy.md" not in names
+    assert "relevance" in names
+
+
+def test_sanitize_qa_dimensions_rejects_long_keys():
+    """Keys longer than 60 chars must be dropped."""
+    long_key = "a" * 61
+    dims = {long_key: 0.5, "brevity": 0.8}
+    result = _sanitize_qa_dimensions(dims)
+    names = [d["name"] for d in result]
+    assert long_key not in names
+    assert "brevity" in names
+
+
+def test_sanitize_qa_dimensions_drops_non_numeric_values():
+    """Non-numeric values must be silently dropped."""
+    dims = {"quality": "high", "relevance": 0.9}
+    result = _sanitize_qa_dimensions(dims)
+    names = [d["name"] for d in result]
+    assert "quality" not in names
+    assert "relevance" in names
+
+
+def test_sanitize_qa_dimensions_accepts_valid_entries():
+    """Valid dimension dict must pass through intact."""
+    dims = {"coherence": 0.85, "relevance": 0.92, "depth": 0.78}
+    result = _sanitize_qa_dimensions(dims)
+    assert len(result) == 3
+    scores = {d["name"]: d["score"] for d in result}
+    assert scores["coherence"] == pytest.approx(0.85)
+    assert scores["relevance"] == pytest.approx(0.92)

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-export const ScreenSmoke = ({ onBack, onNext }) => {
+export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
   const [steps, setSteps] = useState([]);
   const [status, setStatus] = useState("running"); // running | done | error
   const [summary, setSummary] = useState(null);
@@ -33,7 +33,7 @@ export const ScreenSmoke = ({ onBack, onNext }) => {
   }, []);
 
   return (
-    <InstallerShell step={10} totalSteps={12} onBack={onBack} onNext={onNext} nextDisabled={status !== "done"}>
+    <InstallerShell step={10} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={status !== "done"}>
       <SectionHeader eyebrow="Step 10" title="First-run smoke test"
         sub="Quick end-to-end check that everything talks to everything." />
 

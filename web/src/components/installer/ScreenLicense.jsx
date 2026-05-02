@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-export const ScreenLicense = ({ onBack, onNext }) => {
+export const ScreenLicense = ({ onBack, onNext, totalSteps }) => {
   const [agreed, setAgreed] = useState(false);
   return (
-    <InstallerShell step={2} totalSteps={12} onBack={onBack} onNext={onNext} nextDisabled={!agreed} nextLabel="I agree">
+    <InstallerShell step={2} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={!agreed} nextLabel="I agree">
       <SectionHeader eyebrow="Step 02" title="License & privacy" sub="Plain English. The legal text is in LICENSE.md if you want it." />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
