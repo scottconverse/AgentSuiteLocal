@@ -177,22 +177,21 @@ Without the kernel, each run starts from scratch. With the kernel, each run buil
 
 ## Troubleshooting
 
-**Ollama screen stays stuck (Continue stays disabled)**  
-Ollama isn't running or the model isn't loaded. Open a terminal and run:
-```
-ollama serve
-ollama pull gemma4:e4b
-```
-Then refresh the installer page.
+**The installer is stuck on "Ollama runtime" and Continue never lights up**  
+The AI engine isn't running yet. Look for an Ollama icon in your menu bar (Mac) or system tray (Windows) — it looks like a small llama. If you don't see it, open the Ollama app you installed and wait for it to appear. Once the icon is there, go back to the installer and it should unlock within a few seconds.
 
-**Run immediately shows error**  
-AgentSuite isn't installed or the Python environment is wrong. Run `pip install -e .` in the project root and restart the backend.
+If you haven't installed Ollama yet, go to [ollama.ai](https://ollama.ai), download it, and run it. Then come back to the installer.
 
-**Slow token speed (< 5 tok/s)**  
-Your RAM is likely swapping. Try the Light tier model (`gemma4:e2b`) which uses less RAM.
+**A run starts but immediately shows an error**  
+The installer didn't finish cleanly. The most reliable fix is to quit the app and run the installer again from the beginning. If it fails at the same step twice, [open an issue](https://github.com/scottconverse/AgentSuiteLocal/issues) and paste the error message — that's enough to diagnose it.
 
-**Artifacts are empty or very short**  
-The model context window was exhausted during Spec or Execute. Try the Balanced or Pro tier model.
+> Note: this is a known limitation in v0.1. The installer smoke test catches most setup problems, but not all of them. Phase 2 will surface these errors inside the app rather than as a raw error message.
 
-**Can't find the artifacts**  
-They're at `~/AgentSuite/.agentsuite/runs/{run-id}/`. The run ID is shown in the Runs view.
+**The run is working but feels very slow**  
+Go to **Settings → Model** and switch to the **Light** option. Light uses less of your computer's memory and runs faster on most machines. The output is a bit rougher but still useful for first drafts.
+
+**The artifacts look cut off or are much shorter than expected**  
+Go to **Settings → Model** and try **Balanced** or **Pro**. Light-tier models have a smaller working memory — on long runs they can lose context mid-output. Balanced handles the full pipeline reliably on most 16 GB machines.
+
+**I can't find where the files were saved**  
+Open **Settings**, then click the folder icon next to the workspace path. That opens your AgentSuite folder directly in Finder (Mac) or File Explorer (Windows). Your run files are inside the `runs` folder; anything you've approved lives in `_kernel`.
