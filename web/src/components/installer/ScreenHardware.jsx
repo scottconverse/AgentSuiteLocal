@@ -19,12 +19,11 @@ export const ScreenHardware = ({ onBack, onNext }) => {
         setScanning(false);
       })
       .catch(() => {
-        // fallback demo specs if backend isn't running
         setSpecs([
-          { icon: "cpu", label: "CPU",  value: "Apple M2 Pro", sub: "10 cores",       status: { kind: "good", label: "PASS"     } },
-          { icon: "ram", label: "RAM",  value: "16 GB",        sub: "13.2 GB free",   status: { kind: "good", label: "PASS"     } },
-          { icon: "hdd", label: "DISK", value: "284 GB",       sub: "free of 1 TB",   status: { kind: "good", label: "PASS"     } },
-          { icon: "gpu", label: "GPU",  value: "Apple M2 Pro", sub: "Metal accel",    status: { kind: "good", label: "DETECTED" } },
+          { icon: "cpu", label: "CPU",  value: "Unable to detect", sub: "", status: { kind: "warn", label: "UNKNOWN" } },
+          { icon: "ram", label: "RAM",  value: "Unable to detect", sub: "", status: { kind: "warn", label: "UNKNOWN" } },
+          { icon: "hdd", label: "DISK", value: "Unable to detect", sub: "", status: { kind: "warn", label: "UNKNOWN" } },
+          { icon: "gpu", label: "GPU",  value: "Unable to detect", sub: "", status: { kind: "warn", label: "UNKNOWN" } },
         ]);
         setScanning(false);
       });

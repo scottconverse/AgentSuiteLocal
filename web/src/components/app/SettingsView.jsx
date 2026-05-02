@@ -8,6 +8,11 @@ export const SettingsView = () => {
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // QA-007: separate draft state so API key save is explicit, not onBlur
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [apiKeyDirty, setApiKeyDirty] = useState(false);
+  // UX-022: inline info instead of alert()
+  const [showWorkspaceInfo, setShowWorkspaceInfo] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -16,6 +21,9 @@ export const SettingsView = () => {
     ]).then(([s, o]) => {
       setSettings(s);
       setOllamaStatus(o);
+      // QA-007: initialize draft — API key comes back as "****" if set, empty string if not
+      const stored = s.api_key && s.api_key !== "****" ? s.api_key : "";
+      setApiKeyDraft(stored);
     });
   }, []);
 
@@ -24,13 +32,19 @@ export const SettingsView = () => {
     setSettings(next);
     setSaving(true);
     await fetch("/api/settings", {
-      method: "POST",
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     }).catch(() => {});
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
+  };
+
+  // QA-007: explicit save for API key only
+  const saveApiKey = async () => {
+    await patch({ api_key: apiKeyDraft || null });
+    setApiKeyDirty(false);
   };
 
   const toggleAgent = (id) => {
@@ -132,28 +146,41 @@ export const SettingsView = () => {
           <div style={{ display: "flex", gap: 6 }}>
             <input readOnly value="~/AgentSuite" className="mono"
               style={{ flex: 1, padding: "8px 10px", fontSize: 12, border: "1px solid var(--line-2)", borderRadius: 8, background: "var(--bg-tint)" }} />
-            <button className="btn btn-sm" onClick={() => alert("Set the AGENTSUITE_WORKSPACE environment variable to change this path.")}>Change</button>
+            {/* UX-022: inline info card instead of alert() */}
+            <button className="btn btn-sm" onClick={() => setShowWorkspaceInfo(v => !v)}>Change</button>
           </div>
+          {showWorkspaceInfo && (
+            <div style={{ marginTop: 10, padding: 12, background: "var(--info-soft)", borderRadius: 8, border: "1px solid var(--info)", fontSize: 12, color: "var(--info)", lineHeight: 1.55 }}>
+              <strong>To change the workspace path:</strong> set the <span className="mono">AGENTSUITE_WORKSPACE</span> environment variable before starting AgentSuiteLocal, then restart the app.
+              <br />Example: <span className="mono">AGENTSUITE_WORKSPACE=~/my-workspace</span>
+            </div>
+          )}
         </div>
 
         {/* Cloud fallback */}
         <div className="card" style={{ padding: 18 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Cloud fallback (optional)</div>
           <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 8 }}>Paste an Anthropic API key to use Claude as a fallback for difficult prompts. The app works fully local without this.</div>
+          {/* QA-007: explicit Save button; onBlur was unreliable on navigate-away */}
           <div style={{ display: "flex", gap: 6 }}>
             <input
               type="password"
-              placeholder="sk-ant-…"
-              value={settings.api_key || ""}
-              onChange={e => setSettings(s => ({ ...s, api_key: e.target.value }))}
-              onBlur={e => e.target.value !== (settings.api_key || "") && patch({ api_key: e.target.value })}
+              placeholder={settings.api_key === "****" ? "Key stored — enter new key to replace" : "sk-ant-…"}
+              value={apiKeyDraft}
+              onChange={e => { setApiKeyDraft(e.target.value); setApiKeyDirty(true); }}
               className="mono"
-              style={{ flex: 1, padding: "8px 10px", fontSize: 12, border: "1px solid var(--line-2)", borderRadius: 8, background: "var(--bg)" }}
+              style={{ flex: 1, padding: "8px 10px", fontSize: 12, border: `1px solid ${apiKeyDirty ? "var(--accent)" : "var(--line-2)"}`, borderRadius: 8, background: "var(--bg)" }}
             />
-            {settings.api_key && (
-              <button className="btn btn-sm" onClick={() => patch({ api_key: null })}>Clear</button>
+            {apiKeyDirty && (
+              <button className="btn btn-sm btn-accent" onClick={saveApiKey} disabled={saving}>Save</button>
+            )}
+            {!apiKeyDirty && settings.api_key && (
+              <button className="btn btn-sm" onClick={() => { setApiKeyDraft(""); setApiKeyDirty(true); }}>Clear</button>
             )}
           </div>
+          {apiKeyDirty && (
+            <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>Unsaved changes — click Save to persist.</div>
+          )}
         </div>
 
       </div>

@@ -18,8 +18,8 @@ export const ScreenAgents = ({ onBack, onNext, enabled, setEnabled }) => {
         {AGENTS.map(a => {
           const sel = enabled.includes(a.id);
           return (
-            <button key={a.id} onClick={() => toggle(a.id)} style={{
-              all: "unset", cursor: "pointer", padding: 14, borderRadius: 10,
+            <button key={a.id} onClick={() => toggle(a.id)} className="btn-card" style={{
+              cursor: "pointer", padding: 14, borderRadius: 10,
               border: `1.5px solid ${sel ? "var(--accent)" : "var(--line)"}`,
               background: sel ? "var(--accent-soft)" : "var(--bg-elev)",
               display: "flex", flexDirection: "column", gap: 8, transition: "all 0.12s",

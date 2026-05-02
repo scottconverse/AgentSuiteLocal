@@ -133,8 +133,8 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
             <div style={{ padding: "8px 16px", fontSize: 12, color: "var(--ink-4)", fontStyle: "italic" }}>No artifacts found.</div>
           )}
           {artifacts.map((name, i) => (
-            <button key={i} onClick={() => setSelected(name)} style={{
-              all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+            <button key={i} onClick={() => setSelected(name)} className="btn-card" style={{
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
               padding: "8px 16px", width: "100%", fontSize: 12, boxSizing: "border-box",
               background: selected === name ? "var(--accent-soft)" : "transparent",
               color: selected === name ? "var(--accent-ink)" : "var(--ink-2)",

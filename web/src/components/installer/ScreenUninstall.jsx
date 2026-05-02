@@ -6,12 +6,13 @@ export const ScreenUninstall = ({ onBack }) => {
   const [keepModels, setKeepModels] = useState(true);
   const [keepArtifacts, setKeepArtifacts] = useState(true);
 
+  // UX-004: use OS-neutral paths; actual paths depend on OS and install location
   const items = [
-    { id: "app",       label: "AgentSuiteLocal app",            sub: "/Applications/AgentSuiteLocal.app",                         size: "82 MB",             forced: true  },
-    { id: "py",        label: "Python runtime + dependencies",   sub: "~/Library/Application Support/AgentSuiteLocal/runtime",    size: "164 MB",            forced: true  },
-    { id: "ollama",    label: "Ollama daemon",                   sub: "/usr/local/bin/ollama",                                    size: "94 MB"                            },
-    { id: "models",    label: "Downloaded models (Gemma 4 e4b)", sub: "~/.ollama/models",                                         size: "5.4 GB",            keep: keepModels,    setKeep: setKeepModels    },
-    { id: "artifacts", label: "Your runs and artifacts",         sub: "~/AgentSuite",                                             size: "187 MB · 32 runs",  keep: keepArtifacts, setKeep: setKeepArtifacts },
+    { id: "app",       label: "AgentSuiteLocal app",            sub: "%LOCALAPPDATA%\\AgentSuiteLocal  (or /Applications on macOS)", size: "82 MB",             forced: true  },
+    { id: "py",        label: "Python runtime + dependencies",   sub: "%APPDATA%\\AgentSuiteLocal\\runtime  (or ~/Library on macOS)", size: "164 MB",            forced: true  },
+    { id: "ollama",    label: "Ollama daemon",                   sub: "Installed by Ollama's own installer",                          size: "94 MB"                            },
+    { id: "models",    label: "Downloaded models (Gemma 4 e4b)", sub: "%USERPROFILE%\\.ollama\\models  (or ~/.ollama on macOS)",      size: "5.4 GB",            keep: keepModels,    setKeep: setKeepModels    },
+    { id: "artifacts", label: "Your runs and artifacts",         sub: "%USERPROFILE%\\AgentSuite  (or ~/AgentSuite on macOS)",        size: "variable",          keep: keepArtifacts, setKeep: setKeepArtifacts },
   ];
 
   return (

@@ -175,6 +175,32 @@ try {
     Assert "/api/pipelines returns list"    "$baseUrl/api/pipelines"      { param($b) $null -ne $b.pipelines  } -expectJson 1
     Assert "/api/runs returns list"         "$baseUrl/api/runs"           { param($b) $null -ne $b.runs       } -expectJson 1
 
+    # TEST-002: POST /api/run → poll until terminal state (waiting or error)
+    try {
+        $runResp = Invoke-WebRequest -Uri "$baseUrl/api/run" -Method POST `
+            -ContentType "application/json" `
+            -Body '{"agent_id":"founder","goal":"Cleanroom smoke test","project":"cleanroom"}' `
+            -UseBasicParsing -TimeoutSec 10
+        $runId = ($runResp.Content | ConvertFrom-Json).run_id
+        $terminalStatus = $null
+        $pollDeadline = (Get-Date).AddSeconds(120)
+        while ((Get-Date) -lt $pollDeadline) {
+            Start-Sleep -Seconds 3
+            $s = (Invoke-WebRequest -Uri "$baseUrl/api/run/$runId" -UseBasicParsing -TimeoutSec 5).Content | ConvertFrom-Json
+            if ($s.status -in @('waiting', 'error', 'approved', 'rejected')) {
+                $terminalStatus = $s.status
+                break
+            }
+        }
+        $reached = $null -ne $terminalStatus
+        $marker = if ($reached) { [char]0x2713 } else { [char]0x2717 }
+        Write-Host "  [$marker] POST /api/run reaches terminal state ($terminalStatus)"
+        if (-not $reached) { $failed.Add('POST /api/run terminal state') }
+    } catch {
+        Write-Host "  [x] POST /api/run  -- $_"
+        $failed.Add('POST /api/run terminal state')
+    }
+
     Write-Host ""
     if ($failed.Count -eq 0) {
         Write-Host "Result: PASS - all checks green." -ForegroundColor Green

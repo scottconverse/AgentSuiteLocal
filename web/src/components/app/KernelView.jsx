@@ -7,6 +7,8 @@ export const KernelView = () => {
   const [projects, setProjects] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
+  // UX-021: replace alert() with inline path reveal
+  const [showPath, setShowPath] = useState(false);
 
   useEffect(() => {
     fetch("/api/kernel")
@@ -33,15 +35,22 @@ export const KernelView = () => {
         subtitle={loading ? "Loading…" : `${totalFiles} approved artifacts across ${projectKeys.length} project${projectKeys.length !== 1 ? "s" : ""}`}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-sm" onClick={() => {
-              const ws = "~/AgentSuite/.agentsuite/_kernel";
-              // Reveal in file manager — backend would handle this; for now show the path
-              alert(`Kernel is at: ${ws}`);
-            }}><Icon name="folder" size={13} /> Reveal</button>
+            <button className="btn btn-sm" onClick={() => setShowPath(v => !v)}>
+            <Icon name="folder" size={13} /> Reveal path
+          </button>
           </div>
         }
       />
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+
+        {/* UX-021: inline path display triggered by Reveal button */}
+        {showPath && (
+          <div style={{ padding: "10px 14px", background: "var(--bg-tint)", border: "1px solid var(--line)", borderRadius: 8, display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="folder" size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+            <span className="mono" style={{ fontSize: 12, flex: 1 }}>~/AgentSuite/.agentsuite/_kernel/</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowPath(false)}>Dismiss</button>
+          </div>
+        )}
 
         <div className="card" style={{ padding: 18, display: "flex", gap: 16, alignItems: "center", background: "linear-gradient(120deg, var(--bg-elev), var(--accent-soft))" }}>
           <Icon name="layers" size={28} style={{ color: "var(--accent)" }} />
@@ -74,8 +83,9 @@ export const KernelView = () => {
           <div className="card" style={{ padding: 32, textAlign: "center" }}>
             <Icon name="layers" size={32} style={{ color: "var(--ink-4)", marginBottom: 12 }} />
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Kernel is empty</div>
-            <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
-              Complete a run and approve it to populate the kernel.
+            {/* UX-005: explain what the kernel is in the empty state */}
+            <div style={{ fontSize: 13, color: "var(--ink-3)", maxWidth: 420, margin: "0 auto", lineHeight: 1.55 }}>
+              The kernel is your source of truth — approved artifacts from past runs that every future agent reads as canonical context. Run an agent from the Agents screen and approve the result to populate it.
             </div>
           </div>
         )}

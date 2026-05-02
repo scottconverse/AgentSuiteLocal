@@ -3,17 +3,17 @@ import { Icon } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
 import { AGENTS } from "../../data.js";
 
-export const AgentsView = ({ onPick }) => (
+export const AgentsView = ({ onPick, onManual }) => (
   <div style={{ flex: 1, overflow: "auto" }}>
     <TopBar
       title="Agents"
       subtitle="Seven specialists. Each writes a different artifact library."
-      actions={<button className="btn btn-sm"><Icon name="info" size={13} /> What's a kernel?</button>}
+      actions={<button className="btn btn-sm" onClick={() => onManual?.()}><Icon name="info" size={13} /> What's a kernel?</button>}
     />
     <div style={{ padding: 24, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
       {AGENTS.map(a => (
-        <button key={a.id} onClick={() => onPick(a.id)} style={{
-          all: "unset", cursor: "pointer", padding: 20,
+        <button key={a.id} onClick={() => onPick(a.id)} className="btn-card" style={{
+          cursor: "pointer", padding: 20,
           borderRadius: 14, border: "1px solid var(--line)",
           background: "var(--bg-elev)", boxShadow: "var(--sh-1)",
           display: "flex", flexDirection: "column", gap: 12, transition: "all 0.15s",

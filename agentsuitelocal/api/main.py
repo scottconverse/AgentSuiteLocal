@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 import zipfile
@@ -26,7 +27,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 from sse_starlette.sse import EventSourceResponse
 
 # ---------------------------------------------------------------------------
@@ -49,6 +50,9 @@ app.add_middleware(
 
 _runs: dict[str, dict[str, Any]] = {}
 _pipelines: dict[str, dict[str, Any]] = {}
+
+_state_write_lock = threading.Lock()   # ENG-001: guards _save_state disk writes
+_settings_lock = threading.Lock()      # ENG-001: guards settings read-modify-write
 
 _RUNS_FILE = Path.home() / ".agentsuitelocal" / "runs.json"
 _PIPELINES_FILE = Path.home() / ".agentsuitelocal" / "pipelines.json"
@@ -73,14 +77,14 @@ def _load_state() -> None:
 
 def _save_state() -> None:
     """Persist _runs and _pipelines to disk. Evicts oldest runs beyond _MAX_RUNS."""
-    _RUNS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    # Evict oldest runs if needed
-    if len(_runs) > _MAX_RUNS:
-        sorted_ids = sorted(_runs, key=lambda r: _runs[r].get("started_at", 0))
-        for rid in sorted_ids[: len(_runs) - _MAX_RUNS]:
-            del _runs[rid]
-    _RUNS_FILE.write_text(json.dumps(_runs, indent=2, default=str))
-    _PIPELINES_FILE.write_text(json.dumps(_pipelines, indent=2, default=str))
+    with _state_write_lock:
+        _RUNS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if len(_runs) > _MAX_RUNS:
+            sorted_ids = sorted(_runs, key=lambda r: _runs[r].get("started_at", 0))
+            for rid in sorted_ids[: len(_runs) - _MAX_RUNS]:
+                del _runs[rid]
+        _RUNS_FILE.write_text(json.dumps(_runs, indent=2, default=str))
+        _PIPELINES_FILE.write_text(json.dumps(_pipelines, indent=2, default=str))
 
 
 # Load persisted state immediately at import so tests and the running server both see it
@@ -125,19 +129,33 @@ def _save_settings(data: dict[str, Any]) -> None:
 _SLUG_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
+def _validate_inputs_dir(raw: str) -> None:
+    """Reject inputs_dir values that escape the user's home directory. QA-NEW-001 / ENG-002."""
+    if len(raw) > 512:
+        raise ValueError("inputs_dir path is too long (max 512 characters)")
+    p = Path(raw).resolve()
+    home = Path.home().resolve()
+    if not str(p).startswith(str(home)):
+        raise ValueError("inputs_dir must be within your home directory")
+    if not p.exists() or not p.is_dir():
+        raise ValueError("inputs_dir must be an existing directory")
+
+
 class RunRequest(BaseModel):
     agent_id: str
-    goal: str
+    goal: str = Field(max_length=2000)
     project: str
     inputs_dir: str | None = None
     constraints: str | None = None
 
     @model_validator(mode="after")
-    def validate_slugs(self) -> "RunRequest":
+    def validate_slugs_and_paths(self) -> "RunRequest":
         if not _SLUG_RE.match(self.project):
             raise ValueError("project must contain only letters, numbers, hyphens, and underscores")
         if not _SLUG_RE.match(self.agent_id):
             raise ValueError("agent_id must contain only letters, numbers, hyphens, and underscores")
+        if self.inputs_dir is not None:
+            _validate_inputs_dir(self.inputs_dir)
         return self
 
 
@@ -160,12 +178,20 @@ class PullRequest(BaseModel):
 
 
 class PipelineRequest(BaseModel):
-    name: str
+    name: str = Field(max_length=200)
     project: str
-    goal: str
+    goal: str = Field(max_length=2000)
     agents: list[str]
     inputs_dir: str | None = None
     auto_approve: bool = False
+
+    @model_validator(mode="after")
+    def validate_slugs_and_paths(self) -> "PipelineRequest":
+        if not _SLUG_RE.match(self.project):
+            raise ValueError("project must contain only letters, numbers, hyphens, and underscores")
+        if self.inputs_dir is not None:
+            _validate_inputs_dir(self.inputs_dir)
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -245,15 +271,16 @@ async def get_settings():
 
 async def _apply_settings_patch(body: SettingsPatch) -> dict:
     """Shared logic for POST and PATCH /api/settings."""
-    current = _load_settings()
-    # ENG-002: use exclude_unset=True so null values actually clear fields
-    patch = body.model_dump(exclude_unset=True)
-    current.update(patch)
-    _save_settings(current)
-    result = dict(current)
-    if result.get("api_key"):
-        result["api_key"] = "****"
-    return result
+    with _settings_lock:
+        current = _load_settings()
+        # ENG-002: use exclude_unset=True so null values actually clear fields
+        patch = body.model_dump(exclude_unset=True)
+        current.update(patch)
+        _save_settings(current)
+        result = dict(current)
+        if result.get("api_key"):
+            result["api_key"] = "****"
+        return result
 
 
 @app.post("/api/settings")
@@ -879,13 +906,14 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
         def _run_sync():
             def on_progress(event: str, step, pipeline):
                 evt = event if event in ("agent_start", "agent_done", "agent_waiting") else "stage_update"
-                run["events"].append({
+                event_dict = {
                     "type": evt,
                     "run_id": run_id,
                     "stage": event,
                     "agent": step.agent,
                     "ts": time.time(),
-                })
+                }
+                loop.call_soon_threadsafe(run["events"].append, event_dict)
 
             # ENG-001: pass resolved llm= to orchestrator
             orch = PipelineOrchestrator(output_root=output_root, llm=llm)
@@ -987,14 +1015,15 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
 
         def _run_sync():
             def on_progress(event: str, step_state, _pipeline_state):
-                _pipelines[pipeline_id]["events"].append({
+                event_dict = {
                     "type": "stage_update" if event not in ("agent_start", "agent_done", "agent_waiting") else event,
                     "pipeline_id": pipeline_id,
                     "stage": event,
                     "agent": step_state.agent,
                     "step": step_idx,
                     "ts": time.time(),
-                })
+                }
+                loop.call_soon_threadsafe(_pipelines[pipeline_id]["events"].append, event_dict)
 
             # ENG-001: pass resolved llm= to orchestrator
             orch = PipelineOrchestrator(output_root=output_root, llm=llm)

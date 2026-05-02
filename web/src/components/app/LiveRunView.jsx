@@ -90,9 +90,25 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
         }
       />
 
-      {error && (
-        <div style={{ margin: "16px 24px", padding: 14, background: "var(--bad-soft)", borderRadius: 8, fontSize: 13, color: "var(--bad)", border: "1px solid var(--bad)" }}>
-          <strong>Run failed:</strong> {error}
+      {/* UX-001/UX-003: actionable error card with retry, not a raw error string */}
+      {(status === "error" || status === "reconnecting") && (
+        <div style={{ margin: "16px 24px", padding: 16, background: "var(--bad-soft)", borderRadius: 10, border: "1px solid var(--bad)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <Icon name="alertTriangle" size={18} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 4 }}>
+              {status === "reconnecting" ? "Reconnecting…" : "Run failed"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: status === "error" ? 10 : 0 }}>
+              {error || (status === "reconnecting" ? "Lost connection — retrying automatically." : "An unexpected error occurred.")}
+            </div>
+            {status === "error" && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-sm" onClick={onCancel}>
+                  <Icon name="arrowL" size={12} /> Back to Dashboard
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

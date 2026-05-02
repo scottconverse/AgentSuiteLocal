@@ -2,8 +2,9 @@ import React from "react";
 import { Icon } from "../ui/index.jsx";
 import { InstallerShell } from "./InstallerShell.jsx";
 
+// onNext is enterApp from App.jsx — it persists settings before switching to the app
 export const ScreenSuccess = ({ onBack, onNext }) => (
-  <InstallerShell step={11} totalSteps={12} onBack={onBack} onNext={onNext} nextLabel="Launch AgentSuiteLocal" accent>
+  <InstallerShell step={11} totalSteps={11} onBack={onBack} onNext={onNext} nextLabel="Launch AgentSuiteLocal" accent>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", paddingTop: 24 }}>
       <div style={{ width: 72, height: 72, borderRadius: 18, background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24, boxShadow: "0 12px 32px rgba(194, 86, 43, 0.32)" }}>
         <Icon name="check" size={36} stroke={2.4} />
@@ -21,17 +22,16 @@ export const ScreenSuccess = ({ onBack, onNext }) => (
         <div className="card" style={{ padding: 14 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginBottom: 6, letterSpacing: "0.06em" }}>STATUS</div>
           <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-            <span className="dot" style={{ color: "var(--good)" }} /> All systems go
+            <span className="dot" style={{ color: "var(--good)" }} /> Local model ready
           </div>
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 12, marginTop: 24, fontSize: 13 }}>
-        <a href="#" style={{ color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}><Icon name="book" size={13} /> User manual</a>
-        <span style={{ color: "var(--line-2)" }}>·</span>
-        <a href="#" style={{ color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}><Icon name="folder" size={13} /> Open workspace folder</a>
-        <span style={{ color: "var(--line-2)" }}>·</span>
-        <a href="#" style={{ color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}><Icon name="settings" size={13} /> Tweak setup</a>
+        {/* UX-007/QA-015: these links navigate inside the app after launch, not href="#" */}
+        <span style={{ color: "var(--ink-3)" }}>
+          After launch: open <strong>Manual</strong> for the screen guide · open <strong>Settings</strong> to update your key or model.
+        </span>
       </div>
     </div>
   </InstallerShell>

@@ -1,11 +1,14 @@
 import React from "react";
 
-export const Icon = ({ name, size = 16, stroke = 1.6, style }) => {
+export const Icon = ({ name, size = 16, stroke = 1.6, style, "aria-label": ariaLabel }) => {
   const props = {
     width: size, height: size, viewBox: "0 0 24 24",
     fill: "none", stroke: "currentColor", strokeWidth: stroke,
     strokeLinecap: "round", strokeLinejoin: "round",
     style: { flexShrink: 0, ...style },
+    role: ariaLabel ? "img" : undefined,
+    "aria-label": ariaLabel || undefined,
+    "aria-hidden": ariaLabel ? undefined : true,
   };
   const paths = {
     check:    <polyline points="20 6 9 17 4 12" />,
@@ -147,7 +150,10 @@ export const Toggle = ({ checked, onChange, size = "md" }) => {
   const h = size === "sm" ? 16 : 20;
   const k = size === "sm" ? 12 : 16;
   return (
-    <button onClick={() => onChange(!checked)} style={{
+    <button onClick={() => onChange(!checked)}
+      role="switch"
+      aria-checked={checked}
+      style={{
       width: w, height: h, padding: 0, borderRadius: 999,
       background: checked ? "var(--accent)" : "var(--line-2)",
       border: "none", position: "relative", transition: "background 0.18s", cursor: "pointer",

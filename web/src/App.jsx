@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { WindowChrome } from "./components/ui/index.jsx";
 import { Sidebar } from "./components/shell/index.jsx";
 
@@ -27,12 +27,13 @@ import { SettingsView }     from "./components/app/SettingsView.jsx";
 import { RunsView }         from "./components/app/RunsView.jsx";
 import { ManualView }       from "./components/app/ManualView.jsx";
 
-const TOTAL_STEPS = 12;
+// UX-018: 11 actual setup screens (Uninstall is not counted in the setup flow)
+const TOTAL_STEPS = 11;
 
 const STEP_LABELS = [
   "", "Welcome", "License", "Hardware check", "Choose tier",
   "Install Ollama", "Download model", "Python runtime", "Select agents",
-  "API keys", "Smoke test", "Ready", "Uninstall",
+  "API keys", "Smoke test", "Ready",
 ];
 
 export default function App() {
@@ -41,15 +42,50 @@ export default function App() {
   const [step, setStep]     = useState(1);
   const [tier, setTier]     = useState("balanced");
   const [agents, setAgents] = useState(() => AGENTS.map(a => a.id));
+  // QA-002: capture apiKey during installer so we can persist it to the backend
+  const [apiKey, setApiKey] = useState("");
 
   // ── App ───────────────────────────────────────────────────────────────────
-  const [view, setView]       = useState("home");
-  const [scene, setScene]     = useState("main");
-  const [runId, setRunId]     = useState(null);
-  const [agentId, setAgentId] = useState(null);
+  const [view, setView]           = useState("home");
+  const [scene, setScene]         = useState("main");
+  const [runId, setRunId]         = useState(null);
+  const [agentId, setAgentId]     = useState(null);
+  // UX-016: live waiting-run count for Sidebar badge
+  const [waitingCount, setWaitingCount] = useState(0);
+
+  useEffect(() => {
+    if (mode !== "app") return;
+    const poll = () =>
+      fetch("/api/runs")
+        .then(r => r.json())
+        .then(d => setWaitingCount((d.runs || []).filter(r => r.status === "waiting").length))
+        .catch(() => {});
+    poll();
+    const iv = setInterval(poll, 10_000);
+    return () => clearInterval(iv);
+  }, [mode]);
 
   // ── Installer nav ─────────────────────────────────────────────────────────
-  const enterApp = () => { setMode("app"); setScene("main"); setView("home"); };
+  const enterApp = async () => {
+    // QA-002: persist all installer-captured config to the backend before entering the app
+    try {
+      await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model_tier: tier,
+          enabled_agents: agents,
+          ...(apiKey ? { api_key: apiKey } : {}),
+        }),
+      });
+    } catch {
+      // settings persist is best-effort; don't block app entry
+    }
+    setMode("app");
+    setScene("main");
+    setView("home");
+  };
+
   const goNext = () => step < TOTAL_STEPS ? setStep(s => s + 1) : enterApp();
   const goBack = () => step > 1 && setStep(s => s - 1);
 
@@ -63,10 +99,9 @@ export default function App() {
       case 6:  return <ScreenModelDownload onBack={goBack} onNext={goNext} tier={tier} />;
       case 7:  return <ScreenPython onBack={goBack} onNext={goNext} />;
       case 8:  return <ScreenAgents onBack={goBack} onNext={goNext} enabled={agents} setEnabled={setAgents} />;
-      case 9:  return <ScreenApiKey onBack={goBack} onNext={goNext} />;
+      case 9:  return <ScreenApiKey onBack={goBack} onNext={goNext} apiKey={apiKey} setApiKey={setApiKey} />;
       case 10: return <ScreenSmoke onBack={goBack} onNext={goNext} />;
       case 11: return <ScreenSuccess onBack={goBack} onNext={enterApp} />;
-      case 12: return <ScreenUninstall onBack={goBack} />;
       default: return null;
     }
   };
@@ -109,8 +144,8 @@ export default function App() {
 
     switch (view) {
       case "home":     return <Dashboard onNew={() => startNewRun(null)} onOpen={openGate} />;
-      case "agents":   return <AgentsView onPick={(id) => startNewRun(id)} />;
-      case "runs":     return <RunsView onOpen={openGate} />;
+      case "agents":   return <AgentsView onPick={(id) => startNewRun(id)} onManual={() => navTo("manual")} />;
+      case "runs":     return <RunsView onOpen={openGate} onRerun={(aid) => startNewRun(aid)} />;
       case "kernel":   return <KernelView />;
       case "pipeline": return <PipelineView />;
       case "settings": return <SettingsView />;
@@ -137,7 +172,7 @@ export default function App() {
         ) : (
           <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
             {showSidebar && (
-              <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" />
+              <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" waitingCount={waitingCount} />
             )}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {appScene()}

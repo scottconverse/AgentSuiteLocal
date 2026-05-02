@@ -20,8 +20,8 @@ export const TrayMenu = ({ onAction }) => (
       { icon: "folder",   label: "Reveal workspace",  action: "folder"   },
       { icon: "activity", label: "Live activity",     action: "activity" },
     ].map(i => (
-      <button key={i.label} onClick={() => onAction?.(i.action)} style={{
-        all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+      <button key={i.label} onClick={() => onAction?.(i.action)} className="btn-card" style={{
+        cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
         padding: "8px 12px", borderRadius: 6, fontSize: 13, width: "100%",
       }}
         onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-tint)")}
@@ -36,8 +36,8 @@ export const TrayMenu = ({ onAction }) => (
         { icon: "settings", label: "Preferences", action: "settings" },
         { icon: "x",        label: "Quit AgentSuiteLocal", action: "quit" },
       ].map(i => (
-        <button key={i.label} onClick={() => onAction?.(i.action)} style={{
-          all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+        <button key={i.label} onClick={() => onAction?.(i.action)} className="btn-card" style={{
+          cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
           padding: "8px 12px", borderRadius: 6, fontSize: 13, width: "100%", color: "var(--ink-3)",
         }}>
           <Icon name={i.icon} size={14} /> {i.label}
@@ -47,11 +47,12 @@ export const TrayMenu = ({ onAction }) => (
   </div>
 );
 
-export const Sidebar = ({ view, setView, projectSlug }) => {
+export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0 }) => {
+  // UX-016: badge is computed from live waitingCount, not hardcoded
   const items = [
     { id: "home",     icon: "home",     label: "Dashboard" },
     { id: "agents",   icon: "grid",     label: "Agents"    },
-    { id: "runs",     icon: "activity", label: "Runs",     badge: "1" },
+    { id: "runs",     icon: "activity", label: "Runs",     badge: waitingCount > 0 ? String(waitingCount) : null },
     { id: "kernel",   icon: "layers",   label: "Kernel"    },
     { id: "pipeline", icon: "git2",     label: "Pipelines" },
   ];
@@ -85,8 +86,8 @@ export const Sidebar = ({ view, setView, projectSlug }) => {
         {items.map(i => {
           const active = view === i.id;
           return (
-            <button key={i.id} onClick={() => setView(i.id)} style={{
-              all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+            <button key={i.id} onClick={() => setView(i.id)} className="btn-card" style={{
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
               padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%", marginBottom: 2,
               background: active ? "var(--bg-elev)" : "transparent",
               boxShadow: active ? "var(--sh-1)" : "none",
@@ -104,8 +105,8 @@ export const Sidebar = ({ view, setView, projectSlug }) => {
 
       <div style={{ padding: 10, borderTop: "1px solid var(--line)" }}>
         {bottom.map(i => (
-          <button key={i.id} onClick={() => setView(i.id)} style={{
-            all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+          <button key={i.id} onClick={() => setView(i.id)} className="btn-card" style={{
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
             padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%", color: "var(--ink-3)",
           }}>
             <Icon name={i.icon} size={14} /> {i.label}

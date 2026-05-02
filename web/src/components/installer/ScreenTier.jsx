@@ -14,8 +14,9 @@ export const ScreenTier = ({ onBack, onNext, tier, setTier }) => (
         const tooBig = m.id === "pro";
         return (
           <button key={m.id} onClick={() => !tooBig && setTier(m.id)}
+            className="btn-card"
             style={{
-              all: "unset", cursor: tooBig ? "not-allowed" : "pointer",
+              cursor: tooBig ? "not-allowed" : "pointer",
               padding: 16, borderRadius: 12,
               border: `1.5px solid ${selected ? "var(--accent)" : "var(--line)"}`,
               background: selected ? "var(--accent-soft)" : "var(--bg-elev)",

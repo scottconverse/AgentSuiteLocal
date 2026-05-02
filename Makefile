@@ -42,11 +42,16 @@ endif
 test:
 	pytest tests/ -m "not e2e and not ollama" -v
 
+test-frontend:
+	cd web && npm run test
+
+test-all: test test-frontend
+
 test-ollama:
 	pytest tests/ -m "ollama" -v
 
 test-e2e: build-web
-	pytest tests/e2e/ -v --headed
+	pytest tests/e2e/ -v
 
 # ── Cleanroom distributable test ────────────────────────────────────────────
 
