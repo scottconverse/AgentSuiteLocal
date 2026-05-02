@@ -1,11 +1,42 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
-import { SAMPLE_ARTIFACTS, QA_DIMENSIONS } from "../../data.js";
+import { AGENTS } from "../../data.js";
 
 export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
-  const [selected, setSelected] = useState(SAMPLE_ARTIFACTS[0]);
-  const [approverName, setApproverName] = useState("Scott Converse");
+  const [run, setRun] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [fileContent, setFileContent] = useState(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [approverName, setApproverName] = useState("User");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load run data
+  useEffect(() => {
+    if (!runId) { setLoading(false); return; }
+    fetch(`/api/run/${runId}`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        setRun(data);
+        setLoading(false);
+        if (data.artifacts?.length > 0) {
+          setSelected(data.artifacts[0]);
+        }
+      })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [runId]);
+
+  // Load file content when selection changes
+  useEffect(() => {
+    if (!runId || !selected) return;
+    setFileContent(null);
+    setFileLoading(true);
+    fetch(`/api/run/${runId}/artifact/${encodeURIComponent(selected)}`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => { setFileContent(data.content); setFileLoading(false); })
+      .catch(() => { setFileContent(null); setFileLoading(false); });
+  }, [runId, selected]);
 
   const handleApprove = async () => {
     if (runId) {
@@ -25,119 +56,156 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
     onReject();
   };
 
+  if (loading) {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+        <div className="spin" style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid var(--line)", borderTopColor: "var(--accent)" }} />
+        <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Loading run data…</div>
+      </div>
+    );
+  }
+
+  if (error || (!runId && !loading)) {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+        <Icon name="alertCircle" size={32} style={{ color: "var(--warn)" }} />
+        <div style={{ fontSize: 14, color: "var(--ink-2)" }}>{error || "No run selected."}</div>
+        <button className="btn" onClick={onReject}>Back</button>
+      </div>
+    );
+  }
+
+  const ag = AGENTS.find(a => a.id === run?.agent);
+  const qaScore = run?.qa_score;
+  const qaDims = run?.qa_dimensions || [];
+  const artifacts = run?.artifacts || [];
+  const approveDisabled = qaScore != null && qaScore < 7.0;
+
+  const fmt = (n) => (typeof n === "number" ? n.toFixed(1) : "—");
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <TopBar
-        title={<>Review · <span style={{ color: "var(--accent)" }}>Founder · agentsuitelocal</span></>}
-        subtitle="QA composite 8.4 — above the 7.0 gate. Skim the spec artifacts, then approve to promote into your kernel."
+        title={<>Review · <span style={{ color: "var(--accent)" }}>{ag?.name || run?.agent} · {run?.project}</span></>}
+        subtitle={
+          qaScore != null
+            ? `QA composite ${fmt(qaScore)} — ${qaScore >= 7 ? "above the 7.0 gate. Approve to promote into your kernel." : "below the 7.0 gate. Consider re-running with a clearer goal."}`
+            : "Review artifacts below."
+        }
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-sm" onClick={handleReject}><Icon name="x" size={13} /> Reject & re-run</button>
-            <button className="btn btn-accent btn-sm" onClick={handleApprove}><Icon name="check" size={13} /> Approve & promote</button>
+            <button className="btn btn-sm" onClick={handleReject}><Icon name="x" size={13} /> Reject</button>
+            <button className="btn btn-accent btn-sm" onClick={handleApprove} disabled={approveDisabled} title={approveDisabled ? "QA score below 7.0" : ""}>
+              <Icon name="check" size={13} /> Approve & promote
+            </button>
           </div>
         }
       />
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "300px 1fr 280px", overflow: "hidden", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "280px 1fr 260px", overflow: "hidden", minHeight: 0 }}>
+
         {/* File tree */}
         <div style={{ borderRight: "1px solid var(--line)", overflow: "auto", padding: "12px 0" }}>
-          <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, padding: "0 16px 8px" }}>14 artifacts</div>
-          {SAMPLE_ARTIFACTS.map((a, i) => (
-            <button key={i} onClick={() => setSelected(a)} style={{
+          <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, padding: "0 16px 8px" }}>
+            {artifacts.length} artifact{artifacts.length !== 1 ? "s" : ""}
+          </div>
+          {artifacts.length === 0 && (
+            <div style={{ padding: "8px 16px", fontSize: 12, color: "var(--ink-4)", fontStyle: "italic" }}>No artifacts found.</div>
+          )}
+          {artifacts.map((name, i) => (
+            <button key={i} onClick={() => setSelected(name)} style={{
               all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-              padding: "8px 16px", width: "100%", fontSize: 12,
-              background: selected.name === a.name ? "var(--accent-soft)" : "transparent",
-              color: selected.name === a.name ? "var(--accent-ink)" : "var(--ink-2)",
-              borderLeft: `2px solid ${selected.name === a.name ? "var(--accent)" : "transparent"}`,
+              padding: "8px 16px", width: "100%", fontSize: 12, boxSizing: "border-box",
+              background: selected === name ? "var(--accent-soft)" : "transparent",
+              color: selected === name ? "var(--accent-ink)" : "var(--ink-2)",
+              borderLeft: `2px solid ${selected === name ? "var(--accent)" : "transparent"}`,
             }}>
-              <Icon name={a.folder ? "folder" : "fileText"} size={12} style={{ color: a.folder ? "var(--accent)" : "var(--ink-3)" }} />
-              <span className="mono" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: a.primary ? 600 : 400 }}>{a.name}</span>
-              {a.primary && <span className="chip chip-accent" style={{ fontSize: 9, padding: "0 5px" }}>★</span>}
-              <span className="mono" style={{ fontSize: 9, color: "var(--ink-4)" }}>{a.size}</span>
+              <Icon name={name.endsWith("/") ? "folder" : "fileText"} size={12} style={{ color: "var(--ink-3)", flexShrink: 0 }} />
+              <span className="mono" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
             </button>
           ))}
         </div>
 
         {/* File preview */}
         <div style={{ overflow: "auto", padding: 24, background: "var(--bg-elev)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
-            <Icon name="fileText" size={16} style={{ color: "var(--accent)" }} />
-            <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{selected.name}</span>
-            <span className="chip" style={{ fontSize: 10 }}>{selected.kind}</span>
-            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginLeft: "auto" }}>{selected.size}</span>
-          </div>
+          {selected && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
+              <Icon name="fileText" size={16} style={{ color: "var(--accent)" }} />
+              <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{selected}</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginLeft: "auto" }}>{run?.id}</span>
+            </div>
+          )}
 
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 500, marginBottom: 8, letterSpacing: "-0.01em" }}>
-            AgentSuiteLocal — Brand System
-          </div>
-          <div style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 18 }}>
-            Generated 2026-05-01T14:22 · approver pending · {runId || "run-fbk7c"}
-          </div>
+          {fileLoading && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontSize: 13 }}>
+              <div className="spin" style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid var(--line)", borderTopColor: "var(--accent)" }} />
+              Loading…
+            </div>
+          )}
 
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginTop: 16, marginBottom: 8 }}>1. Positioning Statement</h3>
-          <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.65, margin: 0, marginBottom: 14 }}>
-            For non-technical founders, inventors, and entrepreneurs, AgentSuiteLocal is a desktop application that turns vague intent into precise operating artifacts — without sending a byte off the machine. Unlike cloud agent platforms, AgentSuiteLocal runs the entire seven-agent pipeline against a local Ollama model.
-          </p>
+          {!fileLoading && fileContent != null && (
+            <pre style={{
+              margin: 0, fontFamily: "var(--font-mono)", fontSize: 12,
+              color: "var(--ink-2)", lineHeight: 1.7,
+              whiteSpace: "pre-wrap", wordBreak: "break-word",
+            }}>{fileContent}</pre>
+          )}
 
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginTop: 16, marginBottom: 8 }}>2. Voice Pillars</h3>
-          <ul style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.7, paddingLeft: 20, margin: 0, marginBottom: 14 }}>
-            <li><strong>Direct, never breathless.</strong> No "revolutionary" or "game-changing." State the mechanism.</li>
-            <li><strong>Honest about local limits.</strong> Local models won't match Claude. Say so plainly.</li>
-            <li><strong>Operator-grade.</strong> Every claim ties back to a verifiable artifact on disk.</li>
-          </ul>
+          {!fileLoading && fileContent == null && selected && (
+            <div style={{ color: "var(--ink-3)", fontSize: 13, fontStyle: "italic" }}>
+              Could not load file. It may still be writing, or it may be a binary file.
+            </div>
+          )}
 
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginTop: 16, marginBottom: 8 }}>3. Color & Type</h3>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            {[
-              { c: "#c2562b", n: "Terracotta" },
-              { c: "#1a1614", n: "Ink"        },
-              { c: "#faf8f5", n: "Paper"      },
-              { c: "#3f7d3a", n: "Verify"     },
-            ].map(s => (
-              <div key={s.c} style={{ flex: 1 }}>
-                <div style={{ height: 60, background: s.c, borderRadius: 6, border: "1px solid var(--line)" }} />
-                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>{s.n} · {s.c}</div>
-              </div>
-            ))}
-          </div>
-
-          <p style={{ fontSize: 12, color: "var(--ink-3)", fontStyle: "italic" }}>
-            ... continued. Full document is {selected.size}. Open in your editor for the rest.
-          </p>
+          {!selected && (
+            <div style={{ color: "var(--ink-4)", fontSize: 13 }}>Select a file on the left.</div>
+          )}
         </div>
 
         {/* QA panel */}
         <div style={{ borderLeft: "1px solid var(--line)", overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 8 }}>QA score</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 500, color: "var(--good)", letterSpacing: "-0.02em", lineHeight: 1 }}>
-              8.4<span style={{ fontSize: 18, color: "var(--ink-3)" }}>/10</span>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>Above 7.0 gate · auto-promote eligible</div>
+            {qaScore != null ? (
+              <>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 500, color: qaScore >= 7 ? "var(--good)" : "var(--warn)", letterSpacing: "-0.02em", lineHeight: 1 }}>
+                  {fmt(qaScore)}<span style={{ fontSize: 18, color: "var(--ink-3)" }}>/10</span>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
+                  {qaScore >= 7 ? "Above 7.0 gate · eligible to promote" : "Below 7.0 gate · consider re-running"}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "italic" }}>No QA score recorded.</div>
+            )}
           </div>
 
-          <div>
-            <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 8 }}>Per dimension</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {QA_DIMENSIONS.map(d => (
-                <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "var(--ink-2)", flex: 1 }}>{d.name}</span>
-                  <div style={{ width: 80, height: 4, background: "var(--bg-sunk)", borderRadius: 2 }}>
-                    <div style={{ width: `${d.score * 10}%`, height: "100%", background: d.score >= 8 ? "var(--good)" : d.score >= 7 ? "var(--accent)" : "var(--warn)", borderRadius: 2 }} />
+          {qaDims.length > 0 && (
+            <div>
+              <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 8 }}>Per dimension</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {qaDims.map(d => (
+                  <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: "var(--ink-2)", flex: 1 }}>{d.name}</span>
+                    <div style={{ width: 70, height: 4, background: "var(--bg-sunk)", borderRadius: 2 }}>
+                      <div style={{ width: `${Math.min(100, d.score * 10)}%`, height: "100%", background: d.score >= 8 ? "var(--good)" : d.score >= 7 ? "var(--accent)" : "var(--warn)", borderRadius: 2 }} />
+                    </div>
+                    <span className="mono" style={{ fontSize: 11, fontWeight: 600, color: d.score >= 8 ? "var(--good)" : "var(--ink-2)", width: 26, textAlign: "right" }}>{fmt(d.score)}</span>
                   </div>
-                  <span className="mono" style={{ fontSize: 11, fontWeight: 600, color: d.score >= 8 ? "var(--good)" : "var(--ink-2)", width: 26, textAlign: "right" }}>{d.score.toFixed(1)}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="card" style={{ padding: 12, background: "var(--bg-tint)", border: "none" }}>
             <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 6 }}>Approver</div>
-            <input value={approverName} onChange={e => setApproverName(e.target.value)} style={{ width: "100%", padding: "6px 8px", fontSize: 12, border: "1px solid var(--line-2)", borderRadius: 6, background: "var(--bg)" }} />
-            <button className="btn btn-accent" style={{ width: "100%", marginTop: 8, justifyContent: "center" }} onClick={handleApprove}>
+            <input value={approverName} onChange={e => setApproverName(e.target.value)}
+              style={{ width: "100%", padding: "6px 8px", fontSize: 12, border: "1px solid var(--line-2)", borderRadius: 6, background: "var(--bg)", boxSizing: "border-box" }} />
+            <button className="btn btn-accent" style={{ width: "100%", marginTop: 8, justifyContent: "center" }}
+              onClick={handleApprove} disabled={approveDisabled}>
               <Icon name="check" size={13} /> Approve as {approverName.split(" ")[0]}
             </button>
             <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 6, lineHeight: 1.5 }}>
-              Promotes 12 spec artifacts to <span className="mono">_kernel/agentsuitelocal/</span>
+              Promotes {artifacts.length} artifacts to <span className="mono">_kernel/{run?.project}/{run?.agent}/</span>
             </div>
           </div>
         </div>

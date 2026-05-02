@@ -37,19 +37,19 @@ const STEP_LABELS = [
 
 export default function App() {
   // ── Installer ─────────────────────────────────────────────────────────────
-  const [mode, setMode]   = useState("installer"); // "installer" | "app"
-  const [step, setStep]   = useState(1);
-  const [tier, setTier]   = useState("balanced");
-  const [agents, setAgents] = useState(() => AGENTS.map(a => a.id)); // all enabled by default
+  const [mode, setMode]     = useState("installer");
+  const [step, setStep]     = useState(1);
+  const [tier, setTier]     = useState("balanced");
+  const [agents, setAgents] = useState(() => AGENTS.map(a => a.id));
 
   // ── App ───────────────────────────────────────────────────────────────────
-  const [view, setView]   = useState("home");   // sidebar destination
-  const [scene, setScene] = useState("main");   // "main"|"newrun"|"live"|"gate"
-  const [runId, setRunId] = useState(null);
+  const [view, setView]       = useState("home");
+  const [scene, setScene]     = useState("main");
+  const [runId, setRunId]     = useState(null);
+  const [agentId, setAgentId] = useState(null);
 
   // ── Installer nav ─────────────────────────────────────────────────────────
   const enterApp = () => { setMode("app"); setScene("main"); setView("home"); };
-
   const goNext = () => step < TOTAL_STEPS ? setStep(s => s + 1) : enterApp();
   const goBack = () => step > 1 && setStep(s => s - 1);
 
@@ -71,12 +71,23 @@ export default function App() {
     }
   };
 
-  // ── App scene ─────────────────────────────────────────────────────────────
+  // ── App helpers ───────────────────────────────────────────────────────────
   const navTo = (v) => { setScene("main"); setView(v); };
+
+  const openGate = (id) => {
+    setRunId(id);
+    setScene("gate");
+  };
+
+  const startNewRun = (selectedAgentId = null) => {
+    setAgentId(selectedAgentId);
+    setScene("newrun");
+  };
 
   const appScene = () => {
     if (scene === "newrun") return (
       <NewRunView
+        agentId={agentId}
         onCancel={() => setScene("main")}
         onLaunch={(id) => { setRunId(id); setScene("live"); }}
       />
@@ -97,18 +108,17 @@ export default function App() {
     );
 
     switch (view) {
-      case "home":     return <Dashboard onNew={() => setScene("newrun")} onOpen={() => setScene("gate")} />;
-      case "agents":   return <AgentsView onPick={() => setScene("newrun")} />;
-      case "runs":     return <RunsView onOpen={() => setScene("gate")} />;
+      case "home":     return <Dashboard onNew={() => startNewRun(null)} onOpen={openGate} />;
+      case "agents":   return <AgentsView onPick={(id) => startNewRun(id)} />;
+      case "runs":     return <RunsView onOpen={openGate} />;
       case "kernel":   return <KernelView />;
       case "pipeline": return <PipelineView />;
       case "settings": return <SettingsView />;
       case "manual":   return <ManualView />;
-      default:         return <Dashboard onNew={() => setScene("newrun")} onOpen={() => setScene("gate")} />;
+      default:         return <Dashboard onNew={() => startNewRun(null)} onOpen={openGate} />;
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   const showSidebar = mode === "app" && scene === "main";
 
   return (
