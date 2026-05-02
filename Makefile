@@ -14,7 +14,7 @@
 #   make test-e2e        # Playwright E2E tests (requires built frontend)
 #   make clean           # remove build artefacts
 
-.PHONY: build-web build-win build-mac dist test test-e2e clean
+.PHONY: build-web build-win build-mac dist test test-e2e cleanroom clean
 
 # ── Frontend ────────────────────────────────────────────────────────────────
 
@@ -47,6 +47,11 @@ test-ollama:
 
 test-e2e: build-web
 	pytest tests/e2e/ -v --headed
+
+# ── Cleanroom distributable test ────────────────────────────────────────────
+
+cleanroom:
+	powershell -ExecutionPolicy Bypass -File scripts\cleanroom.ps1
 
 # ── Clean ───────────────────────────────────────────────────────────────────
 
