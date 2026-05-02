@@ -8,13 +8,21 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 
 ## Requirements
 
+**Distributable users** (download from Releases — no Python or Node needed):
+
 | | Minimum | Recommended |
 |---|---|---|
-| Python | 3.11 | 3.12 |
-| Node.js | 20 | 22 |
+| OS | Windows 10 64-bit | Windows 11 |
 | RAM | 8 GB (Light tier) | 16 GB (Balanced) |
 | Disk | 10 GB free | 20 GB free |
 | [Ollama](https://ollama.ai) | any | latest |
+
+**Developers** (building from source):
+
+| | Minimum |
+|---|---|
+| Python | 3.11 |
+| Node.js | 20 |
 
 Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma4:26b-moe` (32 GB).  
 Runs entirely on-device — no internet connection required after setup.
@@ -23,9 +31,22 @@ Runs entirely on-device — no internet connection required after setup.
 
 ## Install
 
-**Non-technical users:** download the distributable from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page, unzip, and double-click `AgentSuiteLocal`. The in-app installer handles everything else — no terminal required.
+**Non-technical users:** download the distributable from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page, unzip, and double-click `AgentSuiteLocal.exe`. The in-app installer handles everything else — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
+
+### Windows SmartScreen warning
+
+Because the distributable is unsigned, Windows may show a SmartScreen popup ("Windows protected your PC") the first time you run it. To proceed:
+
+1. Click **More info** (below the warning text).
+2. Click **Run anyway**.
+
+You will only see this once per machine. If you prefer to verify the binary before running, check the SHA-256 hash in the release notes against the file you downloaded:
+
+```powershell
+Get-FileHash .\AgentSuiteLocal.exe -Algorithm SHA256
+```
 
 ---
 
@@ -47,21 +68,17 @@ The output is a self-contained directory (or `.app` bundle on macOS). The launch
 
 ## Development mode
 
----
-
-## Development mode
-
 For iterating on the source, run two terminals:
 
 ```bash
 # Terminal 1 — backend (auto-reload on save)
-uvicorn agentsuitelocal.api.main:app --reload --port 8765
+uvicorn agentsuitelocal.api.main:app --reload --port 8766
 
 # Terminal 2 — frontend with HMR
 cd web && npm run dev
 ```
 
-Vite proxies `/api/*` to `:8765`. Open **http://localhost:5173** (or whichever port Vite prints).
+Vite proxies `/api/*` to `:8766`. Open **http://localhost:5173** (or whichever port Vite prints).
 
 ---
 
@@ -130,8 +147,16 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | GET | `/api/runs` | All runs, newest first |
 | GET | `/api/kernel` | All kernel artifacts by project |
 | GET | `/api/projects` | Project list derived from runs |
+| POST | `/api/pipelines` | Create and start a multi-agent pipeline |
+| GET | `/api/pipelines` | All pipelines, newest first |
+| GET | `/api/pipelines/{id}` | Pipeline status + step results |
+| GET | `/api/pipelines/{id}/stream` | SSE — live pipeline step events |
+| POST | `/api/pipelines/{id}/approve` | Approve current step, advance to next |
+| POST | `/api/pipelines/{id}/reject` | Reject current step, halt pipeline |
+| GET | `/api/settings` | Current settings (model tier, etc.) |
+| GET | `/api/runtime/verify` | Bundle integrity check (all 6 checks) |
 
-SSE event types: `agent_start` · `stage_update` · `agent_done` · `agent_waiting` · `error`
+SSE event types: `agent_start` · `stage_update` · `agent_done` · `agent_waiting` · `pipeline_step_done` · `pipeline_done` · `error`
 
 ---
 
