@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentSuiteLocal — Local AI agents for founders</title>
+  <meta name="description" content="Seven specialist AI agents that run entirely on your machine. No cloud, no API key, no monthly bill. Built for non-technical founders." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --bg-elev:  #181c25;
+      --bg-tint:  #1e2330;
+      --line:     rgba(255,255,255,.08);
+      --ink:      #f0f2f7;
+      --ink-2:    #9aa3b8;
+      --ink-3:    #5d6880;
+      --accent:   #5b8dee;
+      --accent-s: rgba(91,141,238,.15);
+      --good:     #3ecf8e;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Nav ── */
+    nav {
+      border-bottom: 1px solid var(--line);
+      padding: 16px 0;
+      position: sticky; top: 0;
+      background: rgba(15,17,23,.92);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    nav .inner {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      font-size: 14px; font-weight: 700; letter-spacing: -.01em;
+      display: flex; align-items: center; gap: 8px; color: var(--ink);
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--good); display: inline-block;
+    }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a { color: var(--ink-2); font-size: 13px; }
+    .nav-links a:hover { color: var(--ink); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 96px 0 72px;
+      text-align: center;
+    }
+    .eyebrow {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding: 4px 12px;
+      background: var(--accent-s);
+      border-radius: 100px;
+      border: 1px solid rgba(91,141,238,.25);
+    }
+    h1 {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 500;
+      letter-spacing: -.03em;
+      line-height: 1.08;
+      margin-bottom: 20px;
+      color: var(--ink);
+    }
+    h1 span { color: var(--accent); }
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 18px);
+      color: var(--ink-2);
+      max-width: 540px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      padding: 11px 22px; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer; display: inline-flex;
+      align-items: center; gap: 8px; transition: opacity .15s;
+      border: none;
+    }
+    .btn:hover { opacity: .88; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary {
+      background: var(--bg-elev); color: var(--ink-2);
+      border: 1px solid var(--line);
+    }
+
+    /* ── Badge row ── */
+    .badges {
+      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+      margin-top: 28px;
+    }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 11px; color: var(--ink-3);
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: 6px; padding: 4px 10px;
+    }
+
+    /* ── Section ── */
+    section { padding: 72px 0; border-top: 1px solid var(--line); }
+    h2 {
+      font-size: clamp(24px, 4vw, 36px);
+      font-weight: 500; letter-spacing: -.02em;
+      margin-bottom: 12px;
+    }
+    .section-sub {
+      font-size: 15px; color: var(--ink-2);
+      max-width: 520px; margin-bottom: 40px; line-height: 1.6;
+    }
+
+    /* ── Pipeline ── */
+    .pipeline {
+      display: flex; gap: 0; align-items: stretch;
+      background: var(--bg-elev); border-radius: 12px;
+      border: 1px solid var(--line); overflow: hidden;
+    }
+    .stage {
+      flex: 1; padding: 20px 16px; border-right: 1px solid var(--line);
+      position: relative;
+    }
+    .stage:last-child { border-right: none; }
+    .stage-num {
+      font-family: var(--font-mono); font-size: 10px; color: var(--accent);
+      font-weight: 700; letter-spacing: .08em; margin-bottom: 6px;
+    }
+    .stage-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .stage-desc { font-size: 11px; color: var(--ink-3); line-height: 1.4; }
+
+    /* ── Agents grid ── */
+    .agents-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .agent-card {
+      background: var(--bg-elev); border: 1px solid var(--line);
+      border-radius: 12px; padding: 20px;
+      transition: border-color .15s, background .15s;
+    }
+    .agent-card:hover {
+      border-color: rgba(91,141,238,.35);
+      background: var(--bg-tint);
+    }
+    .agent-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: var(--accent-s); display: flex;
+      align-items: center; justify-content: center; margin-bottom: 12px;
+      font-size: 18px;
+    }
+    .agent-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .agent-tag { font-size: 12px; color: var(--accent); margin-bottom: 8px; font-family: var(--font-mono); }
+    .agent-desc { font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+    .agent-meta {
+      display: flex; gap: 12px; margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .agent-meta span { font-size: 11px; color: var(--ink-3); font-family: var(--font-mono); }
+
+    /* ── Install block ── */
+    .install-block {
+      background: var(--bg-elev); border: 1px solid var(--line);
+      border-radius: 12px; overflow: hidden;
+    }
+    .install-tab { display: flex; border-bottom: 1px solid var(--line); }
+    .install-tab span {
+      padding: 10px 20px; font-size: 12px; font-family: var(--font-mono);
+      color: var(--ink-3); border-right: 1px solid var(--line);
+    }
+    .install-tab span.active { color: var(--accent); background: var(--bg-tint); }
+    pre {
+      padding: 20px 24px; font-size: 13px; line-height: 1.65;
+      font-family: var(--font-mono); color: var(--ink-2);
+      overflow-x: auto;
+    }
+    .comment { color: var(--ink-3); }
+    .cmd { color: var(--ink); }
+
+    /* ── Feature list ── */
+    .features {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .feature {
+      background: var(--bg-elev); border: 1px solid var(--line);
+      border-radius: 12px; padding: 20px;
+    }
+    .feature-icon { font-size: 22px; margin-bottom: 10px; }
+    .feature h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .feature p { font-size: 13px; color: var(--ink-3); line-height: 1.55; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--line); padding: 32px 0;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px;
+    }
+    footer p { font-size: 12px; color: var(--ink-3); }
+    footer .links { display: flex; gap: 20px; }
+    footer .links a { font-size: 12px; color: var(--ink-3); }
+    footer .links a:hover { color: var(--ink); text-decoration: none; }
+
+    @media (max-width: 640px) {
+      .pipeline { flex-direction: column; }
+      .stage { border-right: none; border-bottom: 1px solid var(--line); }
+      .stage:last-child { border-bottom: none; }
+      nav .inner { flex-direction: column; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="inner">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        AgentSuiteLocal
+      </div>
+      <div class="nav-links">
+        <a href="#agents">Agents</a>
+        <a href="#install">Install</a>
+        <a href="user-manual.html">Manual</a>
+        <a href="architecture.html">Docs</a>
+        <a href="https://github.com/scottconverse/AgentSuiteLocal">GitHub</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" style="border-top: none; padding-top: 80px;">
+  <div class="container">
+    <div class="eyebrow">100% local · no cloud · no API key</div>
+    <h1>Seven AI agents that run<br /><span>on your machine</span></h1>
+    <p class="hero-sub">
+      Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO —
+      each walks a five-stage pipeline and writes a structured artifact library to your disk.
+    </p>
+    <div class="cta-row">
+      <a href="https://github.com/scottconverse/AgentSuiteLocal" class="btn btn-primary">
+        ↓ Download
+      </a>
+      <a href="user-manual.html" class="btn btn-secondary">
+        Read the manual
+      </a>
+    </div>
+    <div class="badges">
+      <span class="badge">Python 3.11+</span>
+      <span class="badge">Node 20+</span>
+      <span class="badge">Ollama</span>
+      <span class="badge">MIT license</span>
+      <span class="badge">16 GB RAM recommended</span>
+    </div>
+  </div>
+</section>
+
+<!-- Pipeline -->
+<section id="pipeline">
+  <div class="container">
+    <h2>Five stages. Every run.</h2>
+    <p class="section-sub">
+      Every agent walks the same pipeline. Input your goal once — the pipeline handles the rest.
+    </p>
+    <div class="pipeline">
+      <div class="stage">
+        <div class="stage-num">01</div>
+        <div class="stage-name">Intake</div>
+        <div class="stage-desc">Validates the request and manifests any input files you provide.</div>
+      </div>
+      <div class="stage">
+        <div class="stage-num">02</div>
+        <div class="stage-name">Extract</div>
+        <div class="stage-desc">Pulls structured context from your inputs — notes, documents, research.</div>
+      </div>
+      <div class="stage">
+        <div class="stage-num">03</div>
+        <div class="stage-name">Spec</div>
+        <div class="stage-desc">Generates the core artifact library — typically 10 markdown files.</div>
+      </div>
+      <div class="stage">
+        <div class="stage-num">04</div>
+        <div class="stage-name">Execute</div>
+        <div class="stage-desc">Builds brief templates and an export manifest from the spec output.</div>
+      </div>
+      <div class="stage">
+        <div class="stage-num">05</div>
+        <div class="stage-name">QA</div>
+        <div class="stage-desc">Scores output across 9 dimensions. Gate: approve if composite ≥ 7.0.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Agents -->
+<section id="agents">
+  <div class="container">
+    <h2>Seven specialist agents</h2>
+    <p class="section-sub">
+      Each agent is purpose-built. Run Founder first — its kernel feeds every downstream agent.
+    </p>
+    <div class="agents-grid">
+
+      <div class="agent-card">
+        <div class="agent-icon">🚀</div>
+        <div class="agent-name">Founder</div>
+        <div class="agent-tag">Brand · voice · positioning</div>
+        <div class="agent-desc">Turns loose intent into a complete brand and identity system. The primary agent — run this first.</div>
+        <div class="agent-meta">
+          <span>26 artifacts</span>
+          <span>~14 min</span>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">🎨</div>
+        <div class="agent-name">Design</div>
+        <div class="agent-tag">Briefs · brand QA</div>
+        <div class="agent-desc">Translates a Founder kernel into design briefs and QA-scored creative work.</div>
+        <div class="agent-meta">
+          <span>18 artifacts</span>
+          <span>~9 min</span>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">🎯</div>
+        <div class="agent-name">Product</div>
+        <div class="agent-tag">UI spec · handoff</div>
+        <div class="agent-desc">Converts product intent into structured UI specs and a coding handoff your IDE can consume.</div>
+        <div class="agent-meta">
+          <span>17 artifacts</span>
+          <span>~12 min</span>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">⚙️</div>
+        <div class="agent-name">Engineering</div>
+        <div class="agent-tag">ADRs · system design · runbooks</div>
+        <div class="agent-desc">Architecture decisions, API specs, security review, deployment, runbooks, tech-debt register.</div>
+        <div class="agent-meta">
+          <span>17 artifacts</span>
+          <span>~16 min</span>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">📣</div>
+        <div class="agent-name">Marketing</div>
+        <div class="agent-tag">Campaign briefs · launch plans</div>
+        <div class="agent-desc">Audience profile, messaging framework, content calendar, channel strategy, SEO, competitive positioning.</div>
+        <div class="agent-meta">
+          <span>18 artifacts</span>
+          <span>~11 min</span>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">🛡️</div>
+        <div class="agent-name">Trust / Risk</div>
+        <div class="agent-tag">Threat models · compliance</div>
+        <div class="agent-desc">Threat model, risk register, control framework, IR plan, compliance matrix, vendor risk, audit readiness.</div>
+        <div class="agent-meta">
+          <span>17 artifacts</span>
+          <span>~13 min</span>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">💼</div>
+        <div class="agent-name">CIO</div>
+        <div class="agent-tag">IT strategy · roadmap</div>
+        <div class="agent-desc">IT strategy, technology roadmap, vendor portfolio, governance, enterprise architecture, budget allocation.</div>
+        <div class="agent-meta">
+          <span>17 artifacts</span>
+          <span>~14 min</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Why local -->
+<section id="why">
+  <div class="container">
+    <h2>Why run it locally</h2>
+    <p class="section-sub">The whole point is that your business context never leaves your machine.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <h3>Your data stays on your disk</h3>
+        <p>No cloud, no API key, no telemetry. The model runs in Ollama. Your artifacts are files. Nothing leaves your machine unless you send it.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💰</div>
+        <h3>No per-run cost</h3>
+        <p>Run every agent on every project as many times as you want. The only cost is electricity. An API-backed equivalent would cost $3–8 per run.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📁</div>
+        <h3>Artifacts are plain markdown</h3>
+        <p>Every artifact is a markdown file on your disk. Version-control them, edit them, commit them. No proprietary format, no lock-in.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🧠</div>
+        <h3>The kernel compounds</h3>
+        <p>Approved artifacts become canonical context for every future run. Each run builds on what you've approved before. The system gets more useful the more you use it.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🛠️</div>
+        <h3>Hackable</h3>
+        <p>FastAPI backend, React frontend, standard Python packaging. Fork it, extend it, wire it to your own tools. MIT license.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🖥️</div>
+        <h3>Works offline</h3>
+        <p>Once the model is pulled, everything runs without internet. Take it on a plane. Use it in a SCIF. Works wherever your laptop does.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Install -->
+<section id="install">
+  <div class="container">
+    <h2>Install in four steps</h2>
+    <p class="section-sub">The in-app installer walks you through the rest — model download, agent selection, smoke test.</p>
+    <div class="install-block">
+      <div class="install-tab">
+        <span class="active">bash</span>
+      </div>
+      <pre><span class="comment"># 1. Pull the model (one-time, ~5 GB)</span>
+<span class="cmd">ollama pull gemma4:e4b</span>
+
+<span class="comment"># 2. Clone and install backend</span>
+<span class="cmd">git clone https://github.com/scottconverse/AgentSuiteLocal
+cd AgentSuiteLocal
+pip install -e .</span>
+
+<span class="comment"># 3. Build the frontend</span>
+<span class="cmd">cd web && npm install && npm run build && cd ..</span>
+
+<span class="comment"># 4. Start</span>
+<span class="cmd">uvicorn agentsuitelocal.api.main:app --port 8765</span>
+<span class="comment"># Open http://localhost:8765</span></pre>
+    </div>
+    <p style="margin-top: 16px; font-size: 13px; color: var(--ink-3);">
+      Requires Python 3.11+, Node 20+, and <a href="https://ollama.ai">Ollama</a> installed.
+      See the <a href="user-manual.html">full manual</a> for dev mode, troubleshooting, and workspace layout.
+    </p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%;">
+    <p>© 2025 AgentSuiteLocal · MIT license</p>
+    <div class="links">
+      <a href="https://github.com/scottconverse/AgentSuiteLocal">GitHub</a>
+      <a href="https://github.com/scottconverse/AgentSuiteLocal/issues">Issues</a>
+      <a href="https://github.com/scottconverse/AgentSuiteLocal/discussions">Discussions</a>
+      <a href="user-manual.html">Manual</a>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

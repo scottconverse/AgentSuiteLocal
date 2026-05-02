@@ -314,12 +314,12 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
     def emit(event_type: str, **kwargs):
         run["events"].append({"type": event_type, "run_id": run_id, "ts": time.time(), **kwargs})
 
+    emit("agent_start", agent=req.agent_id, project=req.project)
+
     try:
         from agentsuite.pipeline.orchestrator import PipelineOrchestrator
 
         output_root = _workspace() / ".agentsuite"
-
-        emit("agent_start", agent=req.agent_id, project=req.project)
 
         loop = asyncio.get_running_loop()
 

@@ -132,7 +132,7 @@ export const TopBar = ({ title, subtitle, actions }) => (
     background: "var(--bg)", flexShrink: 0,
   }}>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.2 }}>{title}</div>
+      <h1 style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.2, margin: 0 }}>{title}</h1>
       {subtitle && <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 1 }}>{subtitle}</div>}
     </div>
     {actions}

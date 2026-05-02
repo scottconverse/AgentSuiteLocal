@@ -1,0 +1,59 @@
+"""
+Playwright E2E fixtures.
+
+BASE_URL defaults to http://localhost:5175 (Vite dev server default when 5173
+is already taken). In CI, set BASE_URL=http://localhost:8765 after building
+the frontend and starting uvicorn.
+"""
+
+import os
+import socket
+import threading
+import time
+
+import pytest
+import uvicorn
+
+from agentsuitelocal.api.main import app
+
+
+@pytest.fixture(scope="session", autouse=True)
+def backend_server():
+    """Start FastAPI backend on 8765 so Vite proxy /api/* calls work.
+
+    Skips startup if something is already listening on 8765 (e.g. a dev
+    backend started manually before running the suite).
+    """
+    already_up = False
+    try:
+        with socket.create_connection(("127.0.0.1", 8765), timeout=0.5):
+            already_up = True
+    except OSError:
+        pass
+
+    server = None
+    thread = None
+    if not already_up:
+        config = uvicorn.Config(app, host="127.0.0.1", port=8765, log_level="error")
+        server = uvicorn.Server(config)
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", 8765), timeout=0.1):
+                    break
+            except OSError:
+                time.sleep(0.05)
+
+    yield
+
+    if server is not None:
+        server.should_exit = True
+    if thread is not None:
+        thread.join(timeout=3)
+
+
+@pytest.fixture(scope="session")
+def base_url() -> str:
+    return os.environ.get("BASE_URL", "http://localhost:5175")
