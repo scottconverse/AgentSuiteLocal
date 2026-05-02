@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -429,7 +428,14 @@ def _push_to_kernel(run: dict) -> None:
 # Serve built frontend (production)
 # ---------------------------------------------------------------------------
 
-_WEB_DIST = Path(__file__).parent.parent.parent / "web" / "dist"
+def _find_web_dist() -> Path:
+    # When frozen by PyInstaller, static files land in sys._MEIPASS/web/dist
+    import sys
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "web" / "dist"
+    return Path(__file__).parent.parent.parent / "web" / "dist"
+
+_WEB_DIST = _find_web_dist()
 
 if _WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=_WEB_DIST / "assets"), name="assets")

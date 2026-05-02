@@ -21,31 +21,37 @@ Runs entirely on-device — no internet connection required after setup.
 
 ---
 
-## Quick start
+## Install
+
+**Non-technical users:** download the distributable from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page, unzip, and double-click `AgentSuiteLocal`. The in-app installer handles everything else — no terminal required.
+
+**Developers:** see [Development mode](#development-mode) below.
+
+---
+
+## Building the distributable
 
 ```bash
-# 1. Pull the model (one-time, ~5 GB)
-ollama pull gemma4:e4b
+# Requires Python ≥ 3.11, Node.js ≥ 18, and pyinstaller in your virtualenv
+pip install -e ".[dev]" pyinstaller
 
-# 2. Clone and install the backend
-git clone https://github.com/scottconverse/AgentSuiteLocal
-cd AgentSuiteLocal
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e .
-
-# 3. Build and serve
-cd web && npm install && npm run build && cd ..
-uvicorn agentsuitelocal.api.main:app --port 8765
+make dist          # auto-detects OS — builds frontend then runs PyInstaller
+# or explicitly:
+make build-mac     # → dist/AgentSuiteLocal.app  (macOS)
+make build-win     # → dist/AgentSuiteLocal/     (Windows)
 ```
 
-Open **http://localhost:8765** — the in-app installer walks you through the rest.
+The output is a self-contained directory (or `.app` bundle on macOS). The launcher starts the backend silently in-process — no terminal window ever appears. Drop the folder into a zip and it's the release artifact.
 
 ---
 
 ## Development mode
 
-Two terminals:
+---
+
+## Development mode
+
+For iterating on the source, run two terminals:
 
 ```bash
 # Terminal 1 — backend (auto-reload on save)
