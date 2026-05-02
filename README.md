@@ -216,10 +216,12 @@ Runs and kernel artifacts are written to `~/AgentSuite/` by default. Override wi
 
 ---
 
-## Known issues (v0.1.0)
+## Known issues (v0.1.1)
 
 - Run and pipeline state is held in memory + JSON sidecars under `~/.agentsuitelocal/`; a backend restart before a run completes may lose in-flight state.
-- E2E test suite requires a running Vite dev server (`:5175`) and backend (`:8765`) — these are not auto-started by the test runner.
+- E2E test suite requires a running Vite dev server (`:5175`) and backend (`:8766`) — these are not auto-started by the test runner.
+
+Security, thread-safety, and accessibility issues from the v0.1.0 audit were resolved in v0.1.1. See [CHANGELOG](CHANGELOG.md) for details.
 
 ---
 

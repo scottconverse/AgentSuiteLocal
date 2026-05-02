@@ -63,7 +63,7 @@ try {
     if (-not (Test-Path $exePath)) {
         throw "EXE not found at: $exePath"
     }
-    $exeSize = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
+    $exeSizeMB = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
     Write-Host "EXE            : $exePath ($exeSizeMB MB)"
 
     # -----------------------------------------------------------------------

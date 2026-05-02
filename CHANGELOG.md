@@ -29,6 +29,8 @@ _Nothing pending._
 - **Pipeline SSE stream tests** (TEST-002): 3 new tests covering 200 response, 404 for unknown, and buffered event content emission.
 - **`inputs_dir` validation tests** (QA-NEW-001): 7 new tests covering Windows system path rejection, traversal rejection, `None` acceptance, and pipeline-level validation.
 - Backend test suite: 25 → 43 tests.
+- `cleanroom-docker/` — Linux Docker cleanroom: `python:3.12-slim` image, installs all deps from scratch, runs `uvicorn` with socat proxy to host Ollama; validates the API layer outside of any Windows dev environment.
+- `scripts/cleanroom.ps1` — isolated Windows distributable test; copies dist to temp dir, strips Python/Node from PATH, asserts 7 API checks, cleans up (`make cleanroom`).
 
 ## [0.1.0] — 2026-05-02
 
@@ -55,4 +57,3 @@ _Nothing pending._
 - Pipeline endpoints: `GET/POST /api/pipelines`, `GET /api/pipelines/{id}`, `POST /api/pipelines/{id}/approve`, `POST /api/pipelines/{id}/reject`, `GET /api/pipelines/{id}/stream`
 - Dark mode support via `[data-theme="dark"]` CSS attribute
 - Design token system: warm neutrals, terracotta accent, Fraunces + Inter Tight + JetBrains Mono
-- `scripts/cleanroom.ps1` — isolated distributable test; copies dist to temp dir, strips Python/Node from PATH, asserts 7 API checks, cleans up (`make cleanroom`)

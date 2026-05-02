@@ -135,7 +135,7 @@ def _validate_inputs_dir(raw: str) -> None:
         raise ValueError("inputs_dir path is too long (max 512 characters)")
     p = Path(raw).resolve()
     home = Path.home().resolve()
-    if not str(p).startswith(str(home)):
+    if not p.is_relative_to(home):
         raise ValueError("inputs_dir must be within your home directory")
     if not p.exists() or not p.is_dir():
         raise ValueError("inputs_dir must be an existing directory")
@@ -915,13 +915,13 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
                 }
                 loop.call_soon_threadsafe(run["events"].append, event_dict)
 
-            # ENG-001: pass resolved llm= to orchestrator
-            orch = PipelineOrchestrator(output_root=output_root, llm=llm)
+            orch = PipelineOrchestrator(output_root=output_root)
             return orch.run(
                 agents=[req.agent_id],
                 project_slug=req.project,
                 business_goal=req.goal,
                 inputs_dir=Path(req.inputs_dir) if req.inputs_dir else None,
+                llm=llm,
                 on_progress=on_progress,
             )
 
@@ -1025,14 +1025,14 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
                 }
                 loop.call_soon_threadsafe(_pipelines[pipeline_id]["events"].append, event_dict)
 
-            # ENG-001: pass resolved llm= to orchestrator
-            orch = PipelineOrchestrator(output_root=output_root, llm=llm)
+            orch = PipelineOrchestrator(output_root=output_root)
             return orch.run(
                 agents=[agent_id],
                 project_slug=pipeline["project"],
                 business_goal=pipeline["goal"],
                 pipeline_id=step_orch_id,
                 inputs_dir=Path(pipeline["inputs_dir"]) if pipeline["inputs_dir"] else None,
+                llm=llm,
                 on_progress=on_progress,
             )
 
