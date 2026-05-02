@@ -153,7 +153,9 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | GET | `/api/pipelines/{id}/stream` | SSE — live pipeline step events |
 | POST | `/api/pipelines/{id}/approve` | Approve current step, advance to next |
 | POST | `/api/pipelines/{id}/reject` | Reject current step, halt pipeline |
-| GET | `/api/settings` | Current settings (model tier, etc.) |
+| GET | `/api/settings` | Current settings (model tier, etc.) — API key redacted |
+| POST | `/api/settings` | Replace settings (full object) |
+| PATCH | `/api/settings` | Partial update — only provided fields are written |
 | GET | `/api/runtime/verify` | Bundle integrity check (all 6 checks) |
 
 SSE event types: `agent_start` · `stage_update` · `agent_done` · `agent_waiting` · `pipeline_step_done` · `pipeline_done` · `error`
@@ -211,6 +213,13 @@ Runs and kernel artifacts are written to `~/AgentSuite/` by default. Override wi
           brand-system.md
           ...
 ```
+
+---
+
+## Known issues (v0.1.0)
+
+- Run and pipeline state is held in memory + JSON sidecars under `~/.agentsuitelocal/`; a backend restart before a run completes may lose in-flight state.
+- E2E test suite requires a running Vite dev server (`:5175`) and backend (`:8765`) — these are not auto-started by the test runner.
 
 ---
 

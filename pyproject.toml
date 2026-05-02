@@ -16,7 +16,8 @@ dependencies = [
     "aiofiles>=23.2",
     "psutil>=5.9",
     "httpx>=0.27",
-    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git",
+    # ENG-008: pinned to a specific commit — update intentionally before each dist build
+    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@17fda3140087ef85f3a72ca48a05551fce983740",
 ]
 
 [project.scripts]
@@ -39,6 +40,7 @@ dev = [
     "pytest>=8",
     "pytest-asyncio>=0.26",
     "pytest-playwright>=0.5",
+    "pytest-cov>=5",
     "httpx>=0.27",
     "uvicorn[standard]>=0.29",
 ]

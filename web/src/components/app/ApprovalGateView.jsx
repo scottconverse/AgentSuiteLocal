@@ -8,9 +8,10 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   const [selected, setSelected] = useState(null);
   const [fileContent, setFileContent] = useState(null);
   const [fileLoading, setFileLoading] = useState(false);
-  const [approverName, setApproverName] = useState("User");
+  const [fileError, setFileError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [rejectConfirm, setRejectConfirm] = useState(false);
 
   // Load run data
   useEffect(() => {
@@ -20,9 +21,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
       .then(data => {
         setRun(data);
         setLoading(false);
-        if (data.artifacts?.length > 0) {
-          setSelected(data.artifacts[0]);
-        }
+        if (data.artifacts?.length > 0) setSelected(data.artifacts[0]);
       })
       .catch(e => { setError(e.message); setLoading(false); });
   }, [runId]);
@@ -31,11 +30,12 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   useEffect(() => {
     if (!runId || !selected) return;
     setFileContent(null);
+    setFileError(false);
     setFileLoading(true);
     fetch(`/api/run/${runId}/artifact/${encodeURIComponent(selected)}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => { setFileContent(data.content); setFileLoading(false); })
-      .catch(() => { setFileContent(null); setFileLoading(false); });
+      .catch(() => { setFileError(true); setFileLoading(false); });
   }, [runId, selected]);
 
   const handleApprove = async () => {
@@ -43,13 +43,14 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
       await fetch(`/api/run/${runId}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approver: approverName }),
+        body: JSON.stringify({ approver: "user" }),
       }).catch(() => {});
     }
     onApprove();
   };
 
   const handleReject = async () => {
+    if (!rejectConfirm) { setRejectConfirm(true); return; }
     if (runId) {
       await fetch(`/api/run/${runId}/reject`, { method: "POST" }).catch(() => {});
     }
@@ -79,6 +80,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   const qaScore = run?.qa_score;
   const qaDims = run?.qa_dimensions || [];
   const artifacts = run?.artifacts || [];
+  // UX-009: only disable approve if score is explicitly below threshold (not when null)
   const approveDisabled = qaScore != null && qaScore < 7.0;
 
   const fmt = (n) => (typeof n === "number" ? n.toFixed(1) : "—");
@@ -94,8 +96,27 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
         }
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-sm" onClick={handleReject}><Icon name="x" size={13} /> Reject</button>
-            <button className="btn btn-accent btn-sm" onClick={handleApprove} disabled={approveDisabled} title={approveDisabled ? "QA score below 7.0" : ""}>
+            {/* UX-010: two-click reject with confirmation */}
+            <button
+              className="btn btn-sm"
+              onClick={handleReject}
+              style={rejectConfirm ? { borderColor: "var(--bad)", color: "var(--bad)" } : {}}
+            >
+              <Icon name="x" size={13} />
+              {rejectConfirm ? "Confirm reject" : "Reject"}
+            </button>
+            {rejectConfirm && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setRejectConfirm(false)}>
+                Cancel
+              </button>
+            )}
+            {/* UX-009: tooltip describes what "below threshold" means, not dev jargon */}
+            <button
+              className="btn btn-accent btn-sm"
+              onClick={handleApprove}
+              disabled={approveDisabled}
+              title={approveDisabled ? `QA score ${fmt(qaScore)}/10 is below the 7.0 minimum. Re-run with a more focused goal to improve it.` : ""}
+            >
               <Icon name="check" size={13} /> Approve & promote
             </button>
           </div>
@@ -150,9 +171,10 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
             }}>{fileContent}</pre>
           )}
 
-          {!fileLoading && fileContent == null && selected && (
-            <div style={{ color: "var(--ink-3)", fontSize: 13, fontStyle: "italic" }}>
-              Could not load file. It may still be writing, or it may be a binary file.
+          {/* UX-006: distinguish "still writing" vs "failed to load" vs "binary" */}
+          {!fileLoading && fileContent == null && selected && fileError && (
+            <div style={{ color: "var(--ink-3)", fontSize: 13 }}>
+              Could not load this file — it may be a binary file or still being written. Try selecting another artifact.
             </div>
           )}
 
@@ -161,7 +183,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
           )}
         </div>
 
-        {/* QA panel */}
+        {/* QA panel — UX-015: removed approverName field, single-user app */}
         <div style={{ borderLeft: "1px solid var(--line)", overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 8 }}>QA score</div>
@@ -196,16 +218,18 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
             </div>
           )}
 
-          <div className="card" style={{ padding: 12, background: "var(--bg-tint)", border: "none" }}>
-            <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 6 }}>Approver</div>
-            <input value={approverName} onChange={e => setApproverName(e.target.value)}
-              style={{ width: "100%", padding: "6px 8px", fontSize: 12, border: "1px solid var(--line-2)", borderRadius: 6, background: "var(--bg)", boxSizing: "border-box" }} />
-            <button className="btn btn-accent" style={{ width: "100%", marginTop: 8, justifyContent: "center" }}
-              onClick={handleApprove} disabled={approveDisabled}>
-              <Icon name="check" size={13} /> Approve as {approverName.split(" ")[0]}
+          <div className="card" style={{ padding: 12 }}>
+            <button
+              className="btn btn-accent"
+              style={{ width: "100%", justifyContent: "center" }}
+              onClick={handleApprove}
+              disabled={approveDisabled}
+            >
+              <Icon name="check" size={13} /> Approve & promote
             </button>
             <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 6, lineHeight: 1.5 }}>
-              Promotes {artifacts.length} artifacts to <span className="mono">_kernel/{run?.project}/{run?.agent}/</span>
+              Promotes {artifacts.length} artifact{artifacts.length !== 1 ? "s" : ""} to{" "}
+              <span className="mono">_kernel/{run?.project}/{run?.agent}/</span>
             </div>
           </div>
         </div>

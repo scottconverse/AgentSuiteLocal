@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
@@ -25,7 +26,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sse_starlette.sse import EventSourceResponse
 
 # ---------------------------------------------------------------------------
@@ -43,11 +44,47 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# In-memory stores
+# In-memory stores + JSON sidecar persistence (ENG-006)
 # ---------------------------------------------------------------------------
 
 _runs: dict[str, dict[str, Any]] = {}
 _pipelines: dict[str, dict[str, Any]] = {}
+
+_RUNS_FILE = Path.home() / ".agentsuitelocal" / "runs.json"
+_PIPELINES_FILE = Path.home() / ".agentsuitelocal" / "pipelines.json"
+_MAX_RUNS = 50  # ENG-009: evict oldest runs beyond this limit
+
+
+def _load_state() -> None:
+    """Populate _runs and _pipelines from disk on startup."""
+    for path, store in ((_RUNS_FILE, _runs), (_PIPELINES_FILE, _pipelines)):
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+                for k, v in data.items():
+                    # Runs that were in-flight when the server stopped are now interrupted
+                    if v.get("status") == "running":
+                        v["status"] = "error"
+                        v["error"] = "Run interrupted — server was restarted."
+                    store[k] = v
+            except Exception:
+                pass
+
+
+def _save_state() -> None:
+    """Persist _runs and _pipelines to disk. Evicts oldest runs beyond _MAX_RUNS."""
+    _RUNS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    # Evict oldest runs if needed
+    if len(_runs) > _MAX_RUNS:
+        sorted_ids = sorted(_runs, key=lambda r: _runs[r].get("started_at", 0))
+        for rid in sorted_ids[: len(_runs) - _MAX_RUNS]:
+            del _runs[rid]
+    _RUNS_FILE.write_text(json.dumps(_runs, indent=2, default=str))
+    _PIPELINES_FILE.write_text(json.dumps(_pipelines, indent=2, default=str))
+
+
+# Load persisted state immediately at import so tests and the running server both see it
+_load_state()
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -85,12 +122,23 @@ def _save_settings(data: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
+_SLUG_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
 class RunRequest(BaseModel):
     agent_id: str
     goal: str
     project: str
     inputs_dir: str | None = None
     constraints: str | None = None
+
+    @model_validator(mode="after")
+    def validate_slugs(self) -> "RunRequest":
+        if not _SLUG_RE.match(self.project):
+            raise ValueError("project must contain only letters, numbers, hyphens, and underscores")
+        if not _SLUG_RE.match(self.agent_id):
+            raise ValueError("agent_id must contain only letters, numbers, hyphens, and underscores")
+        return self
 
 
 class ApproveRequest(BaseModel):
@@ -188,16 +236,34 @@ def _cpu_brand() -> str:
 
 @app.get("/api/settings")
 async def get_settings():
-    return _load_settings()
+    data = _load_settings()
+    # ENG-003: never expose the plaintext API key to any HTTP caller
+    if data.get("api_key"):
+        data["api_key"] = "****"
+    return data
+
+
+async def _apply_settings_patch(body: SettingsPatch) -> dict:
+    """Shared logic for POST and PATCH /api/settings."""
+    current = _load_settings()
+    # ENG-002: use exclude_unset=True so null values actually clear fields
+    patch = body.model_dump(exclude_unset=True)
+    current.update(patch)
+    _save_settings(current)
+    result = dict(current)
+    if result.get("api_key"):
+        result["api_key"] = "****"
+    return result
 
 
 @app.post("/api/settings")
 async def save_settings(body: SettingsPatch):
-    current = _load_settings()
-    patch = {k: v for k, v in body.model_dump().items() if v is not None}
-    current.update(patch)
-    _save_settings(current)
-    return current
+    return await _apply_settings_patch(body)
+
+
+@app.patch("/api/settings")
+async def patch_settings(body: SettingsPatch):
+    return await _apply_settings_patch(body)
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +558,7 @@ async def start_run(req: RunRequest):
         "qa_dimensions": [],
         "error": None,
     }
+    _save_state()
     asyncio.create_task(_execute_run(run_id, req))
     return {"run_id": run_id}
 
@@ -509,9 +576,8 @@ async def stream_run(run_id: str):
             while seen < len(events):
                 yield {"data": json.dumps(events[seen])}
                 seen += 1
+            # ENG-005: drain buffered events first, then break — no synthetic re-emit
             if run["status"] in ("approved", "rejected", "error", "waiting"):
-                if run["status"] == "waiting":
-                    yield {"data": json.dumps({"type": "agent_waiting", "run_id": run_id})}
                 break
             await asyncio.sleep(0.2)
 
@@ -558,6 +624,7 @@ async def approve_run(run_id: str, body: ApproveRequest):
     run["status"] = "approved"
     run["approver"] = body.approver
     run["approved_at"] = time.time()
+    _save_state()
     return {"status": "approved", "run_id": run_id}
 
 
@@ -566,6 +633,7 @@ async def reject_run(run_id: str):
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
     _runs[run_id]["status"] = "rejected"
+    _save_state()
     return {"status": "rejected", "run_id": run_id}
 
 
@@ -731,6 +799,53 @@ async def list_projects():
 
 
 # ---------------------------------------------------------------------------
+# LLM resolver + error helpers (ENG-001, QA-004)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_llm(settings: dict) -> Any:
+    """Build an LLM provider from persisted settings.
+
+    Priority: Anthropic (if api_key set) → resolve_provider() (reads env vars) → Ollama fallback.
+    Sets ANTHROPIC_API_KEY in the environment so downstream code that reads env vars also sees it.
+    """
+    api_key = settings.get("api_key")
+    model_name = settings.get("model_name", "gemma4:e4b")
+
+    if api_key:
+        os.environ["ANTHROPIC_API_KEY"] = api_key
+
+    try:
+        from agentsuite.llm.resolver import resolve_provider
+        return resolve_provider(name=model_name)
+    except Exception:
+        pass
+
+    # Hard fallback to Ollama with the configured model
+    try:
+        from agentsuite.llm.ollama import OllamaProvider
+        return OllamaProvider(model=model_name)
+    except Exception:
+        return None
+
+
+def _friendly_error(raw: str) -> str:
+    """Map raw exception strings to plain-language messages for non-technical users."""
+    msg = raw.lower()
+    if "connecterror" in msg or "connection refused" in msg or "connect" in msg:
+        return "Ollama is not running. Open Ollama and try again."
+    if "noproviderconfigured" in msg or "no provider" in msg:
+        return "No AI model configured. Open Settings and enter your API key, or start Ollama."
+    if "api_key" in msg or "authentication" in msg or "unauthorized" in msg or "403" in msg:
+        return "Invalid API key. Check your key in Settings."
+    if "model" in msg and ("not found" in msg or "does not exist" in msg):
+        return "Model not found. Open Settings and verify your model selection, then try again."
+    if "interrupted" in msg:
+        return raw  # already friendly
+    return f"Something went wrong. Check Settings and try again. ({raw[:120]})"
+
+
+# ---------------------------------------------------------------------------
 # Background run executor
 # ---------------------------------------------------------------------------
 
@@ -744,6 +859,18 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
     emit("agent_start", agent=req.agent_id, project=req.project)
 
     try:
+        # ENG-001: load settings and resolve LLM before constructing orchestrator
+        settings = _load_settings()
+        llm = _resolve_llm(settings)
+
+        # QA-004: pre-flight check — fail fast with a friendly message
+        if not settings.get("api_key"):
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    await client.get("http://localhost:11434/api/tags")
+            except Exception:
+                raise RuntimeError("Ollama is not running. Open Ollama and try again.")
+
         from agentsuite.pipeline.orchestrator import PipelineOrchestrator
 
         output_root = _workspace() / ".agentsuite"
@@ -760,7 +887,8 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
                     "ts": time.time(),
                 })
 
-            orch = PipelineOrchestrator(output_root=output_root)
+            # ENG-001: pass resolved llm= to orchestrator
+            orch = PipelineOrchestrator(output_root=output_root, llm=llm)
             return orch.run(
                 agents=[req.agent_id],
                 project_slug=req.project,
@@ -794,7 +922,6 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
                             or qa_data.get("score")
                             or qa_data.get("overall")
                         )
-                        # Extract per-dimension scores
                         dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
                         if isinstance(dims, dict):
                             qa_dimensions = [
@@ -812,13 +939,16 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
         run["qa_dimensions"] = qa_dimensions
         run["status"] = "waiting"
         emit("agent_waiting", qa_score=qa_score, artifacts=artifacts)
+        _save_state()
 
     except Exception as exc:
+        friendly = _friendly_error(str(exc))
         run["status"] = "error"
-        run["error"] = str(exc)
+        run["error"] = friendly
         run["events"].append(
-            {"type": "error", "run_id": run_id, "message": str(exc), "ts": time.time()}
+            {"type": "error", "run_id": run_id, "message": friendly, "ts": time.time()}
         )
+        _save_state()
 
 
 # ---------------------------------------------------------------------------
@@ -845,6 +975,10 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
     _emit_pipeline(pipeline_id, "agent_start", agent=agent_id, step=step_idx)
 
     try:
+        # ENG-001: load settings and resolve LLM before constructing orchestrator
+        settings = _load_settings()
+        llm = _resolve_llm(settings)
+
         from agentsuite.pipeline.orchestrator import PipelineOrchestrator
 
         output_root = _workspace() / ".agentsuite"
@@ -862,7 +996,8 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
                     "ts": time.time(),
                 })
 
-            orch = PipelineOrchestrator(output_root=output_root)
+            # ENG-001: pass resolved llm= to orchestrator
+            orch = PipelineOrchestrator(output_root=output_root, llm=llm)
             return orch.run(
                 agents=[agent_id],
                 project_slug=pipeline["project"],
@@ -952,9 +1087,18 @@ def _push_to_kernel(run: dict) -> None:
 
 
 def _push_to_kernel_by_run_id(run_id: str, project: str, agent: str) -> None:
+    # ENG-007: validate slugs before building filesystem paths
+    if not _SLUG_RE.match(project):
+        raise ValueError(f"Invalid project slug: {project!r}")
+    if not _SLUG_RE.match(agent):
+        raise ValueError(f"Invalid agent slug: {agent!r}")
     workspace = _workspace()
+    kernel_root = (workspace / ".agentsuite" / "_kernel").resolve()
     run_dir = workspace / ".agentsuite" / "runs" / run_id
     kernel_dir = workspace / ".agentsuite" / "_kernel" / project / agent
+    # Extra path traversal check after resolution
+    if not str(kernel_dir.resolve()).startswith(str(kernel_root)):
+        raise ValueError("Path traversal blocked")
     kernel_dir.mkdir(parents=True, exist_ok=True)
     if run_dir.exists():
         for f in run_dir.rglob("*"):

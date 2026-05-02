@@ -29,6 +29,21 @@ jobs:
       - name: Unit + integration tests
         run: pytest tests/ -v --ignore=tests/e2e -m "not ollama"
 
+      - name: Set up Node.js (frontend tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: web
+
+      - name: Frontend tests (Vitest)
+        run: npm run test
+        working-directory: web
+
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-latest
