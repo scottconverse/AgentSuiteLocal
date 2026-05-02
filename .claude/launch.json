@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5299", "--directory", "docs"],
+      "port": 5299
+    },
+    {
+      "name": "agentsuitelocal-frontend",
+      "cwd": "C:\\Users\\scott\\OneDrive\\Desktop\\Claude\\AgentSuiteLocal\\web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npx-cli.js", "vite", "--port", "5174", "--host"],
+      "port": 5174
+    }
+  ]
+}

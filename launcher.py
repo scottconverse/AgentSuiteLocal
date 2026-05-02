@@ -45,23 +45,40 @@ def _wait_for_server(host: str, port: int, timeout: float = 15.0) -> bool:
     return False
 
 
-def _start_server(port: int) -> None:
-    import uvicorn
-    from agentsuitelocal.api.main import app
+def _log(msg: str) -> None:
+    import os
+    log_path = os.path.join(os.path.expanduser("~"), ".agentsuitelocal", "launcher.log")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "a") as f:
+        f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
 
-    config = uvicorn.Config(
-        app,
-        host=HOST,
-        port=port,
-        log_level="error",
-        access_log=False,
-    )
-    server = uvicorn.Server(config)
-    server.run()
+
+def _start_server(port: int) -> None:
+    import traceback
+    import uvicorn
+    try:
+        from agentsuitelocal.api.main import app
+        _log(f"app imported ok, starting uvicorn on port {port}")
+        # log_config=None disables uvicorn's logging setup entirely; required
+        # in windowed (no-console) mode where sys.stdout is None and the
+        # default formatter crashes trying to call stream.isatty().
+        config = uvicorn.Config(
+            app,
+            host=HOST,
+            port=port,
+            log_config=None,
+        )
+        server = uvicorn.Server(config)
+        server.run()
+        _log("uvicorn exited normally")
+    except Exception as e:
+        _log(f"_start_server CRASHED: {e}\n{traceback.format_exc()}")
 
 
 def main() -> None:
+    _log("launcher main() starting")
     port = _find_free_port(PORT)
+    _log(f"using port {port}")
     url = f"http://{HOST}:{port}"
 
     thread = threading.Thread(target=_start_server, args=(port,), daemon=True)
@@ -69,10 +86,11 @@ def main() -> None:
 
     ready = _wait_for_server(HOST, port, timeout=15.0)
     if not ready:
-        # Visible only if somehow running with a console — frozen builds hide this.
+        _log(f"server failed to start on port {port} (timeout)")
         print(f"AgentSuiteLocal failed to start on port {port}.", file=sys.stderr)
         sys.exit(1)
 
+    _log(f"server ready on port {port}, opening browser")
     webbrowser.open(url)
 
     # Keep the main thread alive; daemon thread dies when main exits.

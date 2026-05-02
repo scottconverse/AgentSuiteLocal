@@ -16,21 +16,25 @@
 
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path(SPECPATH)
 WEB_DIST = ROOT / "web" / "dist"
 
 block_cipher = None
 
+# Collect all agentsuite code + data (jinja2 prompts, md templates, etc.)
+_as_datas, _as_binaries, _as_hiddenimports = collect_all("agentsuite")
+
 a = Analysis(
     [str(ROOT / "launcher.py")],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=_as_binaries,
     datas=[
         # Bundle the pre-built frontend; accessible at sys._MEIPASS/web/dist at runtime.
         (str(WEB_DIST), "web/dist"),
-    ],
-    hiddenimports=[
+    ] + _as_datas,
+    hiddenimports=_as_hiddenimports + [
         # uvicorn internals not always auto-detected
         "uvicorn.lifespan.on",
         "uvicorn.lifespan.off",
@@ -66,6 +70,23 @@ a = Analysis(
         # pydantic v2
         "pydantic.deprecated.class_validators",
         "pydantic_core",
+        # agentsuitelocal dynamic imports
+        "agentsuite.pipeline.orchestrator",
+        "agentsuite.pipeline.schema",
+        "agentsuite.kernel.base_agent",
+        "agentsuite.llm.ollama",
+        "agentsuite.llm.resolver",
+        # Jinja2 (agentsuite prompt templates)
+        "jinja2",
+        "jinja2.ext",
+        "jinja2.loaders",
+        "markupsafe",
+        # agentsuite runtime deps
+        "tenacity",
+        "anthropic",
+        "ollama",
+        "openai",
+        "mcp",
     ],
     hookspath=[],
     hooksconfig={},
@@ -98,7 +119,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=False,      # No terminal window on Windows or macOS
+    console=False,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
