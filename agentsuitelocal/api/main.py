@@ -43,10 +43,11 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# In-memory run store
+# In-memory stores
 # ---------------------------------------------------------------------------
 
 _runs: dict[str, dict[str, Any]] = {}
+_pipelines: dict[str, dict[str, Any]] = {}
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -108,6 +109,15 @@ class SettingsPatch(BaseModel):
 
 class PullRequest(BaseModel):
     model: str
+
+
+class PipelineRequest(BaseModel):
+    name: str
+    project: str
+    goal: str
+    agents: list[str]
+    inputs_dir: str | None = None
+    auto_approve: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -566,6 +576,109 @@ async def list_runs():
 
 
 # ---------------------------------------------------------------------------
+# Pipeline management
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/pipelines")
+async def create_pipeline(req: PipelineRequest):
+    pid = f"pipeline-{uuid.uuid4().hex[:6]}"
+    _pipelines[pid] = {
+        "id": pid,
+        "name": req.name,
+        "project": req.project,
+        "goal": req.goal,
+        "agents": req.agents,
+        "status": "running",
+        "current_step": 0,
+        "steps": [
+            {
+                "agent": a,
+                "status": "running" if i == 0 else "todo",
+                "run_id": None,
+                "qa_score": None,
+                "artifacts": [],
+            }
+            for i, a in enumerate(req.agents)
+        ],
+        "events": [],
+        "auto_approve": req.auto_approve,
+        "inputs_dir": req.inputs_dir,
+        "started_at": time.time(),
+        "updated_at": time.time(),
+    }
+    asyncio.create_task(_execute_pipeline_step(pid, 0))
+    return {"pipeline_id": pid}
+
+
+@app.get("/api/pipelines")
+async def list_pipelines():
+    pipelines = sorted(_pipelines.values(), key=lambda p: p["started_at"], reverse=True)
+    return {"pipelines": pipelines}
+
+
+@app.get("/api/pipelines/{pipeline_id}")
+async def get_pipeline(pipeline_id: str):
+    if pipeline_id not in _pipelines:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    return _pipelines[pipeline_id]
+
+
+@app.get("/api/pipelines/{pipeline_id}/stream")
+async def stream_pipeline(pipeline_id: str):
+    if pipeline_id not in _pipelines:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+
+    async def generator():
+        pipeline = _pipelines[pipeline_id]
+        seen = 0
+        while True:
+            events = pipeline["events"]
+            while seen < len(events):
+                yield {"data": json.dumps(events[seen])}
+                seen += 1
+            if pipeline["status"] in ("done", "error", "awaiting_approval", "rejected"):
+                break
+            await asyncio.sleep(0.3)
+
+    return EventSourceResponse(generator())
+
+
+@app.post("/api/pipelines/{pipeline_id}/approve")
+async def approve_pipeline_step(pipeline_id: str, body: ApproveRequest):
+    if pipeline_id not in _pipelines:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline = _pipelines[pipeline_id]
+    if pipeline["status"] != "awaiting_approval":
+        raise HTTPException(status_code=400, detail=f"Pipeline is {pipeline['status']}, not awaiting_approval")
+    step_idx = pipeline["current_step"]
+    step = pipeline["steps"][step_idx]
+    if step["run_id"]:
+        _push_to_kernel_by_run_id(step["run_id"], pipeline["project"], step["agent"])
+    step["status"] = "done"
+    asyncio.create_task(_advance_pipeline(pipeline_id, step_idx))
+    return {"status": "approved", "pipeline_id": pipeline_id, "step": step_idx}
+
+
+@app.post("/api/pipelines/{pipeline_id}/reject")
+async def reject_pipeline_step(pipeline_id: str):
+    if pipeline_id not in _pipelines:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline = _pipelines[pipeline_id]
+    step_idx = pipeline["current_step"]
+    pipeline["steps"][step_idx]["status"] = "rejected"
+    pipeline["status"] = "rejected"
+    pipeline["updated_at"] = time.time()
+    _pipelines[pipeline_id]["events"].append({
+        "type": "pipeline_rejected",
+        "pipeline_id": pipeline_id,
+        "step": step_idx,
+        "ts": time.time(),
+    })
+    return {"status": "rejected", "pipeline_id": pipeline_id}
+
+
+# ---------------------------------------------------------------------------
 # Kernel
 # ---------------------------------------------------------------------------
 
@@ -709,6 +822,122 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Pipeline background helpers
+# ---------------------------------------------------------------------------
+
+
+def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
+    _pipelines[pipeline_id]["events"].append({
+        "type": event_type,
+        "pipeline_id": pipeline_id,
+        "ts": time.time(),
+        **kwargs,
+    })
+
+
+async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
+    pipeline = _pipelines[pipeline_id]
+    step = pipeline["steps"][step_idx]
+    agent_id = step["agent"]
+
+    pipeline["status"] = "running"
+    pipeline["updated_at"] = time.time()
+    _emit_pipeline(pipeline_id, "agent_start", agent=agent_id, step=step_idx)
+
+    try:
+        from agentsuite.pipeline.orchestrator import PipelineOrchestrator
+
+        output_root = _workspace() / ".agentsuite"
+        loop = asyncio.get_running_loop()
+        step_orch_id = f"{pipeline_id}-step{step_idx}"
+
+        def _run_sync():
+            def on_progress(event: str, step_state, _pipeline_state):
+                _pipelines[pipeline_id]["events"].append({
+                    "type": "stage_update" if event not in ("agent_start", "agent_done", "agent_waiting") else event,
+                    "pipeline_id": pipeline_id,
+                    "stage": event,
+                    "agent": step_state.agent,
+                    "step": step_idx,
+                    "ts": time.time(),
+                })
+
+            orch = PipelineOrchestrator(output_root=output_root)
+            return orch.run(
+                agents=[agent_id],
+                project_slug=pipeline["project"],
+                business_goal=pipeline["goal"],
+                pipeline_id=step_orch_id,
+                inputs_dir=Path(pipeline["inputs_dir"]) if pipeline["inputs_dir"] else None,
+                on_progress=on_progress,
+            )
+
+        result = await loop.run_in_executor(None, _run_sync)
+        result_step = result.steps[0] if result.steps else None
+
+        actual_run_id = f"{step_orch_id}-{agent_id}"
+        step["run_id"] = actual_run_id
+
+        if result_step and result_step.run_id:
+            run_dir = output_root / "runs" / result_step.run_id
+            if run_dir.exists():
+                step["artifacts"] = [
+                    str(f.relative_to(run_dir))
+                    for f in run_dir.rglob("*")
+                    if f.is_file() and not f.name.startswith("_")
+                ]
+                qa_file = run_dir / "qa_scores.json"
+                if qa_file.exists():
+                    try:
+                        qa_data = json.loads(qa_file.read_text())
+                        step["qa_score"] = (
+                            qa_data.get("weighted_score")
+                            or qa_data.get("overall_score")
+                            or qa_data.get("score")
+                            or qa_data.get("overall")
+                        )
+                    except Exception:
+                        pass
+
+        if pipeline["auto_approve"]:
+            _push_to_kernel_by_run_id(actual_run_id, pipeline["project"], agent_id)
+            step["status"] = "done"
+            await _advance_pipeline(pipeline_id, step_idx)
+        else:
+            step["status"] = "awaiting_approval"
+            pipeline["status"] = "awaiting_approval"
+            pipeline["updated_at"] = time.time()
+            _emit_pipeline(pipeline_id, "agent_waiting", agent=agent_id, step=step_idx, qa_score=step["qa_score"])
+
+    except Exception as exc:
+        step["status"] = "error"
+        pipeline["status"] = "error"
+        pipeline["updated_at"] = time.time()
+        _emit_pipeline(pipeline_id, "pipeline_error", error=str(exc), step=step_idx)
+
+
+async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
+    pipeline = _pipelines[pipeline_id]
+    step = pipeline["steps"][approved_step_idx]
+    step["status"] = "done"
+    _emit_pipeline(pipeline_id, "agent_done", agent=step["agent"], step=approved_step_idx, qa_score=step["qa_score"])
+
+    next_idx = approved_step_idx + 1
+    pipeline["current_step"] = next_idx
+
+    if next_idx >= len(pipeline["steps"]):
+        pipeline["status"] = "done"
+        pipeline["updated_at"] = time.time()
+        _emit_pipeline(pipeline_id, "pipeline_done")
+        return
+
+    pipeline["steps"][next_idx]["status"] = "running"
+    pipeline["status"] = "running"
+    pipeline["updated_at"] = time.time()
+    asyncio.create_task(_execute_pipeline_step(pipeline_id, next_idx))
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -718,11 +947,13 @@ def _workspace() -> Path:
 
 
 def _push_to_kernel(run: dict) -> None:
-    workspace = _workspace()
-    project = run["project"]
-    agent = run["agent"]
     as_run_id = run.get("agentsuite_run_id") or run["id"]
-    run_dir = workspace / ".agentsuite" / "runs" / as_run_id
+    _push_to_kernel_by_run_id(as_run_id, run["project"], run["agent"])
+
+
+def _push_to_kernel_by_run_id(run_id: str, project: str, agent: str) -> None:
+    workspace = _workspace()
+    run_dir = workspace / ".agentsuite" / "runs" / run_id
     kernel_dir = workspace / ".agentsuite" / "_kernel" / project / agent
     kernel_dir.mkdir(parents=True, exist_ok=True)
     if run_dir.exists():
