@@ -450,31 +450,54 @@
 <!-- Install -->
 <section id="install">
   <div class="container">
-    <h2>Install in four steps</h2>
-    <p class="section-sub">The in-app installer walks you through the rest — model download, agent selection, smoke test.</p>
-    <div class="install-block">
-      <div class="install-tab">
-        <span class="active">bash</span>
-      </div>
-      <pre><span class="comment"># 1. Pull the model (one-time, ~5 GB)</span>
-<span class="cmd">ollama pull gemma4:e4b</span>
-
-<span class="comment"># 2. Clone and install backend</span>
-<span class="cmd">git clone https://github.com/scottconverse/AgentSuiteLocal
-cd AgentSuiteLocal
-pip install -e .</span>
-
-<span class="comment"># 3. Build the frontend</span>
-<span class="cmd">cd web && npm install && npm run build && cd ..</span>
-
-<span class="comment"># 4. Start</span>
-<span class="cmd">uvicorn agentsuitelocal.api.main:app --port 8765</span>
-<span class="comment"># Open http://localhost:8765</span></pre>
-    </div>
-    <p style="margin-top: 16px; font-size: 13px; color: var(--ink-3);">
-      Requires Python 3.11+, Node 20+, and <a href="https://ollama.ai">Ollama</a> installed.
-      See the <a href="user-manual.html">full manual</a> for dev mode, troubleshooting, and workspace layout.
+    <h2>The installer handles everything</h2>
+    <p class="section-sub">
+      Open the app once and a guided installer walks you through Ollama setup,
+      model download, Python runtime, agent selection, and a smoke test —
+      no terminal required.
     </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 40px;">
+      <div class="feature" style="padding: 16px;">
+        <div class="feature-icon" style="font-size: 18px;">🔍</div>
+        <h3 style="font-size: 13px;">Hardware check</h3>
+        <p>Reads your CPU, RAM, and disk. Recommends the right model tier automatically.</p>
+      </div>
+      <div class="feature" style="padding: 16px;">
+        <div class="feature-icon" style="font-size: 18px;">⚙️</div>
+        <h3 style="font-size: 13px;">Ollama setup</h3>
+        <p>Detects if Ollama is installed. If not, installs the bundled copy — one click, no admin password.</p>
+      </div>
+      <div class="feature" style="padding: 16px;">
+        <div class="feature-icon" style="font-size: 18px;">⬇️</div>
+        <h3 style="font-size: 13px;">Model download</h3>
+        <p>Pulls the model with a live progress bar. One-time download, then fully offline.</p>
+      </div>
+      <div class="feature" style="padding: 16px;">
+        <div class="feature-icon" style="font-size: 18px;">🐍</div>
+        <h3 style="font-size: 13px;">Runtime setup</h3>
+        <p>Unpacks and verifies the bundled Python environment. Nothing to install manually.</p>
+      </div>
+      <div class="feature" style="padding: 16px;">
+        <div class="feature-icon" style="font-size: 18px;">✅</div>
+        <h3 style="font-size: 13px;">Smoke test</h3>
+        <p>Runs a quick end-to-end check before handing you over to the main app.</p>
+      </div>
+    </div>
+
+    <div style="background: var(--bg-elev); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; display: flex; gap: 16px; align-items: flex-start;">
+      <div style="font-size: 20px; flex-shrink: 0; margin-top: 2px;">🛠️</div>
+      <div>
+        <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">v0.1 is a developer preview</div>
+        <div style="font-size: 13px; color: var(--ink-3); line-height: 1.6;">
+          Starting the local server still requires a terminal in this release
+          (<code style="font-family: var(--font-mono); color: var(--ink-2);">uvicorn agentsuitelocal.api.main:app --port 8765</code>).
+          Once the server is running, everything else — Ollama, model, runtime, agents — is handled by the in-app installer.
+          A single-binary installer that removes the terminal requirement entirely is coming in Phase 2.
+          <a href="https://github.com/scottconverse/AgentSuiteLocal#readme" style="color: var(--accent); margin-left: 6px;">Developer setup →</a>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
