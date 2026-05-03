@@ -9,7 +9,7 @@ No. Download the distributable, double-click it, and the in-app installer walks 
 At minimum: 8 GB RAM and Windows 10 64-bit. Recommended: 16 GB RAM and Windows 11. The installer's hardware check will tell you which model tier fits your machine.
 
 **Does it work on macOS or Linux?**  
-The distributable is Windows-only in v0.1.0. Developers can run from source on macOS and Linux.
+The distributable is Windows-only in v0.1. Developers can run from source on macOS and Linux.
 
 **Does it need an internet connection?**  
 Only for the one-time model download. After that, everything runs offline.
@@ -51,10 +51,10 @@ The artifacts stay in the run folder but are never promoted. You can start a new
 No. The model runs in Ollama on your machine. All inference is local.
 
 **Can I use Claude or GPT-4 instead of Gemma?**  
-You can paste an Anthropic API key in Settings to enable Claude as a cloud fallback. OpenAI is not supported in v0.1.0.
+You can paste an Anthropic API key in Settings to enable Claude as a cloud fallback. OpenAI is not supported in v0.1.
 
 **Can I use a different Ollama model?**  
-The model selector in the installer supports `gemma4:e2b`, `gemma4:e4b`, and `gemma4:26b-moe`. Custom models are not supported through the UI in v0.1.0, but you can set one via the settings API directly.
+The model selector in the installer supports `gemma4:e2b`, `gemma4:e4b`, and `gemma4:26b-moe`. Custom models are not supported through the UI in v0.1, but you can set one via the settings API directly.
 
 ---
 
@@ -67,7 +67,7 @@ Open a terminal and run `ollama serve`. Then click Retry in the installer.
 Either Ollama isn't running, or you don't have a model pulled. Run `ollama pull gemma4:e4b` in a terminal.
 
 **The distributable shows a "Windows protected your PC" warning.**  
-Click **More info**, then **Run anyway**. The binary is unsigned in v0.1.0. You only see this once.
+Click **More info**, then **Run anyway**. The binary is unsigned in v0.1. You only see this once.
 
 **Where are my artifacts?**  
 At `~/AgentSuite/.agentsuite/runs/{run-id}/` for run outputs, and `~/AgentSuite/.agentsuite/_kernel/` for approved artifacts.

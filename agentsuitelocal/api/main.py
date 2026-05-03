@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import platform
 import re
@@ -70,6 +71,12 @@ def _load_state() -> None:
                     if v.get("status") == "running":
                         v["status"] = "error"
                         v["error"] = "Run interrupted — server was restarted."
+                    # Migration: scrub any non-finite floats stored before QA-NEW-001 fix
+                    if v.get("qa_dimensions"):
+                        v["qa_dimensions"] = [
+                            d for d in v["qa_dimensions"]
+                            if isinstance(d.get("score"), (int, float)) and math.isfinite(float(d["score"]))
+                        ]
                     store[k] = v
             except Exception:
                 pass
@@ -98,7 +105,6 @@ _SETTINGS_FILE = Path.home() / ".agentsuitelocal" / "settings.json"
 _SETTINGS_DEFAULTS: dict[str, Any] = {
     "model_tier": "balanced",
     "model_name": "gemma4:e4b",
-    "auto_approve_threshold": None,
     "open_on_launch": True,
     "telemetry": False,
     "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust", "cio"],
@@ -166,7 +172,6 @@ class ApproveRequest(BaseModel):
 class SettingsPatch(BaseModel):
     model_tier: str | None = None
     model_name: str | None = None
-    auto_approve_threshold: float | None = None
     open_on_launch: bool | None = None
     telemetry: bool | None = None
     enabled_agents: list[str] | None = None
@@ -618,7 +623,7 @@ async def stream_run(run_id: str):
 async def get_run(run_id: str):
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
-    return _runs[run_id]
+    return _scrub_nan_from_run(_runs[run_id])
 
 
 @app.get("/api/run/{run_id}/artifact/{path:path}")
@@ -631,7 +636,7 @@ async def get_artifact(run_id: str, path: str):
     run_dir = (_workspace() / ".agentsuite" / "runs" / as_run_id).resolve()
     artifact_path = (run_dir / path).resolve()
     # Prevent path traversal
-    if not str(artifact_path).startswith(str(run_dir)):
+    if not artifact_path.is_relative_to(run_dir):
         raise HTTPException(status_code=403, detail="Forbidden")
     if not artifact_path.exists() or not artifact_path.is_file():
         raise HTTPException(status_code=404, detail="Artifact not found")
@@ -1005,10 +1010,28 @@ def _sanitize_qa_dimensions(dims: dict) -> list[dict]:
         if len(k) > 60 or _QA_KEY_RE.search(k):
             continue
         try:
-            result.append({"name": k, "score": float(v)})
+            score = float(v)
+            if not math.isfinite(score):
+                continue
+            result.append({"name": k, "score": score})
         except (TypeError, ValueError):
             pass
     return result
+
+
+def _scrub_nan_from_run(run: dict) -> dict:
+    """Return a shallow copy of run with any non-finite floats removed from qa_score and qa_dimensions."""
+    out = dict(run)
+    # Scrub top-level qa_score
+    if isinstance(out.get("qa_score"), float) and not math.isfinite(out["qa_score"]):
+        out["qa_score"] = None
+    # Scrub per-dimension scores
+    if out.get("qa_dimensions"):
+        out["qa_dimensions"] = [
+            d for d in out["qa_dimensions"]
+            if isinstance(d.get("score"), (int, float)) and math.isfinite(float(d["score"]))
+        ]
+    return out
 
 
 def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
@@ -1145,6 +1168,7 @@ async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
     pipeline["steps"][next_idx]["status"] = "running"
     pipeline["status"] = "running"
     pipeline["updated_at"] = time.time()
+    _save_state()
     asyncio.create_task(_execute_pipeline_step(pipeline_id, next_idx))
 
 

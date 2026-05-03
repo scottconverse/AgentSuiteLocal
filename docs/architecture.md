@@ -16,7 +16,7 @@ AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github
 └────────────────────────┬───────────────────────────────────────┘
                          │ HTTP / SSE
 ┌────────────────────────▼───────────────────────────────────────┐
-│  FastAPI backend  (uvicorn :8765)                               │
+│  FastAPI backend  (uvicorn :8766 dev / :8765 prod)              │
 │                                                                  │
 │  /api/health        /api/hardware                               │
 │  /api/ollama/status                                             │
@@ -159,7 +159,7 @@ useEffect(() => {
 // In InstallerShell: nextDisabled={!ready}
 ```
 
-The Vite dev server proxies `/api/*` to `:8765` via `vite.config.js`. In production, FastAPI serves the built frontend from `web/dist/` and handles `/api/*` natively — no proxy needed.
+The Vite dev server proxies `/api/*` to `:8766` via `vite.config.js`. In production, FastAPI serves the built frontend from `web/dist/` and handles `/api/*` natively — no proxy needed.
 
 ---
 
@@ -173,7 +173,7 @@ tests/
                                         auto-skip if daemon unreachable
                                         pytest.mark.ollama
   e2e/
-    conftest.py          session fixture — starts backend on :8765 if not up
+    conftest.py          session fixture — starts backend on :8766 if not up
     test_installer.py    2 E2E — full 11-step installer walk
     test_app.py         10 E2E — all 7 nav items + New Run + Approval Gate
                                   pytest.mark.e2e

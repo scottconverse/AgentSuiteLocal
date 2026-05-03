@@ -52,6 +52,12 @@ export default function App() {
   const [agentId, setAgentId]     = useState(null);
   // UX-016: live waiting-run count for Sidebar badge
   const [waitingCount, setWaitingCount] = useState(0);
+  // UX-003: short-lived toast after approve/reject
+  const [actionToast, setActionToast] = useState(null); // { msg, kind }
+  const showToast = (msg, kind = "good") => {
+    setActionToast({ msg, kind });
+    setTimeout(() => setActionToast(null), 4000);
+  };
 
   useEffect(() => {
     if (mode !== "app") return;
@@ -138,8 +144,8 @@ export default function App() {
     if (scene === "gate") return (
       <ApprovalGateView
         runId={runId}
-        onApprove={() => { setScene("main"); setView("home"); setRunId(null); }}
-        onReject={() => { setScene("main"); setView("home"); setRunId(null); }}
+        onApprove={() => { setScene("main"); setView("home"); setRunId(null); showToast("Run approved and promoted to kernel"); }}
+        onReject={() => { setScene("main"); setView("home"); setRunId(null); showToast("Run rejected", "bad"); }}
       />
     );
 
@@ -163,6 +169,18 @@ export default function App() {
       display: "flex", alignItems: "center", justifyContent: "center",
       background: "var(--bg-sunk)", padding: 24,
     }}>
+      {actionToast && (
+        <div className="fade-up" style={{
+          position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+          padding: "10px 20px", borderRadius: 10, zIndex: 9999,
+          background: actionToast.kind === "bad" ? "var(--bad)" : "var(--good)",
+          color: "white", fontSize: 13, fontWeight: 600,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+          pointerEvents: "none", whiteSpace: "nowrap",
+        }}>
+          {actionToast.msg}
+        </div>
+      )}
       <WindowChrome
         title="AgentSuiteLocal"
         subtitle={mode === "installer" ? `Setup · ${STEP_LABELS[step]}` : "Local AI workspace"}

@@ -2,8 +2,9 @@
 Playwright E2E fixtures.
 
 BASE_URL defaults to http://localhost:5175 (Vite dev server default when 5173
-is already taken). In CI, set BASE_URL=http://localhost:8766 after building
-the frontend and starting uvicorn.
+is already taken). In CI, BASE_URL=http://localhost:8765 — the e2e job builds
+the frontend and serves it via FastAPI on :8765, not the Vite dev server.
+See .github/workflows/ci.yml.
 """
 
 import os

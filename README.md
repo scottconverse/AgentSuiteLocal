@@ -174,11 +174,13 @@ pytest tests/test_api.py tests/test_integration.py -v
 # Live Ollama tests (requires Ollama running with a model loaded)
 pytest tests/test_ollama_live.py -v -m ollama
 
-# E2E browser tests (Vite on :5173, backend auto-started on :8766 by conftest)
+# E2E browser tests (local dev):
+#   Vite dev server must be running on :5173 (npm run dev)
+#   Backend is auto-started on :8766 by conftest if not already up
 pytest tests/e2e/ -v -m e2e
 ```
 
-CI runs unit + integration on every push (Ubuntu, Python 3.11 + 3.12 matrix). E2E runs in a separate job after a production build. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
+CI runs Python unit + integration tests and Vitest frontend tests on every push (Ubuntu, Python 3.11 + 3.12 matrix). E2E runs in a separate job after a production build — the CI E2E job starts the backend on `:8765` and sets `BASE_URL=http://localhost:8765`, testing against the built frontend served by FastAPI rather than the Vite dev server. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ---
 

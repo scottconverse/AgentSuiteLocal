@@ -93,7 +93,7 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
       {/* UX-001/UX-003: actionable error card with retry, not a raw error string */}
       {(status === "error" || status === "reconnecting") && (
         <div style={{ margin: "16px 24px", padding: 16, background: "var(--bad-soft)", borderRadius: 10, border: "1px solid var(--bad)", display: "flex", gap: 12, alignItems: "flex-start" }}>
-          <Icon name="alertTriangle" size={18} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+          <Icon name="alert" size={18} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 4 }}>
               {status === "reconnecting" ? "Reconnecting…" : "Run failed"}

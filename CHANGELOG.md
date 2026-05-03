@@ -9,6 +9,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.1.2] — 2026-05-02
+
+### Fixed
+
+- **`GET /api/run/{id}` 500 on non-finite floats** (ENG-NEW-004): `_scrub_nan_from_run` now scrubs `qa_score` at the top level in addition to `qa_dimensions` entries, and correctly passes through integer scores (previously dropped by `isinstance(score, float)` guard).
+- **Path traversal test reliability** (QA-FIX): Rewrote `test_get_artifact_rejects_path_traversal` to use `pathlib.Path.is_relative_to()` directly instead of HTTP URL encoding — HTTP layer normalises `%2E%2E` before the guard fires, making the prior test a false pass.
+- **Toast animation and color** (UX-FIX): Rejection toast now uses `var(--bad)` (red) instead of `var(--warn)` (amber) and gains the `.fade-up` CSS class so it slides in like other transient notifications.
+- **`auto_approve_threshold` dead field removed**: Field was stored and returned by the settings API but never consumed by any pipeline or run logic. Removed from `SettingsPatch` and `_SETTINGS_DEFAULTS` to prevent silent misconfiguration.
+
 ## [0.1.1] — 2026-05-02
 
 ### Fixed

@@ -60,7 +60,7 @@ export const NewRunView = ({ agentId, onCancel, onLaunch }) => {
 
         {launchError && (
           <div className="card" style={{ padding: 14, borderColor: "var(--bad)", background: "var(--bad-soft)", display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <Icon name="alertTriangle" size={16} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+            <Icon name="alert" size={16} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 4 }}>Could not start run</div>
               <div style={{ fontSize: 12, color: "var(--ink-2)" }}>{launchError}</div>

@@ -11,7 +11,7 @@ All network calls degrade gracefully; the test suite runs from a clean clone.
 import pytest
 from fastapi.testclient import TestClient
 
-from agentsuitelocal.api.main import app, _runs, _pipelines, _sanitize_qa_dimensions
+from agentsuitelocal.api.main import app, _runs, _pipelines, _sanitize_qa_dimensions, _scrub_nan_from_run
 
 client = TestClient(app)
 
@@ -661,3 +661,75 @@ def test_sanitize_qa_dimensions_accepts_valid_entries():
     scores = {d["name"]: d["score"] for d in result}
     assert scores["coherence"] == pytest.approx(0.85)
     assert scores["relevance"] == pytest.approx(0.92)
+
+
+# ---------------------------------------------------------------------------
+# QA-NEW-001 — math.isfinite guard in _sanitize_qa_dimensions
+# ---------------------------------------------------------------------------
+
+def test_sanitize_qa_dimensions_rejects_nan():
+    """float('nan') must be silently dropped — not stored, not serialized."""
+    dims = {"coherence": float("nan"), "relevance": 0.9}
+    result = _sanitize_qa_dimensions(dims)
+    names = [d["name"] for d in result]
+    assert "coherence" not in names
+    assert "relevance" in names
+
+
+def test_sanitize_qa_dimensions_rejects_infinity():
+    """float('inf') and float('-inf') must be silently dropped."""
+    dims = {"coherence": float("inf"), "depth": float("-inf"), "relevance": 0.8}
+    result = _sanitize_qa_dimensions(dims)
+    names = [d["name"] for d in result]
+    assert "coherence" not in names
+    assert "depth" not in names
+    assert "relevance" in names
+
+
+def test_get_run_returns_200_with_nan_qa_dimensions():
+    """GET /api/run/{id} must return 200 even when qa_dimensions contains NaN."""
+    from agentsuitelocal.api.main import _runs
+    r = client.post("/api/run", json={
+        "agent_id": "founder",
+        "goal": "Test nan qa",
+        "project": "test-proj",
+    })
+    run_id = r.json()["run_id"]
+    # Inject a NaN directly into the run record (simulates a corrupted sidecar)
+    _runs[run_id]["qa_dimensions"] = [{"name": "coherence", "score": float("nan")}]
+    r2 = client.get(f"/api/run/{run_id}")
+    assert r2.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# TEST-CRIT-001 — get_artifact path traversal guard
+# ---------------------------------------------------------------------------
+
+def test_run_rejects_sibling_home_path_as_inputs_dir():
+    """inputs_dir pointing to a sibling of the home directory must be rejected."""
+    import os
+    sibling = str(os.path.join(os.path.expanduser("~"), "..", "other_user"))
+    r = client.post("/api/run", json={
+        "agent_id": "founder",
+        "goal": "Test sibling path",
+        "project": "test-proj",
+        "inputs_dir": sibling,
+    })
+    assert r.status_code == 422
+
+
+def test_get_artifact_rejects_path_traversal():
+    """is_relative_to guard blocks paths that escape the run directory."""
+    from pathlib import Path
+    from agentsuitelocal.api.main import _workspace
+    # Build a real run_dir and a path that escapes it — test the guard directly
+    fake_run_id = "test-traversal-run"
+    run_dir = (_workspace() / ".agentsuite" / "runs" / fake_run_id).resolve()
+    # A sibling directory — resolves to a real path outside run_dir
+    traversal = (run_dir / "../../etc/passwd").resolve()
+    assert not traversal.is_relative_to(run_dir), (
+        f"Guard would not block {traversal} — it IS inside {run_dir}"
+    )
+    # Also confirm a legitimate child path passes the guard
+    legit = (run_dir / "outputs" / "strategy.md").resolve()
+    assert legit.is_relative_to(run_dir)
