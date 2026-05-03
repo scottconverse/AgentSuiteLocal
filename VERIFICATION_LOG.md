@@ -789,3 +789,25 @@
     Playwright E2E: skipped (push trigger, not PR to main — correct per ci.yml if condition)
     Commit: 31a62c5 (fix: reject Windows-style paths on Linux in open_folder)
   status: pass
+
+- timestamp: 2026-05-03T14:39:50Z
+  claim: "PR #5 created and merged to main (squash)"
+  evidence_type: ci_url
+  command: "gh pr merge 5 --repo scottconverse/AgentSuiteLocal --squash"
+  exit_code: 0
+  evidence: |
+    PR: https://github.com/scottconverse/AgentSuiteLocal/pull/5
+    State: MERGED
+    Merge commit SHA: fa9134db1cc51f621a160af130bc8274e432ad3c
+    52 files changed, 6841 insertions(+), 1049 deletions(-)
+  status: pass
+
+- timestamp: 2026-05-03T14:40:10Z
+  claim: "Tag v0.7.0 created and pushed to origin"
+  evidence_type: file_check
+  command: "git tag v0.7.0 && git push origin v0.7.0"
+  exit_code: 0
+  evidence: |
+    * [new tag]  v0.7.0 -> v0.7.0
+    Tag points to merge commit fa9134db1cc51f621a160af130bc8274e432ad3c on main.
+  status: pass
