@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900" role="img" aria-labelledby="title-stacked-logo">
+<title id="title-stacked-logo">AgentSuiteLocal stacked logo</title>
+<rect width="900" height="900" fill="#faf8f5"/>
+<g transform="translate(230,80) scale(0.86)">
+  <rect x="54" y="54" width="404" height="404" rx="92" fill="#ffffff" stroke="#ddd4c5" stroke-width="10"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M162 354 256 116l94 238" stroke="#1a1614" stroke-width="34"/>
+    <path d="M205 274h102" stroke="#1a1614" stroke-width="28"/>
+    <circle cx="256" cy="254" r="25" fill="#c2562b" stroke="#a8451f" stroke-width="8"/>
+    <path d="M256 254 256 164M256 254 337 208M256 254 337 302M256 254 256 348M256 254 175 302M256 254 175 208" stroke="#ddd4c5" stroke-width="10" opacity="0.82"/>
+    <circle cx="256" cy="126" r="16" fill="#c2562b"/><circle cx="337" cy="174" r="13" fill="#4a423d"/><circle cx="369" cy="286" r="13" fill="#3a6a85"/><circle cx="304" cy="380" r="13" fill="#3f7d3a"/><circle cx="192" cy="380" r="13" fill="#b08020"/><circle cx="143" cy="286" r="13" fill="#b03a2e"/><circle cx="175" cy="174" r="13" fill="#807771"/>
+  </g>
+</g>
+<text x="450" y="617" fill="#1a1614" font-family="Fraunces, Georgia, serif" font-size="88" font-weight="600" text-anchor="middle" letter-spacing="-2">AgentSuite</text>
+<g transform="translate(342,645)"><rect x="0" y="0" width="216" height="70" rx="10" fill="#f5e3d8" stroke="#c2562b" stroke-width="4"/><text x="108" y="47" fill="#5a2410" font-family="JetBrains Mono, Consolas, monospace" font-size="38" font-weight="700" text-anchor="middle" letter-spacing="5">LOCAL</text></g>
+<text x="450" y="778" fill="#4a423d" font-family="Inter Tight, Inter, Segoe UI, sans-serif" font-size="28" font-weight="500" text-anchor="middle">Private. Local. Founder-ready.</text>
+</svg>

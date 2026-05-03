@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+
+<style>
+  .ink { stroke: #1a1614; }
+  .ink2 { stroke: #4a423d; }
+  .soft { stroke: #ddd4c5; }
+  .accent { stroke: #c2562b; }
+  .accent2 { stroke: #a8451f; }
+  .info { stroke: #3a6a85; }
+  .good { stroke: #3f7d3a; }
+  .warn { stroke: #b08020; }
+  .bad { stroke: #b03a2e; }
+  .fill-bg { fill: #faf8f5; }
+  .fill-elev { fill: #ffffff; }
+  .fill-tint { fill: #efe9df; }
+  .fill-soft { fill: #f5e3d8; }
+  .fill-ink { fill: #1a1614; stroke: none; }
+  .fill-accent { fill: #c2562b; stroke: none; }
+  .fill-info { fill: #3a6a85; stroke: none; }
+  .fill-good { fill: #3f7d3a; stroke: none; }
+  .fill-warn { fill: #b08020; stroke: none; }
+  .fill-bad { fill: #b03a2e; stroke: none; }
+  .nofill { fill: none; }
+</style>
+
+<symbol id="asl-agents-founder" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M7.5 15.5 5.5 20l4.5-2"/><path class="accent" d="M12 17.8c4.8-2.1 7.2-6.2 7-12.3-6.1-.2-10.2 2.2-12.3 7L12 17.8Z"/><circle class="ink" cx="14.5" cy="9.5" r="1.7"/><path class="soft" d="M8.2 12.1 5 11l2.4-2.4M11.9 15.8 13 19l2.4-2.4"/>
+</g></symbol><symbol id="asl-agents-design" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M12 3.6a8.4 8.4 0 0 0 0 16.8h1.2c1 0 1.5-1.2.8-1.9-.5-.5-.2-1.4.6-1.4h1.1A6.8 6.8 0 0 0 12 3.6Z"/><circle class="accent" cx="8" cy="10" r="1"/><circle class="info" cx="11" cy="7.5" r="1"/><circle class="good" cx="14.6" cy="9" r="1"/><path class="warn" d="M9.5 15.5h.1"/>
+</g></symbol><symbol id="asl-agents-product" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<circle class="soft" cx="12" cy="12" r="8"/><circle class="ink" cx="12" cy="12" r="4.7"/><circle class="fill-accent" cx="12" cy="12" r="1.8"/><path class="accent" d="M17.8 6.2 20 4.1M16.4 7.6 18 6"/>
+</g></symbol><symbol id="asl-agents-engineering" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="m8.5 7-4.2 5 4.2 5M15.5 7l4.2 5-4.2 5"/><path class="accent" d="m13.5 5.5-3 13"/><circle class="soft" cx="12" cy="12" r="9"/>
+</g></symbol><symbol id="asl-agents-marketing" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M5 13.5h3.5l8 4.2V6.3l-8 4.2H5v3Z"/><path class="accent" d="M8.5 13.5 10 19H7.7L6 13.5M19.5 9.3c.8 1 .8 4.4 0 5.4"/><path class="soft" d="M16.5 8v8"/>
+</g></symbol><symbol id="asl-agents-trust-risk" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M12 3.5 18.5 6v5.7c0 4-2.6 6.7-6.5 8.8-3.9-2.1-6.5-4.8-6.5-8.8V6L12 3.5Z"/><path class="accent" d="m8.8 12 2.2 2.2 4.3-5"/>
+</g></symbol><symbol id="asl-agents-cio" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<rect class="ink" x="4" y="7" width="16" height="12" rx="2"/><path class="accent" d="M9 7V5.6c0-.9.7-1.6 1.6-1.6h2.8c.9 0 1.6.7 1.6 1.6V7M4 12h16M11.2 12.2h3"/><path class="soft" d="M8 16h2.2M13.8 16H16"/>
+</g></symbol><symbol id="asl-stages-intake" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M4.5 14.2h4l1.5 2.6h4l1.5-2.6h4"/><path class="ink" d="M5.5 7.5h13l1 11H4.5l1-11Z"/><path class="accent" d="M12 3.5v8M9 8.5l3 3 3-3"/>
+</g></symbol><symbol id="asl-stages-extract" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M4 5h16l-6.2 7.2V19l-3.6 1.3v-8.1L4 5Z"/><path class="accent" d="M8 9h8M10.4 12h3.2"/>
+</g></symbol><symbol id="asl-stages-spec" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M7 3.5h7l4 4V20H7V3.5Z"/><path class="soft" d="M14 3.5V8h4"/><path class="accent" d="M9.5 11h5M9.5 14h5M9.5 17h3"/>
+</g></symbol><symbol id="asl-stages-execute" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<rect class="ink" x="4" y="4" width="16" height="16" rx="3"/><path class="fill-accent" d="M10 8.2v7.6l6-3.8-6-3.8Z"/><path class="soft" d="M7 17h2"/>
+</g></symbol><symbol id="asl-stages-qa" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M12 3.8 14.2 8l4.6.7-3.3 3.2.8 4.6L12 14.3 7.7 16.5l.8-4.6-3.3-3.2 4.6-.7L12 3.8Z"/><path class="accent" d="m9.5 11.8 1.7 1.7 3.4-4"/>
+</g></symbol><symbol id="asl-app-local-runtime" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<rect class="ink" x="4" y="5" width="16" height="12" rx="2"/><path class="soft" d="M9 20h6M12 17v3"/><path class="accent" d="M8 10.5h4.5M8 13h2.5"/><circle class="fill-accent" cx="17" cy="13" r="1.2"/>
+</g></symbol><symbol id="asl-app-ollama-model" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M12 3.5 19 7.5v8L12 20.5 5 15.5v-8l7-4Z"/><path class="soft" d="M5 7.5 12 11.5l7-4M12 11.5v9"/><path class="accent" d="m8.5 14 3.5 2 3.5-2"/>
+</g></symbol><symbol id="asl-app-kernel" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<ellipse class="ink" cx="12" cy="6" rx="7" ry="3"/><path class="ink" d="M5 6v5c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 11v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/><path class="accent" d="M9 10.8c1.6.5 4.4.5 6 0"/>
+</g></symbol><symbol id="asl-app-pipeline" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<circle class="ink" cx="5" cy="12" r="2.4"/><circle class="ink" cx="12" cy="6" r="2.4"/><circle class="ink" cx="19" cy="12" r="2.4"/><circle class="accent" cx="12" cy="18" r="2.4"/><path class="soft" d="M7 10.5 10 7.5M14 7.5l3 3M17 13.8l-3 3M10 16.5l-3-3"/>
+</g></symbol><symbol id="asl-app-approval-gate" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M5 5h14v10.5c0 1-.8 1.8-1.8 1.8H8.5L5 20V5Z"/><path class="accent" d="m8.2 11.3 2.1 2.1 5-5"/><path class="soft" d="M8 7.5h8"/>
+</g></symbol><symbol id="asl-app-projects" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M4 7.5h6l1.7 2H20v10H4v-12Z"/><path class="accent" d="M7.5 14h8M7.5 17h5"/><path class="soft" d="M4 10h16"/>
+</g></symbol><symbol id="asl-app-export" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M5 13v6h14v-6"/><path class="accent" d="M12 4v10M8.5 10.5 12 14l3.5-3.5"/><path class="soft" d="M8 19h8"/>
+</g></symbol><symbol id="asl-app-recovery" viewBox="0 0 24 24"><g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M6.3 8.5A7 7 0 1 1 5.5 15"/><path class="accent" d="M5.5 5.5v4h4"/><path class="soft" d="m10 11 2 2 4-4"/>
+</g></symbol>
+</svg>

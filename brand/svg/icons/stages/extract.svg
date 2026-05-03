@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-labelledby="title-extract">
+<title id="title-extract">Extract</title>
+
+<style>
+  .ink { stroke: #1a1614; }
+  .ink2 { stroke: #4a423d; }
+  .soft { stroke: #ddd4c5; }
+  .accent { stroke: #c2562b; }
+  .accent2 { stroke: #a8451f; }
+  .info { stroke: #3a6a85; }
+  .good { stroke: #3f7d3a; }
+  .warn { stroke: #b08020; }
+  .bad { stroke: #b03a2e; }
+  .fill-bg { fill: #faf8f5; }
+  .fill-elev { fill: #ffffff; }
+  .fill-tint { fill: #efe9df; }
+  .fill-soft { fill: #f5e3d8; }
+  .fill-ink { fill: #1a1614; stroke: none; }
+  .fill-accent { fill: #c2562b; stroke: none; }
+  .fill-info { fill: #3a6a85; stroke: none; }
+  .fill-good { fill: #3f7d3a; stroke: none; }
+  .fill-warn { fill: #b08020; stroke: none; }
+  .fill-bad { fill: #b03a2e; stroke: none; }
+  .nofill { fill: none; }
+</style>
+
+<g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M4 5h16l-6.2 7.2V19l-3.6 1.3v-8.1L4 5Z"/><path class="accent" d="M8 9h8M10.4 12h3.2"/>
+</g>
+</svg>

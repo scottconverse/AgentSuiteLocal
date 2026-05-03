@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-labelledby="title-design">
+<title id="title-design">Design</title>
+
+<style>
+  .ink { stroke: #1a1614; }
+  .ink2 { stroke: #4a423d; }
+  .soft { stroke: #ddd4c5; }
+  .accent { stroke: #c2562b; }
+  .accent2 { stroke: #a8451f; }
+  .info { stroke: #3a6a85; }
+  .good { stroke: #3f7d3a; }
+  .warn { stroke: #b08020; }
+  .bad { stroke: #b03a2e; }
+  .fill-bg { fill: #faf8f5; }
+  .fill-elev { fill: #ffffff; }
+  .fill-tint { fill: #efe9df; }
+  .fill-soft { fill: #f5e3d8; }
+  .fill-ink { fill: #1a1614; stroke: none; }
+  .fill-accent { fill: #c2562b; stroke: none; }
+  .fill-info { fill: #3a6a85; stroke: none; }
+  .fill-good { fill: #3f7d3a; stroke: none; }
+  .fill-warn { fill: #b08020; stroke: none; }
+  .fill-bad { fill: #b03a2e; stroke: none; }
+  .nofill { fill: none; }
+</style>
+
+<g fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+<path class="ink" d="M12 3.6a8.4 8.4 0 0 0 0 16.8h1.2c1 0 1.5-1.2.8-1.9-.5-.5-.2-1.4.6-1.4h1.1A6.8 6.8 0 0 0 12 3.6Z"/><circle class="accent" cx="8" cy="10" r="1"/><circle class="info" cx="11" cy="7.5" r="1"/><circle class="good" cx="14.6" cy="9" r="1"/><path class="warn" d="M9.5 15.5h.1"/>
+</g>
+</svg>

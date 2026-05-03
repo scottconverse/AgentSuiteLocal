@@ -31,8 +31,14 @@ export const ModelView = ({ onBack }) => {
       fetch("/api/ollama/models").then(r => r.json()).catch(() => ({ models: [], running: false })),
       fetch("/api/settings").then(r => r.json()).catch(() => ({})),
     ]).then(([m, s]) => {
-      setInstalledModels(m.models || []);
-      setOllamaOk(m.running || false);
+      // Normalise: API returns [{name, size_gb, ...}] objects; tests mock string arrays — handle both.
+      const rawModels = m.models || [];
+      const modelNames = rawModels
+        .map(item => (typeof item === "string" ? item : item?.name))
+        .filter(Boolean);
+      setInstalledModels(modelNames);
+      // `running` present in test mocks; real API uses presence of active/models instead.
+      setOllamaOk(m.running !== undefined ? m.running : modelNames.length > 0 || !!m.active);
       setSettings(s);
       setLoading(false);
     });

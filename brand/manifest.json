@@ -1,0 +1,66 @@
+{
+  "name": "AgentSuiteLocal brand assets",
+  "version": "1.0",
+  "source_repo": "https://github.com/scottconverse/AgentSuiteLocal",
+  "design_basis": {
+    "product": "Desktop UI for AgentSuite, local via Ollama, founder-friendly, no CLI/API/cloud required.",
+    "visual_tokens": {
+      "bg": "#faf8f5",
+      "bg_elev": "#ffffff",
+      "bg_sunk": "#f3efe9",
+      "bg_tint": "#efe9df",
+      "ink": "#1a1614",
+      "ink_2": "#4a423d",
+      "ink_3": "#807771",
+      "line": "#e8e1d6",
+      "line_2": "#ddd4c5",
+      "accent": "#c2562b",
+      "accent_2": "#a8451f",
+      "accent_soft": "#f5e3d8",
+      "accent_ink": "#5a2410",
+      "good": "#3f7d3a",
+      "warn": "#b08020",
+      "bad": "#b03a2e",
+      "info": "#3a6a85"
+    },
+    "logo_concept": "A central AgentSuite A/kernal node connected to seven satellites for the seven specialist agents; terracotta marks the local/active kernel."
+  },
+  "assets": {
+    "logo": [
+      "agentsuitelocal-mark.svg",
+      "agentsuitelocal-logo-horizontal.svg",
+      "agentsuitelocal-logo-stacked.svg",
+      "agentsuitelocal-app-icon.svg",
+      "favicon.svg"
+    ],
+    "icons": {
+      "agents": [
+        "founder",
+        "design",
+        "product",
+        "engineering",
+        "marketing",
+        "trust-risk",
+        "cio"
+      ],
+      "stages": [
+        "intake",
+        "extract",
+        "spec",
+        "execute",
+        "qa"
+      ],
+      "app": [
+        "local-runtime",
+        "ollama-model",
+        "kernel",
+        "pipeline",
+        "approval-gate",
+        "projects",
+        "export",
+        "recovery"
+      ]
+    },
+    "react_component": "react/AgentSuiteLocalIcons.jsx"
+  }
+}
