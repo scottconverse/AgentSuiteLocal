@@ -137,8 +137,8 @@ These items require modifying the pinned AgentSuite library. Fork `scottconverse
 ## N — Release
 
 - [x] Bump version to `0.7.0` in: `agentsuitelocal/__version__.py` line 1, `pyproject.toml` line 7, `AgentSuiteLocal.spec` line 149, `web/package.json` `"version"` field.
-- [ ] Push to feature branch `release/v0.7.0`
-- [ ] CI green on feature branch (poll every 110s, max 30 min)
+- [x] Push to feature branch `release/v0.7.0`
+- [x] CI green on feature branch (poll every 110s, max 30 min)
 - [ ] Merge feature branch to `main`
 - [ ] Tag `v0.7.0`
 - [ ] `gh release create v0.7.0` with the numbered 22-item summary as release notes, attaching `AgentSuiteLocal-v0.7.0-Setup.exe` and `AgentSuiteLocal-v0.7.0-windows-x64.zip`

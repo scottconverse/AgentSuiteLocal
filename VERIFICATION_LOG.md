@@ -777,3 +777,15 @@
     ruff check .: All checks passed!
     Full suite: 92 passed, 6 deselected, 4 warnings in 8.33s
   status: pass
+
+- timestamp: 2026-05-03T14:39:15Z
+  claim: "CI green on release/v0.7.0 — all jobs pass (Lint, Frontend, Test 3.11, Test 3.12)"
+  evidence_type: ci_url
+  command: "gh run view 25283949810 --repo scottconverse/AgentSuiteLocal --json conclusion,status,url"
+  exit_code: 0
+  evidence: |
+    {"conclusion":"success","status":"completed","url":"https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25283949810"}
+    Jobs: Lint (8s) PASS, Frontend (15s) PASS, Test Python 3.12 (31s) PASS, Test Python 3.11 (32s) PASS
+    Playwright E2E: skipped (push trigger, not PR to main — correct per ci.yml if condition)
+    Commit: 31a62c5 (fix: reject Windows-style paths on Linux in open_folder)
+  status: pass
