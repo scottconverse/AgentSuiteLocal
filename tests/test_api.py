@@ -271,6 +271,20 @@ def test_open_folder_rejects_path_outside_home():
     assert r.status_code in (403, 404)
 
 
+def test_kernel_artifact_rejects_invalid_agent_slug():
+    """UX-4: kernel artifact endpoint must reject agent slugs that fail _SLUG_RE."""
+    # dot-separated slug fails the ^[a-zA-Z0-9_-]+$ pattern
+    r = client.get("/api/kernel/my-project/bad.agent/file.md")
+    assert r.status_code == 422
+
+
+def test_kernel_artifact_returns_404_for_missing_file():
+    """UX-4: kernel artifact endpoint returns 404 when the file does not exist."""
+    # Valid slugs, non-existent file → 404 (not a 500 or traversal success)
+    r = client.get("/api/kernel/test-proj/founder/does-not-exist.md")
+    assert r.status_code == 404
+
+
 # ---------------------------------------------------------------------------
 # TEST-007: Path traversal guard
 # ---------------------------------------------------------------------------

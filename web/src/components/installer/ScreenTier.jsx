@@ -39,7 +39,13 @@ export const ScreenTier = ({ onBack, onNext, tier, setTier, totalSteps }) => (
                 {m.recommended && <span className="chip chip-accent">Recommended for you</span>}
                 {tooBig && <span className="chip chip-warn">Needs 32 GB RAM</span>}
               </div>
-              <div style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 10, lineHeight: 1.5 }}>{m.blurb}</div>
+              <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>{m.blurb}</div>
+              {/* UX-2: consequence copy — plain-English output quality explanation */}
+              {m.consequence && (
+                <div style={{ fontSize: 12, color: selected ? "var(--accent)" : "var(--ink-3)", fontStyle: "italic", marginBottom: 10, marginTop: 2 }}>
+                  {m.consequence}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--ink-3)", flexWrap: "wrap" }}>
                 <span><Icon name="download" size={11} style={{ verticalAlign: "-2px", marginRight: 4 }} />{m.size}</span>
                 <span><Icon name="ram" size={11} style={{ verticalAlign: "-2px", marginRight: 4 }} />{m.ram} RAM</span>

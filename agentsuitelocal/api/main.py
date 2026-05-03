@@ -1488,6 +1488,25 @@ async def kernel_artifacts():
     return {"projects": result}
 
 
+@app.get("/api/kernel/{project}/{agent}/{path:path}")
+async def get_kernel_artifact(project: str, agent: str, path: str):
+    """UX-4: Read a single kernel artifact for inline preview."""
+    if not _SLUG_RE.match(project) or not _SLUG_RE.match(agent):
+        raise HTTPException(status_code=422, detail="Invalid project or agent slug")
+    kernel_root = (_workspace() / ".agentsuite" / "_kernel").resolve()
+    target = (kernel_root / project / agent / path).resolve()
+    # Security: must stay within the kernel root
+    if not target.is_relative_to(kernel_root):
+        raise HTTPException(status_code=403, detail="Path outside kernel root")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+        return {"content": content, "path": str(target)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.get("/api/kernel/diff")
 async def kernel_diff(a: str, b: str):
     """D3: Return unified diff between two kernel artifact paths."""

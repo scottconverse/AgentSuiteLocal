@@ -48,18 +48,22 @@ export const MODELS = [
     id: "light", tier: "Light", model: "gemma4:e2b",
     size: "3.1 GB", ram: "8 GB", quality: 2,
     blurb: "Laptop-class. Fastest. Quality is rough — best for first drafts and exploration.",
+    // UX-2: plain-English consequence copy shown in ScreenTier and ModelView
+    consequence: "Shorter, simpler output. Best for quick drafts.",
     speed: "Fast (~30 tok/s)",
   },
   {
     id: "balanced", tier: "Balanced", model: "gemma4:e4b",
     size: "5.4 GB", ram: "16 GB", quality: 3, recommended: true,
     blurb: "Best general-purpose pick. Solid output for all 7 agents on a typical modern machine.",
+    consequence: "Full-length artifacts across all 7 agents. Recommended.",
     speed: "Medium (~18 tok/s)",
   },
   {
     id: "pro", tier: "Pro", model: "gemma4:26b-moe",
     size: "15.2 GB", ram: "32 GB", quality: 5,
     blurb: "Workstation-class. Highest fidelity. Slower but closest to frontier-API quality.",
+    consequence: "Highest fidelity output. Takes 2–3× longer per run.",
     speed: "Slow (~6 tok/s)",
   },
 ];

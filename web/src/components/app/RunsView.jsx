@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { Icon } from "../ui/index.jsx";
+import { Icon, SkeletonCard } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
 import { AGENTS } from "../../data.js";
 
@@ -20,13 +20,14 @@ function elapsed(startedAt, finishedAt) {
 }
 
 const STATUS_MAP = {
-  waiting:   { kind: "warn", label: "Needs review" },
-  approved:  { kind: "good", label: "Approved"     },
-  running:   { kind: "info", label: "Running"       },
-  rejected:  { kind: "bad",  label: "Rejected"      },
-  error:     { kind: "bad",  label: "Error"          },
-  cancelled: { kind: "info", label: "Cancelled"      },
-  timeout:   { kind: "bad",  label: "Timed out"      },
+  // UX-3: plain-English labels — "waiting" is the most urgent state for the user
+  waiting:   { kind: "warn", label: "Waiting for your review" },
+  approved:  { kind: "good", label: "Approved"                },
+  running:   { kind: "info", label: "Running"                 },
+  rejected:  { kind: "bad",  label: "Rejected"                },
+  error:     { kind: "bad",  label: "Error"                   },
+  cancelled: { kind: "info", label: "Cancelled"               },
+  timeout:   { kind: "bad",  label: "Timed out"               },
 };
 
 const ALL_STATUSES = ["All", "running", "waiting", "approved", "rejected", "error", "cancelled"];
@@ -177,6 +178,13 @@ export const RunsView = ({ onOpen, onRerun }) => {
         r.status?.toLowerCase().includes(q)
       );
     }
+    // UX-3: "waiting" runs float to top (most urgent); within each group, newest first
+    result = [...result].sort((a, b) => {
+      const aWaiting = a.status === "waiting" ? 0 : 1;
+      const bWaiting = b.status === "waiting" ? 0 : 1;
+      if (aWaiting !== bWaiting) return aWaiting - bWaiting;
+      return (b.started_at || 0) - (a.started_at || 0);
+    });
     return result;
   }, [runs, statusFilter, debouncedSearch]);
 
@@ -243,9 +251,8 @@ export const RunsView = ({ onOpen, onRerun }) => {
             <span>When</span>
           </div>
 
-          {loading && (
-            <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
-          )}
+          {/* UX-5: skeleton rows while loading */}
+          {loading && [0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={2} />)}
 
           {!loading && filteredRuns.length === 0 && (
             <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>

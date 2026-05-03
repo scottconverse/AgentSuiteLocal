@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Icon } from "../ui/index.jsx";
+import { Icon, SkeletonCard } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
 
 // H5: Project management view — rename, archive, delete
@@ -71,9 +71,8 @@ export const ProjectsView = () => {
 
       <div style={{ padding: 24, maxWidth: 720, display: "flex", flexDirection: "column", gap: 12 }}>
 
-        {loading && (
-          <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
-        )}
+        {/* UX-5: skeleton cards while loading */}
+        {loading && [0, 1, 2].map(i => <SkeletonCard key={i} lines={3} />)}
 
         {fetchError && !loading && (
           <div className="card" style={{ padding: 14, borderColor: "var(--bad)", background: "var(--bad-soft)", display: "flex", gap: 10, alignItems: "flex-start" }}>

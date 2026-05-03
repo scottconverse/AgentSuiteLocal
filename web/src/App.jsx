@@ -5,6 +5,12 @@ import { Sidebar } from "./components/shell/index.jsx";
 import { AGENTS } from "./data.js";
 import { ScreenWelcome }       from "./components/installer/ScreenWelcome.jsx";
 import { ScreenLicense }       from "./components/installer/ScreenLicense.jsx";
+// UX-1: combined screens replace 8 separate installer steps
+import { ScreenHardwareTier }  from "./components/installer/ScreenHardwareTier.jsx";
+import { ScreenOllamaModel }   from "./components/installer/ScreenOllamaModel.jsx";
+import { ScreenSuccess }       from "./components/installer/ScreenSuccess.jsx";
+import { ScreenUninstall }     from "./components/installer/ScreenUninstall.jsx";
+// Legacy screens kept for reference / direct navigation; not used in main flow
 import { ScreenHardware }      from "./components/installer/ScreenHardware.jsx";
 import { ScreenTier }          from "./components/installer/ScreenTier.jsx";
 import { ScreenOllama }        from "./components/installer/ScreenOllama.jsx";
@@ -13,8 +19,6 @@ import { ScreenPython }        from "./components/installer/ScreenPython.jsx";
 import { ScreenAgents }        from "./components/installer/ScreenAgents.jsx";
 import { ScreenApiKey }        from "./components/installer/ScreenApiKey.jsx";
 import { ScreenSmoke }         from "./components/installer/ScreenSmoke.jsx";
-import { ScreenSuccess }       from "./components/installer/ScreenSuccess.jsx";
-import { ScreenUninstall }     from "./components/installer/ScreenUninstall.jsx";
 
 import { Dashboard }        from "./components/app/Dashboard.jsx";
 import { AgentsView }       from "./components/app/AgentsView.jsx";
@@ -31,13 +35,11 @@ import { ProjectsView }     from "./components/app/ProjectsView.jsx";
 import { CrashBanner }      from "./components/app/CrashBanner.jsx";
 import { ErrorBoundary }    from "./components/app/ErrorBoundary.jsx";
 
-// UX-018: 11 actual setup screens (Uninstall is not counted in the setup flow)
-const TOTAL_STEPS = 11;
+// UX-1: 5-screen installer (down from 11). Agent/API-key/Python setup is in Settings.
+const TOTAL_STEPS = 5;
 
 const STEP_LABELS = [
-  "", "Welcome", "License", "Hardware check", "Choose tier",
-  "Install Ollama", "Download model", "Python runtime", "Select agents",
-  "API keys", "Smoke test", "Ready",
+  "", "Welcome", "License", "Hardware & model tier", "Ollama & model download", "Ready",
 ];
 
 const SETUP_KEY = "agentsuite_setup_complete";
@@ -132,17 +134,12 @@ export default function App() {
   const installerStep = () => {
     const ts = TOTAL_STEPS;
     switch (step) {
-      case 1:  return <ScreenWelcome onNext={goNext} totalSteps={ts} />;
-      case 2:  return <ScreenLicense onBack={goBack} onNext={goNext} totalSteps={ts} />;
-      case 3:  return <ScreenHardware onBack={goBack} onNext={goNext} totalSteps={ts} />;
-      case 4:  return <ScreenTier onBack={goBack} onNext={goNext} tier={tier} setTier={setTier} totalSteps={ts} />;
-      case 5:  return <ScreenOllama onBack={goBack} onNext={goNext} totalSteps={ts} />;
-      case 6:  return <ScreenModelDownload onBack={goBack} onNext={goNext} tier={tier} totalSteps={ts} />;
-      case 7:  return <ScreenPython onBack={goBack} onNext={goNext} totalSteps={ts} />;
-      case 8:  return <ScreenAgents onBack={goBack} onNext={goNext} enabled={agents} setEnabled={setAgents} totalSteps={ts} />;
-      case 9:  return <ScreenApiKey onBack={goBack} onNext={goNext} apiKey={apiKey} setApiKey={setApiKey} totalSteps={ts} />;
-      case 10: return <ScreenSmoke onBack={goBack} onNext={goNext} totalSteps={ts} />;
-      case 11: return <ScreenSuccess onBack={goBack} onNext={enterApp} totalSteps={ts} />;
+      // UX-1: 5-screen installer
+      case 1: return <ScreenWelcome onNext={goNext} totalSteps={ts} />;
+      case 2: return <ScreenLicense onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 3: return <ScreenHardwareTier onBack={goBack} onNext={goNext} tier={tier} setTier={setTier} totalSteps={ts} />;
+      case 4: return <ScreenOllamaModel  onBack={goBack} onNext={goNext} tier={tier} totalSteps={ts} />;
+      case 5: return <ScreenSuccess onBack={goBack} onNext={enterApp} totalSteps={ts} />;
       default: return null;
     }
   };

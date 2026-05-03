@@ -203,3 +203,25 @@ export const WindowChrome = ({ children, title, subtitle, height = "100%", contr
     </div>
   </div>
 );
+
+/**
+ * UX-5: SkeletonCard — shimmer placeholder shown while data is loading.
+ * Use in place of a real card while `loading === true`.
+ *
+ * @param {number} lines - number of skeleton rows (default 3)
+ * @param {number} height - card height in px (auto if not set)
+ */
+export const SkeletonCard = ({ lines = 3, height }) => (
+  <div className="card" style={{ padding: 16, ...(height ? { height } : {}) }}>
+    {Array.from({ length: lines }).map((_, i) => (
+      <div
+        key={i}
+        className="shimmer"
+        style={{
+          height: 14, borderRadius: 4, marginBottom: i < lines - 1 ? 10 : 0,
+          width: `${90 - i * 14}%`,
+        }}
+      />
+    ))}
+  </div>
+);
