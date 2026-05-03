@@ -49,6 +49,11 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   const [exportOpen, setExportOpen] = useState(false);
   // C3: QA partial notice — must match data.js QA_DIMENSIONS count (9)
   const EXPECTED_QA_DIMS = 9;
+  // A-7: optimistic approve/reject loading + error states
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState(null);
 
   // Load run data + settings (for threshold)
   useEffect(() => {
@@ -77,34 +82,59 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   }, [runId, selected]);
 
   const handleApprove = async (override = false) => {
+    if (approving) return;
+    setApproving(true);
+    setApproveError(null);
+    // A-7: use local variable to avoid stale-closure on exportPath state
+    let newExportPath = null;
     if (runId) {
-      const r = await fetch(`/api/run/${runId}/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approver: "user", override }),
-      }).catch(() => null);
-      if (r?.ok) {
+      try {
+        const r = await fetch(`/api/run/${runId}/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approver: "user", override }),
+        });
+        if (!r.ok) throw new Error(`Server error ${r.status}`);
         const data = await r.json().catch(() => ({}));
-        if (data.export_path) setExportPath(data.export_path);
+        if (data.export_path) {
+          newExportPath = data.export_path;
+          setExportPath(data.export_path);
+        }
+      } catch (err) {
+        setApproveError(err.message || "Approval failed — please try again");
+        setApproving(false);
+        return;
       }
     }
-    if (!exportPath) {
-      // Navigate after a brief delay to show banner
+    setApproving(false);
+    // A-7: only auto-advance if no export banner to show
+    if (!newExportPath) {
       onApprove();
     }
   };
 
   const handleOverrideApprove = async () => {
     setOverrideDialog(false);
+    // handleApprove handles onApprove() internally; don't double-call
     await handleApprove(true);
-    onApprove();
   };
 
   const handleReject = async () => {
     if (!rejectConfirm) { setRejectConfirm(true); return; }
+    if (rejecting) return;
+    setRejecting(true);
+    setRejectError(null);
     if (runId) {
-      await fetch(`/api/run/${runId}/reject`, { method: "POST" }).catch(() => {});
+      try {
+        const r = await fetch(`/api/run/${runId}/reject`, { method: "POST" });
+        if (!r.ok) throw new Error(`Server error ${r.status}`);
+      } catch (err) {
+        setRejectError(err.message || "Rejection failed — please try again");
+        setRejecting(false);
+        return;
+      }
     }
+    setRejecting(false);
     onReject();
   };
 
@@ -185,21 +215,25 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
             <button
               className="btn btn-sm"
               onClick={handleReject}
+              disabled={rejecting}
               style={rejectConfirm ? { borderColor: "var(--bad)", color: "var(--bad)" } : {}}
             >
               <Icon name="x" size={13} />
-              {rejectConfirm ? "Confirm reject" : "Reject"}
+              {rejecting ? "Rejecting…" : rejectConfirm ? "Confirm reject" : "Reject"}
             </button>
-            {rejectConfirm && (
+            {rejectConfirm && !rejecting && (
               <button className="btn btn-ghost btn-sm" onClick={() => setRejectConfirm(false)}>Cancel</button>
             )}
             <button
               className="btn btn-accent btn-sm"
-              onClick={() => handleApprove(false).then(() => { if (!exportPath) {} else onApprove(); })}
-              disabled={approveDisabled}
+              onClick={() => handleApprove(false)}
+              disabled={approveDisabled || approving}
               title={approveDisabled ? `Score ${fmt(qaScore)}/10 is below your ${threshold.toFixed(1)} gate` : ""}
             >
-              <Icon name="check" size={13} /> Approve & promote
+              {approving
+                ? "Approving…"
+                : <><Icon name="check" size={13} /> Approve & promote</>
+              }
             </button>
             {/* C1: Override & approve for below-threshold runs */}
             {belowThreshold && (
@@ -214,6 +248,22 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
           </div>
         }
       />
+
+      {/* A-7: Approve / reject error banners */}
+      {approveError && (
+        <div style={{ margin: "8px 16px 0", padding: "10px 16px", background: "var(--bad-soft, #ffeaea)", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+          <Icon name="alert" size={16} style={{ color: "var(--bad)" }} />
+          <span style={{ flex: 1, color: "var(--bad)", fontWeight: 500 }}>{approveError}</span>
+          <button className="btn btn-sm" onClick={() => setApproveError(null)}>Dismiss</button>
+        </div>
+      )}
+      {rejectError && (
+        <div style={{ margin: "8px 16px 0", padding: "10px 16px", background: "var(--bad-soft, #ffeaea)", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+          <Icon name="alert" size={16} style={{ color: "var(--bad)" }} />
+          <span style={{ flex: 1, color: "var(--bad)", fontWeight: 500 }}>{rejectError}</span>
+          <button className="btn btn-sm" onClick={() => setRejectError(null)}>Dismiss</button>
+        </div>
+      )}
 
       {/* D1: Export path banner */}
       {exportPath && (
@@ -379,10 +429,13 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
             <button
               className="btn btn-accent"
               style={{ width: "100%", justifyContent: "center" }}
-              onClick={() => handleApprove(false).then(() => { if (!exportPath) onApprove(); })}
-              disabled={approveDisabled}
+              onClick={() => handleApprove(false)}
+              disabled={approveDisabled || approving}
             >
-              <Icon name="check" size={13} /> Approve & promote
+              {approving
+                ? "Approving…"
+                : <><Icon name="check" size={13} /> Approve & promote</>
+              }
             </button>
             <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 6, lineHeight: 1.5 }}>
               Promotes {artifacts.length} artifact{artifacts.length !== 1 ? "s" : ""} to{" "}

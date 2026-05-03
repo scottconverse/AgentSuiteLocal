@@ -29,6 +29,7 @@ import { ManualView }       from "./components/app/ManualView.jsx";
 import { ModelView }        from "./components/app/ModelView.jsx";
 import { ProjectsView }     from "./components/app/ProjectsView.jsx";
 import { CrashBanner }      from "./components/app/CrashBanner.jsx";
+import { ErrorBoundary }    from "./components/app/ErrorBoundary.jsx";
 
 // UX-018: 11 actual setup screens (Uninstall is not counted in the setup flow)
 const TOTAL_STEPS = 11;
@@ -253,7 +254,10 @@ export default function App() {
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
                 {/* F4: crash banner shown on first render if crash detected */}
                 {showSidebar && <CrashBanner />}
-                {appScene()}
+                {/* A-5: ErrorBoundary prevents a single view crash from blanking the entire app */}
+                <ErrorBoundary>
+                  {appScene()}
+                </ErrorBoundary>
               </div>
             </div>
           </div>

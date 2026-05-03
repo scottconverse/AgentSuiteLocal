@@ -45,6 +45,11 @@ app = FastAPI(title="AgentSuiteLocal", version=__version__)
 
 app.add_middleware(
     CORSMiddleware,
+    # A-2: Restricted to the Vite dev server and the production backend port.
+    # NOT "*" — any browser tab on the machine could otherwise call destructive
+    # endpoints (delete runs, archive projects) without the user clicking anything
+    # in our UI. The production build is served by FastAPI itself (same origin),
+    # so no CORS is needed there; this list covers the Vite dev server only.
     allow_origins=["http://localhost:5173", "http://localhost:8765"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -507,6 +512,12 @@ async def _apply_settings_patch(body: SettingsPatch) -> dict:
     with _settings_lock:
         current = _load_settings()
         patch = body.model_dump(exclude_unset=True)
+        # A-8: Sentinel guard — GET /api/settings redacts the key as "****".
+        # If a client reads, changes an unrelated field, and re-POSTs the full
+        # object, the sentinel would silently overwrite the real key with "****".
+        # Drop any sentinel value so it is never persisted.
+        if patch.get("api_key") in ("****", "***", ""):
+            patch.pop("api_key", None)
         # G1: when tier changes, derive model_name from tier map unless explicitly overridden
         if "model_tier" in patch and "model_name" not in patch:
             patch["model_name"] = _TIER_MODEL_MAP.get(patch["model_tier"], patch.get("model_name", current.get("model_name")))
