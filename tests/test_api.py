@@ -1100,7 +1100,8 @@ def test_ollama_pull_post_rejects_missing_model_body():
 
 def _seed_run(slug: str) -> str:
     """Helper: insert a minimal run record for the given project slug."""
-    import time, uuid
+    import time
+    import uuid
     rid = f"run-{uuid.uuid4().hex[:8]}"
     _runs[rid] = {
         "id": rid,
@@ -1168,8 +1169,8 @@ def test_delete_project_404_for_unknown():
 # m-2: State mutation endpoints hold _state_write_lock (smoke-level)
 # ---------------------------------------------------------------------------
 
-def test_cancel_run_wrong_state_returns_400():
-    """cancel_run must 400 when run is not in 'running' state."""
+def test_cancel_run_wrong_state_returns_400_seeded():
+    """cancel_run must 400 when run is not in 'running' state (seeded via _seed_run)."""
     _seed_run("proj")
     run_id = next(iter(_runs))
     # status is "waiting" — cancel should reject
@@ -1177,7 +1178,8 @@ def test_cancel_run_wrong_state_returns_400():
     assert r.status_code == 400
 
 
-def test_approve_run_wrong_state_returns_400():
+def test_approve_run_running_state_returns_400():
+    """approve must 400 when run is in 'running' state (not yet finished)."""
     _seed_run("proj")
     run_id = next(iter(_runs))
     # status is "waiting" — approve is allowed; change to running to test guard

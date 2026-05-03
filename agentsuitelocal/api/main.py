@@ -27,6 +27,7 @@ from typing import Any
 
 import httpx
 import psutil
+
 # S-2: OS keychain for API key storage (Windows Credential Manager / macOS Keychain / Secret Service)
 try:
     import keyring as _keyring
@@ -39,9 +40,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field, model_validator
 from sse_starlette.sse import EventSourceResponse
+from starlette.background import BackgroundTask
 
 from agentsuitelocal.__version__ import __version__
 
