@@ -909,6 +909,14 @@ async def validate_path(body: PathValidateRequest):
 @app.post("/api/open-folder")
 async def open_folder(body: OpenFolderRequest):
     """Open a local folder in the OS file manager."""
+    import re as _re
+
+    # Reject Windows-style absolute paths (e.g. C:\Windows) on non-Windows platforms.
+    # Path.resolve() on Linux turns "C:\Windows\System32" into a relative-looking path
+    # that can accidentally pass the home-prefix check below.
+    if platform.system() != "Windows" and _re.match(r"^[A-Za-z]:\\", body.path):
+        raise HTTPException(status_code=403, detail="Path outside allowed area")
+
     p = Path(body.path).resolve()
     # Security: only open paths inside the workspace or home
     home = Path.home().resolve()

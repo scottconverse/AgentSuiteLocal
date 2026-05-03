@@ -761,3 +761,19 @@
     ci.yml: "Upgrade setuptools" step removed from both test and e2e jobs.
     Two-file change staged for commit to release/v0.7.0.
   status: pass
+
+- timestamp: 2026-05-03T14:36:30Z
+  claim: "CI fix 2 — test_open_folder_rejects_external_path: 404→403 on Linux; add Windows path prefix guard"
+  evidence_type: test_output
+  command: "pytest tests/test_api.py::test_open_folder_rejects_external_path -v --tb=short && ruff check . && pytest tests/ -v --ignore=tests/e2e -m 'not ollama' --tb=short"
+  exit_code: 0
+  evidence: |
+    Root cause: on Linux, Path("C:\\Windows\\System32").resolve() produces a path
+    that starts with /home/runner (the cwd), passing the home-prefix security check,
+    then fails with 404 (path does not exist) instead of 403 (forbidden).
+    Fix: added platform check in open_folder() — if not Windows and path matches
+    ^[A-Za-z]:\\ pattern, raise 403 immediately before resolve().
+    test_open_folder_rejects_external_path: PASSED
+    ruff check .: All checks passed!
+    Full suite: 92 passed, 6 deselected, 4 warnings in 8.33s
+  status: pass
