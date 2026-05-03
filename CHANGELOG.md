@@ -7,7 +7,69 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-_Nothing pending._
+### Fixed (post-v0.7.0 hardening sprint)
+
+**Phase 1 — Blockers / Critical / Major**
+- **B-1 — Project mutation endpoints**: `POST /api/projects/{slug}/rename`, `POST /api/projects/{slug}/archive`, and `DELETE /api/projects/{slug}` now exist and function. Previously all three silently 404'd, making every Rename/Archive/Delete button in ProjectsView a no-op.
+- **C-1 — ModelView pull uses POST stream**: `pullModel` now uses `fetch()` + `response.body` reader instead of `new EventSource(...)`. EventSource is always GET; the endpoint is POST — the pull had never worked.
+- **C-2 — Update banner field names**: `App.jsx` reads `has_update`/`latest` from `/api/update/check`, not the non-existent `update_available`/`latest_version`. The banner had never fired.
+- **C-3 — Tier model map keys corrected**: `_TIER_MODEL_MAP` now uses `"light"/"balanced"/"pro"` to match the frontend tier IDs sent from the installer. Previously used `"fast"/"balanced"/"powerful"` — light and pro tier selections silently mapped to `None`.
+- **M-1 — ProjectsView field names**: Reads `runs`/`last_touch` (API shape), not `run_count`/`last_run_at`. Project cards had always shown "0 runs, no date."
+- **M-2 — Partial QA warning**: `EXPECTED_QA_DIMS` corrected from 5 to 9 to match actual backend dimension count. Previously showed a spurious "9 of 5 dimensions" warning on every normal run.
+- **M-3 — ModelView RECOMMENDED list**: Now imports from `data.js` MODELS instead of a local hardcoded list with wrong tier labels and model names.
+- **M-4 — Uninstall SIGTERM on Windows**: Uses `os._exit(0)` on Windows where SIGTERM-to-self is a no-op; POSIX path unchanged.
+- **M-5 — ZIP export temp file leak**: `FileResponse` now carries a `BackgroundTask(os.unlink, tmp_path)` so the temp file is removed after the download completes.
+- **M-6 — macOS .app icon format**: `AgentSuiteLocal.spec` BUNDLE now references `icon.icns` (macOS requires `.icns`; `.ico` produced no dock icon).
+- **M-7 — README main.py line count**: Corrected from "~440 lines" to "~2000 lines, 48 routes."
+- **M-8 — Sidebar live model name**: Sidebar footer now shows the real `model_name` from `/api/settings` (fetched once on app entry) instead of a hardcoded "gemma4:e4b" string.
+- **M-9 — CHANGELOG SSE buffer size**: Corrected from `maxlen=500` to `maxlen=100` to match the actual `_SSE_BUFFER_SIZE` constant.
+
+**Phase 2 — Minor fixes + test coverage**
+- **m-1 — Error states on fetch failures**: `ProjectsView`, `RunsView`, and `PipelineView` now show an inline error card with a Retry button instead of silently swallowing `.catch(() => {})`.
+- **m-2 — State lock on run mutations**: `cancel_run`, `approve_run`, `reject_run` now hold `_state_write_lock` before calling `_save_state()`.
+- **m-3 — NewRunView label/input association**: All `<label>` elements now have `htmlFor`; all inputs have matching `id` attributes. Clicking a label now focuses the input; screen readers can associate them.
+- **m-4 — CFBundleShortVersionString dynamic**: PyInstaller spec now reads `_APP_VERSION` from `agentsuitelocal.__version__` — no longer a hardcoded string that drifts on every release.
+- **m-5 — test_version uses __version__**: Test no longer asserts a literal `"0.7.0"` — imports from `__version__.py` so it doesn't break on every version bump.
+- **m-6 — New endpoint response-shape tests**: `/api/update/check`, `/api/smoke`, `/api/model/verify`, `/api/ollama/pull` (method-not-allowed test), and all 3 project mutation endpoints now have test coverage.
+
+**Phase 3 — Nits**
+- **N-1 — anthropic/openai/mcp pinned**: Added `anthropic>=0.49.0`, `openai>=1.76.0`, `mcp>=1.9.0` to `pyproject.toml` (were hiddenimports in spec but undeclared dependencies).
+- **N-2 — DPI-awareness manifest**: `agentsuitelocal/assets/dpi_aware.manifest` created; wired into `EXE()` in the spec — prevents blurry rendering on high-DPI Windows.
+- **N-3 — API key cleared after installer**: `setApiKey("")` called immediately after the key is persisted to the backend. Key no longer lingers in React state / DevTools.
+- **N-4 — Inno Setup uninstall silent failure**: UninstallRun PowerShell call now uses `try/catch` so a stopped daemon returns exit 0 rather than failing the uninstall.
+
+**Phase 4 — Architecture hardening**
+- **A-2 — CORS documented**: Verified CORS is already restricted to `localhost:5173/8765`; added explanatory comment; documented in CONTRIBUTING.md.
+- **A-5 — ErrorBoundary**: `ErrorBoundary` React class component wraps every main view — unhandled exceptions now show a recoverable error card instead of a blank screen.
+- **A-7 — Optimistic approve/reject**: `handleApprove` and `handleReject` in `ApprovalGateView` now track loading/error state; buttons show "Approving…"/"Rejecting…" and disable during the POST; errors surface inline.
+- **A-8 — API key sentinel guard**: Settings write path ignores `"***"` sentinel — reading settings, changing an unrelated field, and re-POSTing no longer overwrites the real API key.
+
+**Phase 5 — Security hardening**
+- **S-1 — open-folder path containment**: `open_folder` endpoint now uses `is_relative_to()` instead of `str.startswith()` to prevent sibling-directory bypass attacks.
+- **S-2 — API key in OS keychain**: `keyring>=25.0` added. API key stored via Windows Credential Manager / macOS Keychain / Linux Secret Service. Plain-text key migrated out of `settings.json` on first load. Falls back to JSON if `keyring` unavailable (CI).
+- **S-3 — Telemetry disclosure**: SettingsView telemetry toggle sub-text now specifies the file path and confirms data is never transmitted. README Privacy section added.
+
+**Phase 6 — UX improvements**
+- **UX-1 — 5-screen installer**: Installer compressed from 11 screens to 5. `ScreenHardwareTier` combines hardware scan + tier auto-selection. `ScreenOllamaModel` combines Ollama runtime check + model download with retry loop and progress bar. Agent/API key/Python setup moved to Settings.
+- **UX-2 — Tier consequence copy**: Each tier card in installer and Settings now shows a plain-English consequence sentence explaining output quality tradeoff.
+- **UX-3 — RunsView: waiting first + human labels**: "Waiting for your review" runs float to the top. Status strings replaced with plain-English labels (`waiting → "Waiting for your review"`, etc.).
+- **UX-4 — KernelView artifact preview**: Clicking any artifact filename opens an inline slide-in preview panel with the file content rendered as markdown. Uses `GET /api/kernel/{project}/{agent}/{path}` endpoint (new).
+- **UX-5 — Skeleton loading states**: `SkeletonCard` component added to `ui/index.jsx`. `RunsView`, `ProjectsView`, and `KernelView` show skeleton cards while fetching instead of blank panels.
+
+**Phase 7 — Distribution & CI hardening**
+- **D-1 — macOS CI build job**: `build-macos` job added to CI — runs on `macos-latest`, builds frontend, runs PyInstaller, verifies `.app` bundle exists. Triggers on `main` + version tags only.
+- **D-2 — AV false-positive guidance**: README Troubleshooting section added with Windows Security exclusion steps. README Privacy section added with keychain and telemetry disclosure.
+- **D-3 — Ollama health-check replaces sleep**: E2E CI job now polls `/api/tags` in a loop (30 × 0.5s) instead of `sleep 3` — prevents flaky failures on slow runners.
+- **D-4 — Coverage threshold enforced**: `--cov-fail-under=58` added to CI test step (baseline 58.59%). Raise by 5% each sprint.
+
+### Added (post-v0.7.0 hardening sprint)
+- `GET /api/kernel/{project}/{agent}/{path}` — read individual kernel artifact file content. Path containment verified with `is_relative_to()`.
+- `SkeletonCard` component exported from `web/src/components/ui/index.jsx`.
+- `ErrorBoundary` component at `web/src/components/app/ErrorBoundary.jsx`.
+
+### Tests
+- Backend: 92 → 108 tests (16 new — project mutation endpoints, update check shape, smoke, tier map, model verify, open-folder path rejection, kernel artifact, keyring sentinel).
+- Frontend: 74 → 93 tests (19 new — Dashboard, LiveRunView, PipelineView, ManualView, KernelView added; ApprovalGateView, ProjectsView, ModelView, RunsView expanded).
 
 ## [0.7.0] — 2026-05-03
 
