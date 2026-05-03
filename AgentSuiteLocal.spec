@@ -146,7 +146,7 @@ if sys.platform == "darwin":
         icon=None,          # "assets/icon.icns" when ready
         bundle_identifier="com.scottconverse.agentsuitelocal",
         info_plist={
-            "CFBundleShortVersionString": "0.1.2",
+            "CFBundleShortVersionString": "0.7.0",
             "CFBundleName": "AgentSuiteLocal",
             "NSHighResolutionCapable": True,
             "LSUIElement": False,           # Show in Dock

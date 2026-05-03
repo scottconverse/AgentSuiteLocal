@@ -55,6 +55,8 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0 }) => {
     { id: "runs",     icon: "activity", label: "Runs",     badge: waitingCount > 0 ? String(waitingCount) : null },
     { id: "kernel",   icon: "layers",   label: "Kernel"    },
     { id: "pipeline", icon: "git2",     label: "Pipelines" },
+    { id: "projects", icon: "folder",   label: "Projects"  },
+    { id: "models",   icon: "server",   label: "Models"    },
   ];
   const bottom = [
     { id: "settings", icon: "settings", label: "Settings" },

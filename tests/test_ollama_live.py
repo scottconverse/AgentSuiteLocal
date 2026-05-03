@@ -12,13 +12,11 @@ but it still exercises the full AgentSuite code path end-to-end.
 from __future__ import annotations
 
 import json
-import time
-from pathlib import Path
 
 import httpx
 import pytest
 
-from agentsuitelocal.api.main import app, _runs
+from agentsuitelocal.api.main import _runs
 
 # live_server is session-scoped and defined in tests/conftest.py
 

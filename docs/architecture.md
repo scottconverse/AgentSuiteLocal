@@ -1,6 +1,6 @@
 # Architecture
 
-AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a 440-line FastAPI app. The frontend is React + Vite. They talk REST + SSE. Everything runs on-device — no cloud, no telemetry.
+AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app (~800 lines as of v0.7.0). The frontend is React + Vite. They talk REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud model fallback.
 
 ---
 
@@ -10,7 +10,7 @@ AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github
 ┌────────────────────────────────────────────────────────────────┐
 │  Browser (React + Vite, :5173 dev / :8765 prod)                │
 │                                                                  │
-│  Installer wizard (11 screens)   Main app (9 screens)           │
+│  Installer wizard (11 screens)   Main app (12 screens)          │
 │         │                               │                        │
 │         └──── fetch /api/* ─────────────┘                       │
 └────────────────────────┬───────────────────────────────────────┘
@@ -60,15 +60,22 @@ POST /api/run
 
 _execute_run (background task)
   → emits agent_start event
-  → calls PipelineOrchestrator.run() in thread pool
+  → wraps PipelineOrchestrator.run() in asyncio.wait_for(timeout=run_timeout_seconds)
      (run_in_executor so async loop stays unblocked)
-  → on_progress callback pushes stage_update events
+  → on_progress callback pushes stage_update events to collections.deque
   → on completion: sets artifacts, qa_score, status="waiting"
   → emits agent_waiting
+  → CancelledError: status="cancelled", saves partial artifacts
+  → TimeoutError: status="timeout", saves partial artifacts
 
 GET /api/run/{id}/stream  (SSE)
-  → generator polls _runs[id]["events"] every 200ms
-  → terminates on status in {approved, rejected, error, waiting}
+  → accepts ?since=<seq> — replays buffered events from that sequence number
+  → generator polls _run_event_buffers[id] every 200ms
+  → terminates on status in {approved, rejected, error, waiting, cancelled, timeout}
+
+POST /api/run/{id}/cancel
+  → calls _run_tasks[id].cancel()
+  → returns 400 if run is not in "running" state
 
 POST /api/run/{id}/approve
   → calls _push_to_kernel(run)
@@ -115,16 +122,20 @@ App.jsx
       step 11 ScreenSuccess      "Launch" → scene="app"
 
   scene === "app"
-    Sidebar  (nav: home | agents | runs | kernel | pipeline | settings | manual)
+    CrashBanner (F4 — shown if crash report newer than session dismissal)
+    H2 update banner (shown if /api/update/check returns update_available=true)
+    Sidebar  (nav: home | agents | runs | kernel | pipeline | projects | models | settings | manual)
     view === "home"     → Dashboard
     view === "agents"   → AgentsView
-    view === "new-run"  → NewRunView     (hides Sidebar)
-    view === "live"     → LiveRunView    (hides Sidebar, uses useSSE)
-    view === "approval" → ApprovalGateView (hides Sidebar)
-    view === "runs"     → RunsView
-    view === "kernel"   → KernelView
+    scene === "newrun"  → NewRunView     (hides Sidebar; E1 initialGoal/initialProject)
+    scene === "live"    → LiveRunView    (hides Sidebar, uses useSSE; B1/B3/B4/E2)
+    scene === "gate"    → ApprovalGateView (hides Sidebar; C1/C2/C3/D1/D4)
+    view === "runs"     → RunsView (H3 search/filter; B5 detail view; E1 retry)
+    view === "kernel"   → KernelView (H4 search/filter)
     view === "pipeline" → PipelineView
-    view === "settings" → SettingsView
+    view === "projects" → ProjectsView (H5 rename/archive/delete)
+    view === "models"   → ModelView (G3 pull/delete/set-active)
+    view === "settings" → SettingsView (G1/G2/B3/C1/H1/J4)
     view === "manual"   → ManualView
 ```
 
@@ -132,13 +143,18 @@ App.jsx
 
 ```
 useSSE(runId)
-  → opens EventSource to /api/run/{runId}/stream
+  → opens EventSource to /api/run/{runId}/stream?since=<lastSeq>
+  → B4: tracks seqRef; on reconnect replays from last known sequence
+  → B4: exponential backoff, max 10 attempts, cap 30s
   → event types:
       agent_start    → status="running"
       stage_update   → updates stages[] progress
       agent_done     → stage marked complete
       agent_waiting  → status="waiting", triggers approval gate
       error          → status="error"
+      timeout        → status="timeout"
+      cancelled      → status="cancelled"
+  → returns { events, status, error, cancel, reconnectAttempt }
   → closes EventSource on unmount or terminal state
 ```
 
@@ -167,7 +183,9 @@ The Vite dev server proxies `/api/*` to `:8766` via `vite.config.js`. In product
 
 ```
 tests/
-  test_api.py          15 unit tests  — TestClient (in-process, no network)
+  test_api.py          98 unit tests  — TestClient (in-process, no network)
+                        covers all new v0.7.0 endpoints: cancel, export, kernel diff,
+                        crash reports, telemetry, model verify, validate-path, etc.
   test_integration.py  10 integration — real uvicorn on a free port, real httpx
   test_ollama_live.py   6 live tests  — real Ollama daemon required
                                         auto-skip if daemon unreachable
@@ -179,7 +197,7 @@ tests/
                                   pytest.mark.e2e
 ```
 
-CI matrix: Python 3.11 and 3.12, Ubuntu. Unit + integration run on every push. E2E runs in a separate job after `npm run build`.
+CI matrix: Python 3.11 and 3.12, Ubuntu. Ruff lint, unit + integration, and Vite build run on every push. E2E runs in a separate job after `npm run build`.
 
 ---
 
@@ -207,5 +225,5 @@ The backend uses `agentsuite_run_id` (AgentSuite's internal ID, not our `run-{he
 - **Tauri wrapper** — native window, tray icon, single-binary distribution
 - **Go tray daemon** — background model, one-click launch from menu bar
 - **Persistent run store** — SQLite so runs survive restarts
-- **Multi-project workspace** — project switcher in Sidebar
 - **Streaming artifact preview** — render markdown live during the run
+- **K1/K2 upstream** — cross-stage context passing and intra-stage progress events in AgentSuite (pending PR)

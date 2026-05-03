@@ -3,14 +3,33 @@ import { Icon } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
 import { AGENTS } from "../../data.js";
 
-export const NewRunView = ({ agentId, onCancel, onLaunch }) => {
+// E1: initialGoal and initialProject allow pre-populating from a retry
+// B6: path validation on blur calls /api/validate-path
+export const NewRunView = ({ agentId, onCancel, onLaunch, initialGoal, initialProject }) => {
   const a = AGENTS.find(x => x.id === agentId) || AGENTS[0];
-  const [goal, setGoal] = useState("Launch AgentSuiteLocal v1.0 — a fully-local desktop app for non-technical founders");
-  const [project, setProject] = useState("agentsuitelocal");
+  const [goal, setGoal] = useState(initialGoal || "Launch AgentSuiteLocal v1.0 — a fully-local desktop app for non-technical founders");
+  const [project, setProject] = useState(initialProject || "agentsuitelocal");
   const [inputsDir, setInputsDir] = useState("");
+  const [pathError, setPathError] = useState(null);   // B6
   // QA-005: loading guard prevents double-submission
   const [loading, setLoading] = useState(false);
   const [launchError, setLaunchError] = useState(null);
+
+  // B6: validate inputs_dir path on blur
+  const validatePath = async (val) => {
+    if (!val.trim()) { setPathError(null); return; }
+    try {
+      const r = await fetch("/api/validate-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: val.trim() }),
+      });
+      const d = await r.json();
+      setPathError(d.valid ? null : (d.reason || "Path is not valid or not accessible"));
+    } catch {
+      setPathError(null); // don't block on network error
+    }
+  };
 
   const handleLaunch = async () => {
     if (loading) return;
@@ -93,11 +112,13 @@ export const NewRunView = ({ agentId, onCancel, onLaunch }) => {
             {/* QA-014: Browse button removed — file system access requires native integration not available in web */}
             <input
               value={inputsDir}
-              onChange={e => setInputsDir(e.target.value)}
+              onChange={e => { setInputsDir(e.target.value); setPathError(null); }}
+              onBlur={e => validatePath(e.target.value)}
               placeholder="C:\Users\you\brand-notes  or  ~/brand-notes"
-              style={{ width: "100%", padding: "8px 10px", fontSize: 13, fontFamily: "var(--font-mono)", border: "1px solid var(--line-2)", borderRadius: 8, background: "var(--bg)" }}
+              style={{ width: "100%", padding: "8px 10px", fontSize: 13, fontFamily: "var(--font-mono)", border: `1px solid ${pathError ? "var(--bad)" : "var(--line-2)"}`, borderRadius: 8, background: "var(--bg)" }}
             />
-            <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>Paste the full path to a folder of markdown notes or brand documents. Leave blank to skip.</div>
+            {pathError && <div style={{ fontSize: 11, color: "var(--bad)", marginTop: 4 }}>{pathError}</div>}
+            {!pathError && <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>Paste the full path to a folder of markdown notes or brand documents. Leave blank to skip.</div>}
           </div>
         </div>
 
@@ -113,7 +134,7 @@ export const NewRunView = ({ agentId, onCancel, onLaunch }) => {
           <button
             className="btn btn-accent"
             onClick={handleLaunch}
-            disabled={loading || !goal.trim() || !project.trim()}
+            disabled={loading || !goal.trim() || !project.trim() || !!pathError}
           >
             {loading
               ? <><span className="pulse-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: "white", display: "inline-block" }} /> Starting…</>

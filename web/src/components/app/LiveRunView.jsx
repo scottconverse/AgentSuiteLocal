@@ -5,17 +5,25 @@ import { STAGES, AGENTS } from "../../data.js";
 import { useSSE } from "../../hooks/useSSE.js";
 
 export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
-  const { events, status, error } = useSSE(runId);
+  const { events, status, error, reconnectAttempt } = useSSE(runId);
   const [stageIdx, setStageIdx] = useState(0);
   const [tokens, setTokens] = useState(0);
   const [streamLines, setStreamLines] = useState([]);
-  const [runMeta, setRunMeta] = useState(null); // {agent, project} from initial fetch
+  const [runMeta, setRunMeta] = useState(null);
   const [artifacts, setArtifacts] = useState([]);
+
+  // E2: elapsed time tracking
   const [elapsed, setElapsed] = useState(0);
+  const [stageElapsed, setStageElapsed] = useState(0);
   const startRef = useRef(Date.now());
+  const stageStartRef = useRef(Date.now());
+
+  // B1: cancel in-flight state
+  const [cancelling, setCancelling] = useState(false);
+
   const logRef = useRef(null);
 
-  // Fetch run metadata (agent, project) once on mount
+  // Fetch run metadata once on mount
   useEffect(() => {
     if (!runId) return;
     fetch(`/api/run/${runId}`)
@@ -24,9 +32,15 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
       .catch(() => {});
   }, [runId]);
 
-  // Elapsed timer
+  // E2: total elapsed timer
   useEffect(() => {
     const iv = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // E2: per-stage elapsed timer
+  useEffect(() => {
+    const iv = setInterval(() => setStageElapsed(Math.floor((Date.now() - stageStartRef.current) / 1000)), 1000);
     return () => clearInterval(iv);
   }, []);
 
@@ -39,9 +53,13 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
     for (const evt of events) {
       if (evt.type === "stage_update") {
         const idx = stageOrder.indexOf(evt.stage);
-        if (idx >= 0) setStageIdx(idx + 1);
+        if (idx >= 0) {
+          setStageIdx(idx + 1);
+          stageStartRef.current = Date.now(); // E2: reset stage timer
+          setStageElapsed(0);
+        }
         setStreamLines(prev => [...prev, `▸ ${evt.stage}${evt.message ? ": " + evt.message : ""}`]);
-        setTokens(t => t + 18); // approximate token progress per stage event
+        setTokens(t => t + 18);
       }
       if (evt.type === "agent_waiting") {
         setStageIdx(STAGES.length);
@@ -50,6 +68,9 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
       }
       if (evt.type === "error") {
         setStreamLines(prev => [...prev, `✗ error: ${evt.message}`]);
+      }
+      if (evt.type === "timeout") {
+        setStreamLines(prev => [...prev, `✗ timed out: ${evt.message}`]);
       }
     }
   }, [events, onApprovalReady]);
@@ -70,8 +91,22 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
   }
 
   const ag = AGENTS.find(a => a.id === runMeta?.agent);
-  const elapsedStr = `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`;
-  const isRunning = status !== "done" && status !== "error";
+  const fmtTime = (secs) => `${Math.floor(secs / 60)}m ${secs % 60}s`;
+  const elapsedStr = fmtTime(elapsed);
+  const stageElapsedStr = fmtTime(stageElapsed);
+  const isRunning = status !== "done" && status !== "error" && status !== "timeout" && status !== "cancelled" && !cancelling;
+  const isTimeout = status === "timeout";
+  const isError = status === "error";
+
+  // B1: real cancel handler
+  const handleCancel = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      await fetch(`/api/run/${runId}/cancel`, { method: "POST" });
+    } catch { /* ignore */ }
+    onCancel();
+  };
 
   return (
     <div style={{ flex: 1, overflow: "auto" }}>
@@ -80,34 +115,49 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
           {ag?.name || runMeta?.agent || "Agent"} ·{" "}
           <span style={{ color: "var(--accent)" }}>{runMeta?.project || "…"}</span>{" "}
           {isRunning && <span className="chip chip-info" style={{ marginLeft: 8 }}><span className="dot pulse-dot" /> Running</span>}
-          {status === "error" && <span className="chip chip-bad" style={{ marginLeft: 8 }}>Error</span>}
+          {isError && <span className="chip chip-bad" style={{ marginLeft: 8 }}>Error</span>}
+          {isTimeout && <span className="chip chip-bad" style={{ marginLeft: 8 }}>Timed out</span>}
+          {status === "cancelled" && <span className="chip" style={{ marginLeft: 8 }}>Cancelled</span>}
         </>}
-        subtitle={`Run · ${runId}`}
+        subtitle={`Run · ${runId} · Total: ${elapsedStr}`}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-sm" onClick={onCancel}>Cancel</button>
+            {isRunning && (
+              <button className="btn btn-sm" onClick={handleCancel} disabled={cancelling}>
+                {cancelling
+                  ? <><span className="dot pulse-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ink-3)", display: "inline-block" }} /> Cancelling…</>
+                  : "Cancel"
+                }
+              </button>
+            )}
           </div>
         }
       />
 
-      {/* UX-001/UX-003: actionable error card with retry, not a raw error string */}
-      {(status === "error" || status === "reconnecting") && (
+      {/* B4: reconnect banner */}
+      {status === "reconnecting" && (
+        <div style={{ margin: "8px 24px", padding: "10px 16px", background: "var(--warn-soft, #fff8e1)", borderRadius: 8, border: "1px solid var(--warn)", display: "flex", gap: 10, alignItems: "center", fontSize: 12 }}>
+          <span className="dot pulse-dot" style={{ background: "var(--warn)" }} />
+          <span style={{ color: "var(--warn)", fontWeight: 500 }}>
+            Connection lost — reconnecting (attempt {reconnectAttempt}/10)…
+          </span>
+        </div>
+      )}
+
+      {/* Error / timeout card */}
+      {(isError || isTimeout) && (
         <div style={{ margin: "16px 24px", padding: 16, background: "var(--bad-soft)", borderRadius: 10, border: "1px solid var(--bad)", display: "flex", gap: 12, alignItems: "flex-start" }}>
           <Icon name="alert" size={18} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 4 }}>
-              {status === "reconnecting" ? "Reconnecting…" : "Run failed"}
+              {isTimeout ? "Timed out — the model stopped responding" : "Run failed"}
             </div>
-            <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: status === "error" ? 10 : 0 }}>
-              {error || (status === "reconnecting" ? "Lost connection — retrying automatically." : "An unexpected error occurred.")}
+            <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 10 }}>
+              {error || "An unexpected error occurred."}
             </div>
-            {status === "error" && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-sm" onClick={onCancel}>
-                  <Icon name="chevL" size={12} /> Back to Dashboard
-                </button>
-              </div>
-            )}
+            <button className="btn btn-sm" onClick={onCancel}>
+              <Icon name="chevL" size={12} /> Back to Dashboard
+            </button>
           </div>
         </div>
       )}
@@ -144,7 +194,14 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{s.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{s.desc}</div>
+                      {/* E2: stage elapsed time for active stage */}
+                      {state === "active" ? (
+                        <div style={{ fontSize: 11, color: "var(--accent)" }}>
+                          Stage: {s.desc} · {stageElapsedStr}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{s.desc}</div>
+                      )}
                     </div>
                     <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>{s.artifacts} files</span>
                   </div>
@@ -178,7 +235,8 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
             <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 10 }}>This run</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[
-                { l: "Elapsed", v: elapsedStr },
+                { l: "Total elapsed", v: elapsedStr },
+                { l: "Stage elapsed",  v: stageElapsedStr },
                 { l: "Tokens",  v: tokens.toLocaleString() },
                 { l: "Cost",    v: "$0.00" },
                 { l: "Agent",   v: ag?.name || runMeta?.agent || "…" },
@@ -210,7 +268,7 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
 
           <div className="card" style={{ padding: 16, background: "var(--bg-tint)", border: "none" }}>
             <div style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.55 }}>
-              <strong>Note:</strong> The pipeline runs to completion on the backend. Closing this window won't stop it.
+              <strong>Note:</strong> The pipeline runs to completion on the backend. You can cancel at any time — partial artifacts will be saved.
             </div>
           </div>
         </div>
