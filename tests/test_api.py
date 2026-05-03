@@ -11,6 +11,7 @@ All network calls degrade gracefully; the test suite runs from a clean clone.
 import pytest
 from fastapi.testclient import TestClient
 
+from agentsuitelocal.__version__ import __version__
 from agentsuitelocal.api.main import (
     _pipelines,
     _runs,
@@ -982,4 +983,163 @@ def test_version_endpoint_returns_version():
     r = client.get("/api/version")
     assert r.status_code == 200
     assert "version" in r.json()
-    assert r.json()["version"] == "0.7.0"
+    assert r.json()["version"] == __version__
+
+
+# ---------------------------------------------------------------------------
+# m-6: Update check endpoint (response shape)
+# ---------------------------------------------------------------------------
+
+def test_update_check_returns_required_schema():
+    """update/check gracefully returns the required shape even when GitHub is unreachable."""
+    r = client.get("/api/update/check")
+    assert r.status_code == 200
+    body = r.json()
+    assert "current" in body, "update/check must return 'current'"
+    assert "latest" in body, "update/check must return 'latest'"
+    assert "has_update" in body, "update/check must return 'has_update'"
+    assert "release_url" in body, "update/check must return 'release_url'"
+    assert isinstance(body["has_update"], bool)
+    assert body["current"] == __version__
+
+
+# ---------------------------------------------------------------------------
+# m-6: Smoke endpoint (response shape — Ollama not required)
+# ---------------------------------------------------------------------------
+
+def test_smoke_returns_required_schema():
+    """smoke returns ok + steps list even when Ollama is down."""
+    r = client.get("/api/smoke")
+    assert r.status_code == 200
+    body = r.json()
+    assert "ok" in body, "smoke must return 'ok' bool"
+    assert "steps" in body, "smoke must return 'steps' list"
+    assert isinstance(body["steps"], list)
+    if body["steps"]:
+        step = body["steps"][0]
+        assert "label" in step
+        assert "ok" in step
+
+
+# ---------------------------------------------------------------------------
+# m-6: Model verify endpoint (response shape — Ollama not required)
+# ---------------------------------------------------------------------------
+
+def test_model_verify_returns_schema_for_unknown_model():
+    """model/verify returns {ok, ...} even when the model is absent (Ollama down)."""
+    r = client.get("/api/model/verify/nonexistent-model-xyz")
+    assert r.status_code == 200
+    body = r.json()
+    assert "ok" in body, f"model/verify must return 'ok' bool; got {body}"
+    assert isinstance(body["ok"], bool)
+    # When Ollama is unreachable, the endpoint returns {ok: false, reason: <str>}
+    # When the model is found, it returns {ok: true, model: <str>, latency_ms: <int>}
+    # Either shape is acceptable for this test — we only require 'ok'.
+
+
+# ---------------------------------------------------------------------------
+# m-6: Ollama pull POST validation
+# ---------------------------------------------------------------------------
+
+def test_ollama_pull_post_rejects_missing_model_body():
+    """POST /api/ollama/pull without a body should return 422 (validation error)."""
+    r = client.post("/api/ollama/pull", json={})
+    # Missing 'model' field — FastAPI should reject with 422
+    assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# m-6: Project mutation endpoints
+# ---------------------------------------------------------------------------
+
+def _seed_run(slug: str) -> str:
+    """Helper: insert a minimal run record for the given project slug."""
+    import time, uuid
+    rid = f"run-{uuid.uuid4().hex[:8]}"
+    _runs[rid] = {
+        "id": rid,
+        "agent": "founder",
+        "project": slug,
+        "status": "waiting",
+        "started_at": time.time(),
+        "events": [],
+    }
+    return rid
+
+
+def test_rename_project_returns_new_slug():
+    _seed_run("old-slug")
+    r = client.post(
+        "/api/projects/old-slug/rename",
+        json={"new_name": "New Name"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert "slug" in body
+    assert body["slug"] == "new-name"
+    assert body["previous_slug"] == "old-slug"
+    assert body["runs_updated"] == 1
+
+
+def test_rename_project_404_for_unknown():
+    r = client.post("/api/projects/no-such-project/rename", json={"new_name": "X"})
+    assert r.status_code == 404
+
+
+def test_archive_project_returns_archived_true():
+    _seed_run("my-project")
+    r = client.post("/api/projects/my-project/archive")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["archived"] is True
+    # Verify underlying run updated
+    run = next(iter(_runs.values()))
+    assert run.get("archived") is True
+
+
+def test_archive_project_404_for_unknown():
+    r = client.post("/api/projects/ghost-project/archive")
+    assert r.status_code == 404
+
+
+def test_delete_project_removes_runs():
+    rid = _seed_run("doomed")
+    assert rid in _runs
+    r = client.delete("/api/projects/doomed")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted"] is True
+    assert body["runs_deleted"] == 1
+    assert rid not in _runs
+
+
+def test_delete_project_404_for_unknown():
+    r = client.delete("/api/projects/ghost-project")
+    assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# m-2: State mutation endpoints hold _state_write_lock (smoke-level)
+# ---------------------------------------------------------------------------
+
+def test_cancel_run_wrong_state_returns_400():
+    """cancel_run must 400 when run is not in 'running' state."""
+    _seed_run("proj")
+    run_id = next(iter(_runs))
+    # status is "waiting" — cancel should reject
+    r = client.post(f"/api/run/{run_id}/cancel")
+    assert r.status_code == 400
+
+
+def test_approve_run_wrong_state_returns_400():
+    _seed_run("proj")
+    run_id = next(iter(_runs))
+    # status is "waiting" — approve is allowed; change to running to test guard
+    _runs[run_id]["status"] = "running"
+    r = client.post(f"/api/run/{run_id}/approve", json={"approver": "user"})
+    assert r.status_code == 400
+
+
+def test_reject_run_404_for_unknown():
+    r = client.post("/api/run/does-not-exist/reject")
+    assert r.status_code == 404

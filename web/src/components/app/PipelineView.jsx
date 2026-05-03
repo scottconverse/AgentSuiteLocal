@@ -226,13 +226,18 @@ function PipelineCard({ pipeline, onApprove, onReject }) {
 export const PipelineView = () => {
   const [pipelines, setPipelines] = useState([]);
   const [showForm, setShowForm]   = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/pipelines");
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       setPipelines(data.pipelines || []);
-    } catch { /* ignore */ }
+      setFetchError(null);
+    } catch (err) {
+      setFetchError(err.message || "Could not load pipelines");
+    }
   }, []);
 
   useEffect(() => {
@@ -278,7 +283,17 @@ export const PipelineView = () => {
           </div>
         )}
 
-        {pipelines.length === 0 && !showForm ? (
+        {fetchError && (
+          <div className="card" style={{ padding: 14, marginBottom: 16, borderColor: "var(--bad)", background: "var(--bad-soft)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <Icon name="alert" size={16} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 2 }}>Could not load pipelines</div>
+              <div style={{ fontSize: 12, color: "var(--ink-2)" }}>{fetchError}</div>
+            </div>
+          </div>
+        )}
+
+        {pipelines.length === 0 && !showForm && !fetchError ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-3)" }}>
             <Icon name="git2" size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8, color: "var(--ink-2)" }}>No pipelines yet</div>

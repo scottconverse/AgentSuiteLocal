@@ -975,11 +975,12 @@ async def start_run(req: RunRequest):
 @app.post("/api/run/{run_id}/cancel")
 async def cancel_run(run_id: str):
     """B1: Cancel a running run by cancelling its asyncio Task."""
-    if run_id not in _runs:
-        raise HTTPException(status_code=404, detail="Run not found")
-    run = _runs[run_id]
-    if run["status"] not in ("running",):
-        raise HTTPException(status_code=400, detail=f"Cannot cancel run in state: {run['status']}")
+    with _state_write_lock:
+        if run_id not in _runs:
+            raise HTTPException(status_code=404, detail="Run not found")
+        run = _runs[run_id]
+        if run["status"] not in ("running",):
+            raise HTTPException(status_code=400, detail=f"Cannot cancel run in state: {run['status']}")
 
     task = _run_tasks.get(run_id)
     if task and not task.done():
@@ -989,10 +990,11 @@ async def cancel_run(run_id: str):
         except (TimeoutError, asyncio.CancelledError):
             pass
 
-    run["status"] = "cancelled"
-    run["cancelled_at"] = time.time()
-    run["events"].append({"type": "cancelled", "run_id": run_id, "ts": time.time()})
-    _save_state()
+    with _state_write_lock:
+        run["status"] = "cancelled"
+        run["cancelled_at"] = time.time()
+        run["events"].append({"type": "cancelled", "run_id": run_id, "ts": time.time()})
+        _save_state()
 
     # B2: move partial artifacts to cancelled-outputs/
     _move_partial_artifacts(run)
@@ -1074,21 +1076,22 @@ async def get_artifact(run_id: str, path: str):
 
 @app.post("/api/run/{run_id}/approve")
 async def approve_run(run_id: str, body: OverrideApproveRequest):
-    if run_id not in _runs:
-        raise HTTPException(status_code=404, detail="Run not found")
-    run = _runs[run_id]
-    if run["status"] not in ("waiting", "done"):
-        raise HTTPException(status_code=400, detail=f"Cannot approve run in state: {run['status']}")
+    with _state_write_lock:
+        if run_id not in _runs:
+            raise HTTPException(status_code=404, detail="Run not found")
+        run = _runs[run_id]
+        if run["status"] not in ("waiting", "done"):
+            raise HTTPException(status_code=400, detail=f"Cannot approve run in state: {run['status']}")
 
-    # D1: export to kernel with timestamp path
-    export_path = _push_to_kernel(run)
+        # D1: export to kernel with timestamp path
+        export_path = _push_to_kernel(run)
 
-    run["status"] = "approved"
-    run["approver"] = body.approver
-    run["approved_at"] = time.time()
-    if body.override:
-        run["overridden"] = True
-    _save_state()
+        run["status"] = "approved"
+        run["approver"] = body.approver
+        run["approved_at"] = time.time()
+        if body.override:
+            run["overridden"] = True
+        _save_state()
     _log_telemetry("run_approved", agent=run.get("agent", ""), project=run.get("project", ""))
     _send_notification(
         "AgentSuiteLocal",
@@ -1103,14 +1106,16 @@ async def approve_run(run_id: str, body: OverrideApproveRequest):
 
 @app.post("/api/run/{run_id}/reject")
 async def reject_run(run_id: str):
-    if run_id not in _runs:
-        raise HTTPException(status_code=404, detail="Run not found")
-    _runs[run_id]["status"] = "rejected"
-    _save_state()
-    _log_telemetry("run_rejected", agent=_runs[run_id].get("agent", ""), project=_runs[run_id].get("project", ""))
+    with _state_write_lock:
+        if run_id not in _runs:
+            raise HTTPException(status_code=404, detail="Run not found")
+        run = _runs[run_id]
+        run["status"] = "rejected"
+        _save_state()
+    _log_telemetry("run_rejected", agent=run.get("agent", ""), project=run.get("project", ""))
     _send_notification(
         "AgentSuiteLocal",
-        f"{_runs[run_id].get('agent', 'Agent')} run on {_runs[run_id].get('project', '')} rejected.",
+        f"{run.get('agent', 'Agent')} run on {run.get('project', '')} rejected.",
     )
     return {"status": "rejected", "run_id": run_id}
 

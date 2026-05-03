@@ -89,14 +89,15 @@ export const NewRunView = ({ agentId, onCancel, onLaunch, initialGoal, initialPr
 
         <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Business goal</label>
-            <textarea value={goal} onChange={e => setGoal(e.target.value)} rows={2} style={{ width: "100%", padding: 10, fontSize: 13, border: "1px solid var(--line-2)", borderRadius: 8, fontFamily: "var(--font-sans)", background: "var(--bg)", resize: "vertical" }} />
+            <label htmlFor="nr-goal" style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Business goal</label>
+            <textarea id="nr-goal" value={goal} onChange={e => setGoal(e.target.value)} rows={2} style={{ width: "100%", padding: 10, fontSize: 13, border: "1px solid var(--line-2)", borderRadius: 8, fontFamily: "var(--font-sans)", background: "var(--bg)", resize: "vertical" }} />
             <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>One sentence. The agent writes everything else around this.</div>
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Project slug</label>
+            <label htmlFor="nr-project" style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Project slug</label>
             <input
+              id="nr-project"
               value={project}
               onChange={e => setProject(e.target.value)}
               placeholder="my-project"
@@ -106,11 +107,12 @@ export const NewRunView = ({ agentId, onCancel, onLaunch, initialGoal, initialPr
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+            <label htmlFor="nr-inputs-dir" style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
               Inputs folder <span style={{ fontWeight: 400, color: "var(--ink-3)" }}>(optional)</span>
             </label>
             {/* QA-014: Browse button removed — file system access requires native integration not available in web */}
             <input
+              id="nr-inputs-dir"
               value={inputsDir}
               onChange={e => { setInputsDir(e.target.value); setPathError(null); }}
               onBlur={e => validatePath(e.target.value)}

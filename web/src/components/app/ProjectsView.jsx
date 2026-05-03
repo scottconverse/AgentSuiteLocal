@@ -6,6 +6,7 @@ import { TopBar } from "../shell/index.jsx";
 export const ProjectsView = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [renameId, setRenameId] = useState(null);   // project slug being renamed
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -18,10 +19,11 @@ export const ProjectsView = () => {
   };
 
   const fetchProjects = () => {
+    setFetchError(null);
     fetch("/api/projects")
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json(); })
       .then(data => { setProjects(data.projects || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch(err => { setFetchError(err.message || "Could not load projects"); setLoading(false); });
   };
 
   useEffect(() => { fetchProjects(); }, []);
@@ -73,7 +75,17 @@ export const ProjectsView = () => {
           <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
         )}
 
-        {!loading && projects.length === 0 && (
+        {fetchError && !loading && (
+          <div className="card" style={{ padding: 14, borderColor: "var(--bad)", background: "var(--bad-soft)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <Icon name="alert" size={16} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 2 }}>Could not load projects</div>
+              <div style={{ fontSize: 12, color: "var(--ink-2)" }}>{fetchError}</div>
+            </div>
+          </div>
+        )}
+
+        {!loading && !fetchError && projects.length === 0 && (
           <div className="card" style={{ padding: 32, textAlign: "center" }}>
             <Icon name="folder" size={32} style={{ color: "var(--ink-4)", marginBottom: 12 }} />
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>No projects yet</div>
