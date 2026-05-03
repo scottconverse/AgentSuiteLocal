@@ -19,8 +19,8 @@ dependencies = [
     "weasyprint>=62.0",
     "winotify>=1.1.0; sys_platform == 'win32'",
     "pync>=2.0.3; sys_platform == 'darwin'",
-    # ENG-008: pinned to a specific commit — update intentionally before each dist build
-    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@621e86133c0ebf4248c065e6ed538756b246a75e",
+    # Pinned to a tagged release — update intentionally before each dist build
+    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@v1.0.11",
 ]
 
 [project.scripts]

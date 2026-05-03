@@ -39,9 +39,14 @@ const STEP_LABELS = [
   "API keys", "Smoke test", "Ready",
 ];
 
+const SETUP_KEY = "agentsuite_setup_complete";
+
 export default function App() {
   // ── Installer ─────────────────────────────────────────────────────────────
-  const [mode, setMode]     = useState("installer");
+  // G4: skip installer on subsequent launches — check localStorage on mount
+  const [mode, setMode]     = useState(() =>
+    localStorage.getItem(SETUP_KEY) === "1" ? "app" : "installer"
+  );
   const [step, setStep]     = useState(1);
   const [tier, setTier]     = useState("balanced");
   const [agents, setAgents] = useState(() => AGENTS.map(a => a.id));
@@ -106,6 +111,7 @@ export default function App() {
     } catch {
       // settings persist is best-effort; don't block app entry
     }
+    localStorage.setItem(SETUP_KEY, "1");
     setMode("app");
     setScene("main");
     setView("home");

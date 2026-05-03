@@ -87,6 +87,18 @@ a = Analysis(
         "ollama",
         "openai",
         "mcp",
+        # weasyprint — optional PDF export (requires pango/cairo on the system)
+        "weasyprint",
+        "weasyprint.css",
+        "weasyprint.document",
+        "weasyprint.html",
+        "weasyprint.text",
+        "weasyprint.images",
+        "weasyprint.formatting_structure",
+        "tinycss2",
+        "cssselect2",
+        "cairocffi",
+        "cffi",
     ],
     hookspath=[],
     hooksconfig={},
@@ -124,7 +136,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,          # Add icon=("assets/icon.ico" or "assets/icon.icns") when icon is ready
+    icon=str(ROOT / "agentsuitelocal" / "assets" / "icon.ico"),
 )
 
 coll = COLLECT(
@@ -143,7 +155,7 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="AgentSuiteLocal.app",
-        icon=None,          # "assets/icon.icns" when ready
+        icon=str(ROOT / "agentsuitelocal" / "assets" / "icon.ico"),
         bundle_identifier="com.scottconverse.agentsuitelocal",
         info_plist={
             "CFBundleShortVersionString": "0.7.0",

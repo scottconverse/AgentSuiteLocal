@@ -42,6 +42,8 @@ const UninstallPanel = () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ delete_model: deleteModel, model_name: modelName }),
     });
+    // G4: clear setup flag so next launch shows the installer again
+    localStorage.removeItem("agentsuite_setup_complete");
     setWorking(false);
     setPhase(3);
   };
