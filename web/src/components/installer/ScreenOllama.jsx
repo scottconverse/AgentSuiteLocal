@@ -7,13 +7,25 @@ export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
   const [installPct, setInstallPct] = useState(0);
   const [installMsg, setInstallMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState(null);
+  // A1: detected Ollama version string
+  const [ollamaVersion, setOllamaVersion] = useState(null);
+  // I2: platform for macOS vs Windows install path
+  const [platform, setPlatform] = useState("win32");
   const ctrlRef = useRef(null);
 
   // Detect Ollama on mount
   useEffect(() => {
     fetch("/api/ollama/status")
       .then(r => r.json())
-      .then(data => setPhase(data.running ? "done" : "not-found"))
+      .then(data => {
+        if (data.platform) setPlatform(data.platform);
+        if (data.running) {
+          setOllamaVersion(data.version || null);
+          setPhase("done");
+        } else {
+          setPhase("not-found");
+        }
+      })
       .catch(() => setPhase("not-found"));
   }, []);
 
@@ -100,7 +112,30 @@ export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
           <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Looking for an existing Ollama daemon…</div>
         )}
 
-        {phase === "not-found" && (
+        {phase === "not-found" && platform === "darwin" && (
+          /* I2: macOS — Homebrew is interactive, no silent install */
+          <>
+            <div style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 14, lineHeight: 1.55 }}>
+              Ollama isn't running. On macOS, install Ollama via Homebrew or the official installer.
+            </div>
+            <div style={{ background: "var(--bg-tint)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontFamily: "monospace", fontSize: 12, color: "var(--ink-1)" }}>
+              brew install ollama
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 14, lineHeight: 1.5 }}>
+              Or download the macOS app from <strong>ollama.com/download</strong>. Once installed, run{" "}
+              <span style={{ fontFamily: "monospace" }}>ollama serve</span> in Terminal, then click Retry below.
+            </div>
+            <button className="btn btn-primary" onClick={() => { setPhase("detecting"); setTimeout(() => {
+              fetch("/api/ollama/status").then(r => r.json()).then(data => {
+                if (data.running) { setOllamaVersion(data.version || null); setPhase("done"); }
+                else setPhase("not-found");
+              });
+            }, 500); }}>
+              Retry detection
+            </button>
+          </>
+        )}
+        {phase === "not-found" && platform !== "darwin" && (
           <>
             <div style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 14, lineHeight: 1.55 }}>
               Ollama isn't running. We'll download and install it — no terminal required.
@@ -119,7 +154,10 @@ export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
 
         {phase === "done" && (
           <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
-            Daemon is running at <span className="mono" style={{ color: "var(--accent)" }}>localhost:11434</span>. We'll start it automatically whenever you launch AgentSuiteLocal.
+            Daemon is running at <span className="mono" style={{ color: "var(--accent)" }}>localhost:11434</span>.
+            {/* A1: show version if available */}
+            {ollamaVersion && <span style={{ marginLeft: 4 }}>Ollama <strong>{ollamaVersion}</strong> detected — OK.</span>}
+            {" "}We'll start it automatically whenever you launch AgentSuiteLocal.
           </div>
         )}
 

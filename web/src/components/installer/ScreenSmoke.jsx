@@ -2,24 +2,36 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
-  const [steps, setSteps] = useState([]);
-  const [status, setStatus] = useState("running"); // running | done | error
-  const [summary, setSummary] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
+// A4: per-check fix messages and action buttons, plus a "Skip smoke test" escape hatch
+const STEP_FIX_MAP = {
+  "Ollama running":     { msg: "Ollama is not running. Go back and install or start it.",     action: "Go back", goBack: true },
+  "Model loaded":       { msg: "No model is loaded. Go back and complete model download.",    action: "Go back", goBack: true },
+  "Backend healthy":    { msg: "Backend is not responding. Try restarting AgentSuiteLocal.", action: null       },
+  "Inference test":     { msg: "Model inference failed. The model may be corrupted — try re-downloading.", action: null },
+  "Workspace writable": { msg: "Cannot write to workspace directory. Check folder permissions.", action: null   },
+};
 
-  useEffect(() => {
+export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
+  const [steps, setSteps]   = useState([]);
+  const [status, setStatus] = useState("running"); // running | done | error
+  const [summary, setSummary]     = useState(null);
+  const [errorMsg, setErrorMsg]   = useState(null);
+  // A4: skip state
+  const [skipped, setSkipped]     = useState(false);
+  const [skipWarning, setSkipWarning] = useState(false);
+
+  const runSmoke = () => {
+    setSteps([]);
+    setStatus("running");
+    setErrorMsg(null);
+    setSummary(null);
     fetch("/api/smoke")
       .then(r => r.json())
       .then(data => {
         setSteps(data.steps || []);
         if (data.ok) {
           setStatus("done");
-          setSummary({
-            latency_ms: data.latency_ms,
-            toks_per_sec: data.toks_per_sec,
-            model: data.model,
-          });
+          setSummary({ latency_ms: data.latency_ms, toks_per_sec: data.toks_per_sec, model: data.model });
         } else {
           setStatus("error");
           const failed = (data.steps || []).find(s => !s.ok);
@@ -30,15 +42,26 @@ export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
         setStatus("error");
         setErrorMsg(e.message);
       });
-  }, []);
+  };
+
+  useEffect(() => { runSmoke(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const failedSteps = steps.filter(s => !s.ok);
+
+  // A4: skip flow
+  const handleSkip = () => {
+    if (!skipWarning) { setSkipWarning(true); return; }
+    setSkipped(true);
+    onNext();
+  };
 
   return (
-    <InstallerShell step={10} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={status !== "done"}>
+    <InstallerShell step={10} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={status !== "done" && !skipped}>
       <SectionHeader eyebrow="Step 10" title="First-run smoke test"
         sub="Quick end-to-end check that everything talks to everything." />
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ background: "#0e0c0a", color: "#d6cdc1", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.7, minHeight: 200 }}>
+        <div style={{ background: "#0e0c0a", color: "#d6cdc1", padding: "16px 18px", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.7, minHeight: 180 }}>
           {status === "running" && steps.length === 0 && (
             <div><span style={{ color: "var(--accent)" }}>◆</span> Running probes…<span className="pulse-dot">_</span></div>
           )}
@@ -70,23 +93,56 @@ export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
         </div>
       )}
 
-      {status === "error" && (
+      {/* A4: per-check fix cards for failed steps */}
+      {status === "error" && failedSteps.length > 0 && (
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {failedSteps.map((s, i) => {
+            const fix = STEP_FIX_MAP[s.label];
+            return (
+              <div key={i} className="card" style={{ padding: 12, borderColor: "var(--bad)", background: "var(--bad-soft)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <Icon name="alert" size={14} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bad)", marginBottom: 2 }}>{s.label} failed</div>
+                  <div style={{ fontSize: 11, color: "var(--ink-2)" }}>
+                    {fix?.msg || s.error || "Check your installation and try again."}
+                  </div>
+                </div>
+                {fix?.action && (
+                  <button className="btn btn-sm" onClick={fix.goBack ? onBack : null}>{fix.action}</button>
+                )}
+              </div>
+            );
+          })}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button className="btn btn-sm btn-accent" onClick={runSmoke}>
+              <Icon name="refresh" size={12} /> Retry all checks
+            </button>
+          </div>
+        </div>
+      )}
+
+      {status === "error" && failedSteps.length === 0 && (
         <div className="fade-up" style={{ marginTop: 16, padding: 14, background: "var(--bad-soft)", borderRadius: 10, border: "1px solid var(--bad)" }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 6 }}>Smoke test failed</div>
           <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 10 }}>{errorMsg}</div>
-          <button className="btn btn-sm" onClick={() => {
-            setSteps([]);
-            setStatus("running");
-            setErrorMsg(null);
-            setSummary(null);
-            fetch("/api/smoke").then(r => r.json()).then(data => {
-              setSteps(data.steps || []);
-              if (data.ok) { setStatus("done"); setSummary({ latency_ms: data.latency_ms, toks_per_sec: data.toks_per_sec, model: data.model }); }
-              else { setStatus("error"); const f = (data.steps || []).find(s => !s.ok); setErrorMsg(f?.error || "Smoke test failed."); }
-            }).catch(e => { setStatus("error"); setErrorMsg(e.message); });
-          }}>
-            <Icon name="refresh" size={12} /> Retry
-          </button>
+          <button className="btn btn-sm" onClick={runSmoke}><Icon name="refresh" size={12} /> Retry</button>
+        </div>
+      )}
+
+      {/* A4: skip smoke test escape hatch */}
+      {status === "error" && (
+        <div style={{ marginTop: 12 }}>
+          {!skipWarning ? (
+            <button className="btn btn-sm" style={{ color: "var(--ink-3)" }} onClick={handleSkip}>Skip smoke test</button>
+          ) : (
+            <div style={{ padding: 12, background: "var(--warn-soft, #fff8e1)", borderRadius: 8, border: "1px solid var(--warn)", fontSize: 12, color: "var(--warn)" }}>
+              Skipping the smoke test means the app may not work correctly.
+              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                <button className="btn btn-sm" style={{ borderColor: "var(--warn)", color: "var(--warn)" }} onClick={handleSkip}>Skip anyway</button>
+                <button className="btn btn-sm" onClick={() => setSkipWarning(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </InstallerShell>

@@ -26,6 +26,9 @@ import { PipelineView }     from "./components/app/PipelineView.jsx";
 import { SettingsView }     from "./components/app/SettingsView.jsx";
 import { RunsView }         from "./components/app/RunsView.jsx";
 import { ManualView }       from "./components/app/ManualView.jsx";
+import { ModelView }        from "./components/app/ModelView.jsx";
+import { ProjectsView }     from "./components/app/ProjectsView.jsx";
+import { CrashBanner }      from "./components/app/CrashBanner.jsx";
 
 // UX-018: 11 actual setup screens (Uninstall is not counted in the setup flow)
 const TOTAL_STEPS = 11;
@@ -46,14 +49,21 @@ export default function App() {
   const [apiKey, setApiKey] = useState("");
 
   // ── App ───────────────────────────────────────────────────────────────────
-  const [view, setView]           = useState("home");
-  const [scene, setScene]         = useState("main");
-  const [runId, setRunId]         = useState(null);
-  const [agentId, setAgentId]     = useState(null);
+  const [view, setView]             = useState("home");
+  const [scene, setScene]           = useState("main");
+  const [runId, setRunId]           = useState(null);
+  const [agentId, setAgentId]       = useState(null);
+  // E1: retry pre-population state
+  const [retryGoal, setRetryGoal]   = useState(null);
+  const [retryProject, setRetryProject] = useState(null);
   // UX-016: live waiting-run count for Sidebar badge
   const [waitingCount, setWaitingCount] = useState(0);
   // UX-003: short-lived toast after approve/reject
   const [actionToast, setActionToast] = useState(null); // { msg, kind }
+  // H2: auto-update banner
+  const [updateInfo, setUpdateInfo] = useState(null); // { version, url } | null
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
   const showToast = (msg, kind = "good") => {
     setActionToast({ msg, kind });
     setTimeout(() => setActionToast(null), 4000);
@@ -69,6 +79,15 @@ export default function App() {
     poll();
     const iv = setInterval(poll, 10_000);
     return () => clearInterval(iv);
+  }, [mode]);
+
+  // H2: check for update once on app entry
+  useEffect(() => {
+    if (mode !== "app") return;
+    fetch("/api/update/check")
+      .then(r => r.json())
+      .then(d => { if (d.update_available) setUpdateInfo({ version: d.latest_version, url: d.release_url }); })
+      .catch(() => {});
   }, [mode]);
 
   // ── Installer nav ─────────────────────────────────────────────────────────
@@ -121,8 +140,11 @@ export default function App() {
     setScene("gate");
   };
 
-  const startNewRun = (selectedAgentId = null) => {
+  // E1: startNewRun accepts optional { goal, project } for retry pre-population
+  const startNewRun = (selectedAgentId = null, retryOpts = null) => {
     setAgentId(selectedAgentId);
+    setRetryGoal(retryOpts?.goal || null);
+    setRetryProject(retryOpts?.project || null);
     setScene("newrun");
   };
 
@@ -130,6 +152,8 @@ export default function App() {
     if (scene === "newrun") return (
       <NewRunView
         agentId={agentId}
+        initialGoal={retryGoal}
+        initialProject={retryProject}
         onCancel={() => setScene("main")}
         onLaunch={(id) => { setRunId(id); setScene("live"); }}
       />
@@ -152,10 +176,13 @@ export default function App() {
     switch (view) {
       case "home":     return <Dashboard onNew={() => startNewRun(null)} onOpen={openGate} />;
       case "agents":   return <AgentsView onPick={(id) => startNewRun(id)} onManual={() => navTo("manual")} />;
-      case "runs":     return <RunsView onOpen={openGate} onRerun={(aid) => startNewRun(aid)} />;
+      // E1: onRerun receives (agentId, { goal, project })
+      case "runs":     return <RunsView onOpen={openGate} onRerun={(aid, opts) => startNewRun(aid, opts)} />;
       case "kernel":   return <KernelView />;
       case "pipeline": return <PipelineView />;
-      case "settings": return <SettingsView />;
+      case "projects": return <ProjectsView />;
+      case "models":   return <ModelView onBack={() => navTo("settings")} />;
+      case "settings": return <SettingsView onGoToModels={() => navTo("models")} />;
       case "manual":   return <ManualView />;
       default:         return <Dashboard onNew={() => startNewRun(null)} onOpen={openGate} />;
     }
@@ -189,12 +216,31 @@ export default function App() {
         {mode === "installer" ? (
           installerStep()
         ) : (
-          <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-            {showSidebar && (
-              <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" waitingCount={waitingCount} />
+          <div style={{ display: "flex", flex: 1, minHeight: 0, flexDirection: "column" }}>
+            {/* H2: update available banner */}
+            {updateInfo && !updateDismissed && (
+              <div style={{
+                padding: "8px 24px",
+                background: "var(--accent-soft)",
+                borderBottom: "1px solid var(--accent)",
+                display: "flex", alignItems: "center", gap: 10, fontSize: 12,
+              }}>
+                <span style={{ flex: 1, color: "var(--ink-2)" }}>
+                  AgentSuiteLocal <strong>{updateInfo.version}</strong> is available.{" "}
+                  <a href={updateInfo.url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>See release notes</a>
+                </span>
+                <button className="btn btn-sm" onClick={() => setUpdateDismissed(true)}>Dismiss</button>
+              </div>
             )}
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-              {appScene()}
+            <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+              {showSidebar && (
+                <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" waitingCount={waitingCount} />
+              )}
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                {/* F4: crash banner shown on first render if crash detected */}
+                {showSidebar && <CrashBanner />}
+                {appScene()}
+              </div>
             </div>
           </div>
         )}

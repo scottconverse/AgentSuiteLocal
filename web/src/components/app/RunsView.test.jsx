@@ -51,19 +51,19 @@ describe("RunsView", () => {
     expect(onOpen).toHaveBeenCalledWith("run-001");
   });
 
-  it("shows Re-run button on error rows and calls onRerun", async () => {
+  it("shows Retry button on error rows and calls onRerun with agent + context", async () => {
     const onRerun = vi.fn();
     vi.stubGlobal("fetch", vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve({ runs: [makeRun({ status: "error" })] }) })
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ runs: [makeRun({ status: "error", goal: "test goal", project: "test-project" })] }) })
     ));
     render(<RunsView onOpen={vi.fn()} onRerun={onRerun} />);
-    await waitFor(() => screen.getByText("Re-run"));
-    fireEvent.click(screen.getByText("Re-run"));
-    expect(onRerun).toHaveBeenCalledWith("founder");
+    await waitFor(() => screen.getByText("Retry"));
+    fireEvent.click(screen.getByText("Retry"));
+    expect(onRerun).toHaveBeenCalledWith("founder", { goal: "test goal", project: "test-project" });
   });
 
   it("subtitle shows correct run count", async () => {
     render(<RunsView onOpen={vi.fn()} onRerun={vi.fn()} />);
-    await waitFor(() => expect(screen.getByText(/1 run total/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/1 run/i)).toBeInTheDocument());
   });
 });

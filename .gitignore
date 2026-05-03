@@ -38,3 +38,9 @@ htmlcov/
 # Secrets — never commit
 *.pem
 *.key
+
+.release-approved
+
+# Release tooling (internal, not shipped)
+audit-agentsuitelocal-*/
+scripts/take_screenshots.py

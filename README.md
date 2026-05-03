@@ -1,8 +1,10 @@
 # AgentSuiteLocal
 
-Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v0.7.0** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run.
+
+**New in v0.7.0:** run cancellation, timeout watchdog, QA gate enforcement with override, markdown artifact preview, run export (ZIP/Markdown/PDF), cloud model fallback (Claude Haiku/Sonnet/Opus), desktop notifications, auto-update check, local telemetry, crash recovery, Model Management panel, Projects view, and a Windows Inno Setup installer.
 
 ---
 
@@ -31,7 +33,7 @@ Runs entirely on-device — no internet connection required after setup.
 
 ## Install
 
-**Non-technical users:** download the distributable from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page, unzip, and double-click `AgentSuiteLocal.exe`. The in-app installer handles everything else — no terminal required.
+**Non-technical users:** download `AgentSuiteLocal-0.7.0-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
 
@@ -53,16 +55,17 @@ Get-FileHash .\AgentSuiteLocal.exe -Algorithm SHA256
 ## Building the distributable
 
 ```bash
-# Requires Python ≥ 3.11, Node.js ≥ 18, and pyinstaller in your virtualenv
+# Requires Python ≥ 3.11, Node.js ≥ 18, pyinstaller, and (Windows) Inno Setup 6
 pip install -e ".[dev]" pyinstaller
 
-make dist          # auto-detects OS — builds frontend then runs PyInstaller
+make dist              # auto-detects OS — builds frontend then runs PyInstaller
 # or explicitly:
-make build-mac     # → dist/AgentSuiteLocal.app  (macOS)
-make build-win     # → dist/AgentSuiteLocal/     (Windows)
+make build-mac         # → dist/AgentSuiteLocal.app  (macOS)
+make build-win         # → dist/AgentSuiteLocal/     (Windows onedir)
+make build-installer   # → dist/AgentSuiteLocal-0.7.0-setup.exe  (Windows only, requires Inno Setup)
 ```
 
-The output is a self-contained directory (or `.app` bundle on macOS). The launcher starts the backend silently in-process — no terminal window ever appears. Drop the folder into a zip and it's the release artifact.
+The onedir output is self-contained — no Python or Node required on the target machine. `build-installer` wraps the onedir into a standard Windows installer with uninstall support.
 
 ---
 
@@ -109,17 +112,20 @@ web/
         ScreenApiKey.jsx     Step 9 — cloud fallback
         ScreenSmoke.jsx      Step 10 — smoke test
         ScreenSuccess.jsx    Step 11 — launch
-      app/                   9 main app screens
+      app/                   12 main app screens
         Dashboard.jsx        Overview + pending approvals
         AgentsView.jsx       Agent roster
-        NewRunView.jsx       Goal input + launch
-        LiveRunView.jsx      SSE-driven pipeline progress
-        ApprovalGateView.jsx Artifact review + QA scores
-        KernelView.jsx       Approved artifact library
+        NewRunView.jsx       Goal input + launch (B6 path validation)
+        LiveRunView.jsx      SSE-driven pipeline progress (B1/B3/B4/E2)
+        ApprovalGateView.jsx Artifact review + QA scores (C1/C2/C3/D1/D4)
+        KernelView.jsx       Approved artifact library (H4)
+        ModelView.jsx        Ollama model management + pull (G3)
         PipelineView.jsx     Multi-agent chain builder
-        RunsView.jsx         Full run history
-        SettingsView.jsx     Model, behavior, workspace
+        ProjectsView.jsx     Project cards (rename/archive/delete) (H5)
+        RunsView.jsx         Full run history + inline detail (H3/B5/E1)
+        SettingsView.jsx     Model, behavior, cloud, workspace (G1/G2/B3/C1)
         ManualView.jsx       In-app user guide
+        CrashBanner.jsx      Crash report banner (F4)
       shell/
         index.jsx            Sidebar, TopBar, TrayMenu
       ui/
@@ -153,12 +159,31 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | GET | `/api/pipelines/{id}/stream` | SSE — live pipeline step events |
 | POST | `/api/pipelines/{id}/approve` | Approve current step, advance to next |
 | POST | `/api/pipelines/{id}/reject` | Reject current step, halt pipeline |
-| GET | `/api/settings` | Current settings (model tier, etc.) — API key redacted |
+| GET | `/api/settings` | Current settings — API key redacted |
 | POST | `/api/settings` | Replace settings (full object) |
-| PATCH | `/api/settings` | Partial update — only provided fields are written |
-| GET | `/api/runtime/verify` | Bundle integrity check (all 6 checks) |
+| PATCH | `/api/settings` | Partial update |
+| POST | `/api/run/{id}/cancel` | Cancel a running run; saves partial artifacts |
+| GET | `/api/run/{id}/export/{format}` | Export run as `zip`, `markdown`, or `pdf` |
+| POST | `/api/open-folder` | Open export folder in Explorer/Finder |
+| GET | `/api/kernel/diff` | Unified diff between two kernel files |
+| POST | `/api/validate-path` | Validate an inputs_dir path |
+| GET | `/api/ollama/models` | List installed Ollama models |
+| POST | `/api/ollama/pull` | Pull a model (SSE progress stream) |
+| DELETE | `/api/ollama/models/{name}` | Delete an installed model |
+| GET | `/api/model/verify/{name}` | Verify model is functional |
+| GET | `/api/update/check` | Check for a newer GitHub release |
+| GET | `/api/version` | Return `{"version": "0.7.0"}` |
+| GET | `/api/crash-reports/latest` | Most recent crash report |
+| GET | `/api/telemetry/summary` | Local usage event counts |
+| GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.log` |
+| POST | `/api/pipelines/{id}/resume` | Resume an errored pipeline step |
+| GET | `/api/projects` | All projects |
+| POST | `/api/projects/{slug}/rename` | Rename a project |
+| POST | `/api/projects/{slug}/archive` | Archive a project |
+| DELETE | `/api/projects/{slug}` | Delete a project and its runs |
+| GET | `/api/runtime/verify` | Bundle integrity check |
 
-SSE event types: `agent_start` · `stage_update` · `agent_done` · `agent_waiting` · `pipeline_step_done` · `pipeline_done` · `error`
+SSE event types: `agent_start` · `stage_update` · `agent_done` · `agent_waiting` · `pipeline_step_done` · `pipeline_done` · `error` · `timeout` · `cancelled`
 
 ---
 
@@ -218,12 +243,11 @@ Runs and kernel artifacts are written to `~/AgentSuite/` by default. Override wi
 
 ---
 
-## Known issues (v0.1.1)
+## Known issues (v0.7.0)
 
-- Run and pipeline state is held in memory + JSON sidecars under `~/.agentsuitelocal/`; a backend restart before a run completes may lose in-flight state.
-- E2E test suite requires a running Vite dev server (`:5173`); the backend on `:8766` is auto-started by `tests/e2e/conftest.py`.
-
-Security, thread-safety, and accessibility issues from the v0.1.0 audit were resolved in v0.1.1. See [CHANGELOG](CHANGELOG.md) for details.
+- K1/K2 (cross-stage context passing and intra-stage progress events) are not yet merged upstream to `scottconverse/AgentSuite`. The `pyproject.toml` pin still points to the v0.1.2 commit SHA until the upstream PR lands.
+- macOS build paths for `open-folder` and `pync` notifications are implemented but untested on CI (macOS GitHub Actions runner is not in the release gate for this milestone).
+- E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`.
 
 ---
 

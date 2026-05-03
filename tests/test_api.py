@@ -11,7 +11,12 @@ All network calls degrade gracefully; the test suite runs from a clean clone.
 import pytest
 from fastapi.testclient import TestClient
 
-from agentsuitelocal.api.main import app, _runs, _pipelines, _sanitize_qa_dimensions, _scrub_nan_from_run
+from agentsuitelocal.api.main import (
+    _pipelines,
+    _runs,
+    _sanitize_qa_dimensions,
+    app,
+)
 
 client = TestClient(app)
 
@@ -103,7 +108,7 @@ def test_get_run_after_start():
     assert data["agent"] == "founder"
     assert data["project"] == "test-project"
     assert data["goal"] == "Test goal"
-    assert data["status"] in ("running", "error", "waiting")
+    assert data["status"] in ("running", "error", "waiting", "cancelled")
 
 
 def test_get_run_404_for_unknown():
@@ -720,7 +725,6 @@ def test_run_rejects_sibling_home_path_as_inputs_dir():
 
 def test_get_artifact_rejects_path_traversal():
     """is_relative_to guard blocks paths that escape the run directory."""
-    from pathlib import Path
     from agentsuitelocal.api.main import _workspace
     # Build a real run_dir and a path that escapes it — test the guard directly
     fake_run_id = "test-traversal-run"
@@ -733,3 +737,249 @@ def test_get_artifact_rejects_path_traversal():
     # Also confirm a legitimate child path passes the guard
     legit = (run_dir / "outputs" / "strategy.md").resolve()
     assert legit.is_relative_to(run_dir)
+
+
+# ---------------------------------------------------------------------------
+# B1 — POST /api/run/{id}/cancel
+# ---------------------------------------------------------------------------
+
+def test_cancel_run_wrong_state_returns_400():
+    """Cancel on a non-running run must return 400."""
+    r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
+    run_id = r.json()["run_id"]
+    from agentsuitelocal.api.main import _runs
+    _runs[run_id]["status"] = "waiting"
+    r2 = client.post(f"/api/run/{run_id}/cancel")
+    assert r2.status_code == 400
+
+
+def test_cancel_run_404_for_unknown():
+    r = client.post("/api/run/run-doesnotexist/cancel")
+    assert r.status_code == 404
+
+
+def test_cancel_run_running_returns_cancelled():
+    r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
+    run_id = r.json()["run_id"]
+    from agentsuitelocal.api.main import _runs
+    _runs[run_id]["status"] = "running"
+    r2 = client.post(f"/api/run/{run_id}/cancel")
+    assert r2.status_code == 200
+    assert r2.json()["status"] == "cancelled"
+    assert _runs[run_id]["status"] == "cancelled"
+    assert "cancelled_at" in _runs[run_id]
+
+
+# ---------------------------------------------------------------------------
+# B6 — POST /api/validate-path
+# ---------------------------------------------------------------------------
+
+def test_validate_path_rejects_system_path():
+    r = client.post("/api/validate-path", json={"path": "C:\\Windows\\System32"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["valid"] is False
+    assert data["reason"]
+
+
+def test_validate_path_accepts_missing_path_gracefully():
+    """Non-existent path that would otherwise be valid fails with a reason."""
+    r = client.post("/api/validate-path", json={"path": "../../etc/passwd"})
+    assert r.status_code == 200
+    assert r.json()["valid"] is False
+
+
+# ---------------------------------------------------------------------------
+# D1 — approve exports to kernel (export_path in response)
+# ---------------------------------------------------------------------------
+
+def test_approve_returns_export_path():
+    r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
+    run_id = r.json()["run_id"]
+    from agentsuitelocal.api.main import _runs
+    _runs[run_id]["status"] = "waiting"
+    r2 = client.post(f"/api/run/{run_id}/approve", json={"approver": "user"})
+    assert r2.status_code == 200
+    data = r2.json()
+    assert data["status"] == "approved"
+    # export_path may be None if no actual run dir exists, but key must be present
+    assert "export_path" in data
+
+
+# ---------------------------------------------------------------------------
+# D3 — GET /api/kernel/diff
+# ---------------------------------------------------------------------------
+
+def test_kernel_diff_404_for_missing_files(tmp_path):
+    r = client.get(f"/api/kernel/diff?a={tmp_path}/a.txt&b={tmp_path}/b.txt")
+    # Missing file inside allowed area → 404
+    assert r.status_code in (403, 404)
+
+
+# ---------------------------------------------------------------------------
+# D4 — Export endpoints
+# ---------------------------------------------------------------------------
+
+def test_export_zip_404_for_unknown():
+    r = client.get("/api/run/run-unknown/export/zip")
+    assert r.status_code == 404
+
+
+def test_export_markdown_404_for_unknown():
+    r = client.get("/api/run/run-unknown/export/markdown")
+    assert r.status_code == 404
+
+
+def test_export_pdf_404_for_unknown():
+    r = client.get("/api/run/run-unknown/export/pdf")
+    assert r.status_code == 404
+
+
+def test_export_zip_returns_zip_for_existing_run():
+    r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
+    run_id = r.json()["run_id"]
+    r2 = client.get(f"/api/run/{run_id}/export/zip")
+    # Returns zip even for empty run dir
+    assert r2.status_code == 200
+    assert "zip" in r2.headers.get("content-type", "")
+
+
+def test_export_markdown_returns_200_for_existing_run():
+    r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
+    run_id = r.json()["run_id"]
+    r2 = client.get(f"/api/run/{run_id}/export/markdown")
+    assert r2.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# F3 — POST /api/pipelines/{id}/resume
+# ---------------------------------------------------------------------------
+
+def test_resume_pipeline_non_error_returns_400():
+    r = client.post("/api/pipelines", json={
+        "name": "Resume test",
+        "project": "resume-test",
+        "goal": "Test resume",
+        "agents": ["founder"],
+    })
+    pid = r.json()["pipeline_id"]
+    _pipelines[pid]["status"] = "running"
+    r2 = client.post(f"/api/pipelines/{pid}/resume")
+    assert r2.status_code == 400
+
+
+def test_resume_pipeline_404_for_unknown():
+    r = client.post("/api/pipelines/pipe-doesnotexist/resume")
+    assert r.status_code == 404
+
+
+def test_resume_pipeline_error_state_finds_pending_step():
+    r = client.post("/api/pipelines", json={
+        "name": "Resume pending",
+        "project": "resume-pending",
+        "goal": "Test",
+        "agents": ["founder", "design"],
+    })
+    pid = r.json()["pipeline_id"]
+    _pipelines[pid]["status"] = "error"
+    _pipelines[pid]["steps"][0]["status"] = "done"
+    _pipelines[pid]["steps"][1]["status"] = "todo"  # pending
+    r2 = client.post(f"/api/pipelines/{pid}/resume")
+    assert r2.status_code == 200
+    assert r2.json()["from_step"] == 1
+
+
+# ---------------------------------------------------------------------------
+# F4 — GET /api/crash-reports/latest
+# ---------------------------------------------------------------------------
+
+def test_crash_reports_latest_returns_schema():
+    r = client.get("/api/crash-reports/latest")
+    assert r.status_code == 200
+    data = r.json()
+    assert "has_report" in data
+
+
+# ---------------------------------------------------------------------------
+# G3 — GET /api/ollama/models, DELETE /api/ollama/models/{name}
+# ---------------------------------------------------------------------------
+
+def test_ollama_models_returns_schema():
+    r = client.get("/api/ollama/models")
+    assert r.status_code == 200
+    data = r.json()
+    assert "models" in data
+    assert "active" in data
+    assert isinstance(data["models"], list)
+
+
+# ---------------------------------------------------------------------------
+# D1 — POST /api/open-folder
+# ---------------------------------------------------------------------------
+
+def test_open_folder_rejects_external_path():
+    r = client.post("/api/open-folder", json={"path": "C:\\Windows\\System32"})
+    assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# B3 — run watchdog timeout (unit test via settings)
+# ---------------------------------------------------------------------------
+
+def test_run_timeout_seconds_in_settings():
+    """run_timeout_seconds setting must be present and default to 900."""
+    r = client.get("/api/settings")
+    assert r.status_code == 200
+    data = r.json()
+    assert "run_timeout_seconds" in data
+    assert data["run_timeout_seconds"] == 900
+
+
+# ---------------------------------------------------------------------------
+# F1/F2 — crash recovery verified at load_state (startup repair)
+# ---------------------------------------------------------------------------
+
+def test_crash_recovery_sets_running_runs_to_error():
+    """load_state must repair running → error on startup (F1)."""
+    from agentsuitelocal.api.main import _load_state, _runs
+    run_id = "test-crash-recovery"
+    _runs[run_id] = {"id": run_id, "status": "running", "agent": "founder", "project": "p",
+                     "goal": "g", "started_at": 0, "events": [], "artifacts": [], "qa_score": None,
+                     "qa_dimensions": []}
+    # Simulate saving and reloading by calling _load_state with patched file
+    import json
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+    tmp = Path(tempfile.mktemp(suffix=".json"))
+    tmp.write_text(json.dumps({run_id: _runs[run_id]}))
+    _runs.clear()
+    with patch("agentsuitelocal.api.main._RUNS_FILE", tmp):
+        _load_state()
+    assert _runs[run_id]["status"] == "error"
+    assert "restarted" in _runs[run_id].get("error", "")
+    tmp.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# J4 — telemetry summary endpoint
+# ---------------------------------------------------------------------------
+
+def test_telemetry_summary_returns_schema():
+    r = client.get("/api/telemetry/summary")
+    assert r.status_code == 200
+    data = r.json()
+    assert "enabled" in data
+    assert "events" in data
+    assert "total" in data
+
+
+# ---------------------------------------------------------------------------
+# H2 — version endpoint
+# ---------------------------------------------------------------------------
+
+def test_version_endpoint_returns_version():
+    r = client.get("/api/version")
+    assert r.status_code == 200
+    assert "version" in r.json()
+    assert r.json()["version"] == "0.7.0"

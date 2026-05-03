@@ -14,7 +14,7 @@
 #   make test-e2e        # Playwright E2E tests (requires built frontend)
 #   make clean           # remove build artefacts
 
-.PHONY: build-web build-win build-mac dist test test-e2e cleanroom clean
+.PHONY: build-web build-win build-mac dist build-installer test test-e2e cleanroom clean
 
 # ── Frontend ────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,10 @@ build-web:
 
 build-win: build-web
 	pyinstaller AgentSuiteLocal.spec --noconfirm
+
+# I1: Inno Setup installer — requires Inno Setup 6 in PATH (iscc.exe)
+build-installer: build-win
+	iscc installer\AgentSuiteLocal.iss
 
 build-mac: build-web
 	pyinstaller AgentSuiteLocal.spec --noconfirm

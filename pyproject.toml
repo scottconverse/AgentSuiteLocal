@@ -1,10 +1,10 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentsuitelocal"
-version = "0.1.2"
+version = "0.7.0"
 description = "AgentSuiteLocal — desktop UI for AgentSuite, runs 100% local via Ollama"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,8 +16,11 @@ dependencies = [
     "aiofiles>=23.2",
     "psutil>=5.9",
     "httpx>=0.27",
+    "weasyprint>=62.0",
+    "winotify>=1.1.0; sys_platform == 'win32'",
+    "pync>=2.0.3; sys_platform == 'darwin'",
     # ENG-008: pinned to a specific commit — update intentionally before each dist build
-    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@17fda3140087ef85f3a72ca48a05551fce983740",
+    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@621e86133c0ebf4248c065e6ed538756b246a75e",
 ]
 
 [project.scripts]

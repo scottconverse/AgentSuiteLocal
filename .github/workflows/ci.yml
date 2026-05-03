@@ -2,14 +2,33 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "release/**"]
   pull_request:
     branches: ["main"]
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: ruff check
+        run: ruff check .
+
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -29,7 +48,15 @@ jobs:
       - name: Unit + integration tests
         run: pytest tests/ -v --ignore=tests/e2e -m "not ollama"
 
-      - name: Set up Node.js (frontend tests)
+  frontend:
+    name: Frontend (build + test)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -44,15 +71,21 @@ jobs:
         run: npm run test
         working-directory: web
 
+      - name: Vite build (smoke)
+        run: npm run build
+        working-directory: web
+
   e2e:
+    # J3: E2E job — runs on PRs to main only (too slow for every push)
     name: Playwright E2E
     runs-on: ubuntu-latest
-    needs: test
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    needs: [test, frontend]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -61,7 +94,7 @@ jobs:
       - name: Install Python deps
         run: pip install -e ".[dev]"
 
-      - name: Set up Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -79,18 +112,32 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium
 
-      - name: Start backend
-        run: uvicorn agentsuitelocal.api.main:app --port 8765 &
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 3
+
+      - name: Pull gemma2:2b (smallest model)
+        run: ollama pull gemma2:2b
+        timeout-minutes: 10
+
+      - name: Start backend + write launcher.log
+        run: |
+          mkdir -p ~/.agentsuitelocal
+          echo "8765" > ~/.agentsuitelocal/launcher.log
+          uvicorn agentsuitelocal.api.main:app --port 8765 &
         env:
           AGENTSUITE_WORKSPACE: /tmp/agentsuite-test
 
       - name: Wait for backend
         run: |
-          for i in $(seq 1 20); do
-            curl -s http://localhost:8765/api/health && break || sleep 0.5
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8765/api/health && break || sleep 0.5
           done
 
       - name: Run E2E tests
-        run: pytest tests/e2e/ -v
+        run: pytest tests/e2e/ -v -m e2e
         env:
           BASE_URL: http://localhost:8765
+          AGENTSUITE_WORKSPACE: /tmp/agentsuite-test

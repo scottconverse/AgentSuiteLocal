@@ -1,13 +1,19 @@
 """
 Playwright E2E fixtures.
 
-BASE_URL defaults to http://localhost:5175 (Vite dev server default when 5173
-is already taken). In CI, BASE_URL=http://localhost:8765 — the e2e job builds
-the frontend and serves it via FastAPI on :8765, not the Vite dev server.
-See .github/workflows/ci.yml.
+J3: Backend is started via subprocess (uvicorn in-process). The backend port is:
+  1. Read from BASE_URL env var (set by CI).
+  2. Derived from ~/.agentsuitelocal/launcher.log (A5 protocol).
+  3. Defaults to 8766 for local dev (avoids conflicting with the Vite dev server on 8765).
+
+The conftest starts its own backend if nothing is already listening on the port.
+All E2E tests are marked @pytest.mark.e2e so they are only collected when -m e2e is passed.
 """
 
+from __future__ import annotations
+
 import os
+import pathlib
 import socket
 import threading
 import time
@@ -18,16 +24,24 @@ import uvicorn
 from agentsuitelocal.api.main import app
 
 
+def _read_launcher_port() -> int:
+    """A5: Read the bound port from launcher.log, falling back to 8766."""
+    log = pathlib.Path.home() / ".agentsuitelocal" / "launcher.log"
+    if log.exists():
+        try:
+            return int(log.read_text().strip())
+        except ValueError:
+            pass
+    return 8766
+
+
 @pytest.fixture(scope="session", autouse=True)
 def backend_server():
-    """Start FastAPI backend on 8766 so Vite proxy /api/* calls work.
-
-    Skips startup if something is already listening on 8766 (e.g. a dev
-    backend started manually before running the suite).
-    """
+    """J3: Start FastAPI backend automatically so E2E suite needs no manual startup."""
+    port = _read_launcher_port()
     already_up = False
     try:
-        with socket.create_connection(("127.0.0.1", 8766), timeout=0.5):
+        with socket.create_connection(("127.0.0.1", port), timeout=0.5):
             already_up = True
     except OSError:
         pass
@@ -35,14 +49,14 @@ def backend_server():
     server = None
     thread = None
     if not already_up:
-        config = uvicorn.Config(app, host="127.0.0.1", port=8766, log_level="error")
+        config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error")
         server = uvicorn.Server(config)
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             try:
-                with socket.create_connection(("127.0.0.1", 8766), timeout=0.1):
+                with socket.create_connection(("127.0.0.1", port), timeout=0.1):
                     break
             except OSError:
                 time.sleep(0.05)
@@ -52,9 +66,11 @@ def backend_server():
     if server is not None:
         server.should_exit = True
     if thread is not None:
-        thread.join(timeout=3)
+        thread.join(timeout=5)
 
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    return os.environ.get("BASE_URL", "http://localhost:5175")
+    port = _read_launcher_port()
+    default = f"http://localhost:{port}"
+    return os.environ.get("BASE_URL", default)

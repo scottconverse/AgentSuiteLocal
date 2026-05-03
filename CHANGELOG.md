@@ -9,6 +9,66 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.7.0] — 2026-05-03
+
+### Added
+
+**Backend**
+- Run watchdog: `asyncio.wait_for` enforces `run_timeout_seconds` (60–3600s, default 900). Timeout sends `status: timeout` and saves partial artifacts (B3).
+- SSE event buffer: `collections.deque(maxlen=500)` per run. Clients reconnect with `?since=<seq>` to replay missed events (B4).
+- Cancel endpoint: `POST /api/run/{id}/cancel` — signals asyncio task, saves partial artifacts to `cancelled-outputs/`, returns 400 on wrong state (B1/B2).
+- QA gate override: `POST /api/run/{id}/approve` accepts `override: true`; stored on the run record (C1).
+- Kernel diff: `GET /api/kernel/diff?a=&b=` — `difflib.unified_diff` between two kernel files (D3).
+- Run export: `GET /api/run/{id}/export/zip|markdown|pdf` — ZIP of artifacts, Markdown summary, or PDF via weasyprint (D4).
+- Open folder: `POST /api/open-folder` — opens the run export path in Explorer/Finder (D1).
+- Pipeline resume: `POST /api/pipelines/{id}/resume` — re-queues next pending step after an error state (F3).
+- Crash recovery: on startup, running runs are set to `error: "AgentSuiteLocal restarted"` (F1); pipeline steps likewise (F2).
+- Crash reports: unhandled exceptions write timestamped JSON to `~/.agentsuitelocal/crash-reports/`; `GET /api/crash-reports/latest` returns the most recent report (F4).
+- Cloud model routing: `model_name` starting with `claude-` routes to Anthropic provider with the stored API key (G2).
+- Tier model map: `fast → gemma2:2b`, `balanced → gemma4:e4b`, `powerful → llama3.1:8b` stored in `_TIER_MODEL_MAP` (G1).
+- Ollama model management: `GET /api/ollama/models`, `POST /api/ollama/pull` (SSE), `DELETE /api/ollama/models/{name}` (G3).
+- Model verify endpoint: `GET /api/model/verify/{name}` — runs a short inference ping before advancing the installer (A3).
+- Desktop notifications: `winotify` (Windows) / `pync` (macOS) triggered on run approval or error (H1).
+- Auto-update check: `GET /api/update/check` — compares `__version__` against the latest GitHub release tag (H2).
+- Local telemetry: run events appended to `~/.agentsuitelocal/usage.jsonl`; `GET /api/telemetry/summary` returns counts. Data never leaves the machine (J4).
+- Path validation: `POST /api/validate-path` — rejects system paths, non-existent directories, paths > 512 chars (B6).
+- Dynamic port: `GET /api/launcher/port` reads the stored port from `~/.agentsuitelocal/launcher.log` (A5).
+- Projects API: `GET /api/projects`, `POST /api/projects/{slug}/rename`, `POST /api/projects/{slug}/archive`, `DELETE /api/projects/{slug}` (H5).
+- Settings fields added: `cloud_model`, `notifications`, `run_timeout_seconds`, `qa_gate_threshold`, `dismissed_update_version` (B3, C1, G2, H1).
+- HTTP crash-reporting middleware wraps all requests; writes JSON report and re-raises.
+- `GET /api/version` returns current `__version__`.
+
+**Frontend**
+- `ModelView.jsx` (G3): installed model list with set-active / delete / confirm-delete; recommended model list with SSE pull progress bar.
+- `ProjectsView.jsx` (H5): project cards with inline rename, archive, confirm-delete.
+- `CrashBanner.jsx` (F4): polls `/api/crash-reports/latest` on mount; dismissable banner with clipboard copy.
+- `SettingsView.jsx` upgrades: tier model warning (G1), cloud model selector + persistent cost warning (G2), notifications toggle (H1), local-only telemetry toggle (J4), run timeout input (B3), QA gate threshold input (C1).
+- `LiveRunView.jsx` upgrades: cancel button with "Cancelling…" state (B1), timeout distinct state (B3), SSE reconnect banner with attempt count (B4), per-stage elapsed timer (E2).
+- `ApprovalGateView.jsx` upgrades: QA gate threshold enforcement with override modal (C1), markdown rendering via react-markdown + remark-gfm with graceful fallback (C2), partial QA notice (C3), post-approve export path + open folder button (D1), export dropdown ZIP/Markdown/PDF (D4).
+- `RunsView.jsx` upgrades: debounced search + status filter (H3), `RunDetailView` inline component for terminal-state runs (B5), retry button on error/rejected/cancelled rows (E1).
+- `KernelView.jsx` upgrades: debounced search + project filter (H4), empty-state guidance.
+- `NewRunView.jsx` upgrades: B6 path validation on blur; E1 retry pre-population via `initialGoal`/`initialProject` props.
+- `App.jsx` upgrades: Models and Projects nav items; H2 update banner; F4 CrashBanner; E1 retry pre-population flow.
+- `Sidebar` updated with Models and Projects nav items.
+- `useSSE.js` upgrades: sequence tracking + `?since=` reconnect (B4), 10 retry max with 30s backoff cap, `reconnectAttempt` state.
+
+**Installer**
+- `ScreenOllama.jsx`: shows detected Ollama version string when already installed (A1).
+- `ScreenModelDownload.jsx`: 3-attempt retry loop with 5s backoff and countdown display (A2); model verify call before advancing (A3).
+- `ScreenSmoke.jsx`: per-check fix cards with action buttons; "Skip smoke test" escape hatch with confirmation warning (A4).
+
+**Infrastructure**
+- `.github/workflows/ci.yml` updated: ruff lint job added; frontend build smoke added; `release/**` branch trigger added (J1).
+- `.github/workflows/release.yml` created: `v*` tag trigger; Windows + macOS parallel builds; Inno Setup installer; GitHub release creation with CHANGELOG notes (J2).
+- `installer/AgentSuiteLocal.iss` — Inno Setup 6 script; installs PyInstaller onedir output to Program Files; optional desktop icon and startup entry; graceful backend shutdown on uninstall (I1).
+- `Makefile`: `build-installer` target added (calls `iscc`) (I1).
+- `weasyprint>=62.0` and `winotify>=1.1.0 (Windows)` added to `pyproject.toml` dependencies.
+- `react-markdown ^9.0.1` and `remark-gfm ^4.0.0` added to `web/package.json` dependencies.
+
+### Changed
+- Version bumped 0.1.2 → 0.7.0 in `agentsuitelocal/__version__.py`, `pyproject.toml`, `AgentSuiteLocal.spec`, `web/package.json`.
+- `_load_state()` repairs `running` runs to `error` on startup (crash recovery).
+
 ## [0.1.2] — 2026-05-02
 
 ### Fixed

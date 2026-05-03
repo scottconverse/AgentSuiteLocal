@@ -98,12 +98,16 @@ const TroubleEntry = ({ title, children }) => (
 
 const TOC_ENTRIES = [
   { id: "mental-model", label: "30-second mental model" },
-  { id: "installer", label: "First launch — the installer" },
-  { id: "screens", label: "Main app — screen by screen" },
-  { id: "kernel", label: "The kernel" },
-  { id: "tips", label: "Tips" },
-  { id: "troubleshooting", label: "Troubleshooting" },
-  { id: "faq", label: "Common questions" },
+  { id: "installer", label: "1. Installation walkthrough" },
+  { id: "first-run", label: "2. First run" },
+  { id: "agents", label: "3. Agent reference" },
+  { id: "live-view", label: "4. The live view" },
+  { id: "kernel", label: "5. The kernel" },
+  { id: "pipelines", label: "6. Pipelines" },
+  { id: "models", label: "7. Model management" },
+  { id: "settings", label: "8. Settings reference" },
+  { id: "troubleshooting", label: "9. Troubleshooting" },
+  { id: "faq", label: "10. FAQ" },
 ];
 
 const TableOfContents = ({ activeId }) => (
@@ -168,7 +172,7 @@ export const ManualView = () => (
       <div style={divider} />
 
       {/* ── Installer ── */}
-      <Section id="installer" title="First launch — the installer">
+      <Section id="installer" title="1. Installation walkthrough">
         <p style={bodyText}>The installer runs once. It walks 11 short steps.</p>
         <table style={tableStyle}>
           <thead>
@@ -206,7 +210,73 @@ export const ManualView = () => (
       <div style={divider} />
 
       {/* ── Screen guide ── */}
-      <Section id="screens" title="Main app — screen by screen">
+      <Section id="first-run" title="2. First run — from Dashboard to approved artifact">
+        <p style={bodyText}><strong>Step 1: Open the app.</strong> You&apos;ll see the Dashboard with an engine status card and a &ldquo;Start a new run&rdquo; prompt.</p>
+        <p style={bodyText}><strong>Step 2: Click New run</strong> (or click an agent card in the Agents view). The New Run screen appears.</p>
+        <p style={bodyText}><strong>Step 3: Fill in three fields:</strong></p>
+        <ul style={{ ...bodyText, paddingLeft: 20 }}>
+          <li style={{ marginBottom: 4 }}><strong>Business goal</strong> — one sentence. &ldquo;Launch X for Y in Z&rdquo; works well.</li>
+          <li style={{ marginBottom: 4 }}><strong>Project slug</strong> — a short identifier like <span style={code}>my-product-v2</span>. All runs for the same product should share a slug.</li>
+          <li style={{ marginBottom: 4 }}><strong>Inputs folder</strong> — optional. Drop your notes, brand docs, or research here.</li>
+        </ul>
+        <p style={bodyText}><strong>Step 4: Click Start run.</strong> The view switches to the Live Run screen.</p>
+        <p style={bodyText}><strong>Step 5: Wait.</strong> The pipeline runs five stages. 9–16 minutes on typical hardware.</p>
+        <p style={bodyText}><strong>Step 6: Review.</strong> The Approval Gate opens automatically when QA completes.</p>
+        <p style={bodyText}><strong>Step 7: Read the artifacts.</strong> The file tree lists every artifact. Click any file to preview it. QA scores appear in the right panel.</p>
+        <p style={bodyText}><strong>Step 8: Approve or reject.</strong> Score ≥ 7.0 enables Approve. Click it to promote artifacts to your kernel. Click Reject to discard and run again with a better goal.</p>
+      </Section>
+
+      <div style={divider} />
+
+      {/* ── Agent reference ── */}
+      <Section id="agents" title="3. Agent reference">
+        <table style={tableStyle}>
+          <thead><tr><th style={thStyle}>Agent</th><th style={thStyle}>What it produces</th><th style={thStyle}>Artifacts</th><th style={thStyle}>~Time</th></tr></thead>
+          <tbody>
+            {[
+              ["Founder", "Brand system, voice, positioning", "26", "14 min"],
+              ["Design", "Design briefs, brand QA", "18", "9 min"],
+              ["Product", "UI specs, handoff docs", "17", "12 min"],
+              ["Engineering", "ADRs, system design, runbooks", "17", "16 min"],
+              ["Marketing", "Campaign briefs, launch plans", "18", "11 min"],
+              ["Trust / Risk", "Threat models, controls, compliance", "17", "13 min"],
+              ["CIO", "IT strategy, roadmap", "17", "14 min"],
+            ].map(([a, p, n, t]) => (
+              <tr key={a}><td style={tdBold}>{a}</td><td style={tdStyle}>{p}</td><td style={tdStyle}>{n}</td><td style={tdStyle}>{t}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={bodyText}>Run <strong>Founder first</strong>. Its output becomes the kernel context that Design, Marketing, and other agents inherit.</p>
+      </Section>
+
+      <div style={divider} />
+
+      {/* ── Live view ── */}
+      <Section id="live-view" title="4. The live view">
+        <p style={bodyText}>The live view shows five stages. Each lights up as it starts and shows a checkmark when complete:</p>
+        <table style={tableStyle}>
+          <thead><tr><th style={thStyle}>Stage</th><th style={thStyle}>What it does</th></tr></thead>
+          <tbody>
+            {[
+              ["Intake", "Validates the request, manifests inputs"],
+              ["Extract", "Pulls structured context from your inputs folder"],
+              ["Spec", "Generates the core artifact library (~10 files)"],
+              ["Execute", "Builds brief templates and the export manifest"],
+              ["QA", "Runs a 9-dimension rubric and produces a score"],
+            ].map(([s, d]) => (
+              <tr key={s}><td style={tdBold}>{s}</td><td style={tdStyle}>{d}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={bodyText}>The stage timer resets with each stage: &ldquo;Stage: Extraction · 1m 24s&rdquo;. The top bar shows total elapsed time. If a stage runs longer than 10 minutes without completing, check Ollama status in Settings.</p>
+        <p style={bodyText}><strong>QA dimensions:</strong> Clarity · Completeness · Coherence · Specificity · Brand alignment · Feasibility · Differentiation · Depth · Actionability. Each scored 0–10. Default gate: 7.0 (configurable in Settings).</p>
+        <p style={bodyText}>If fewer than 9 dimensions appear, an amber notice explains: &ldquo;Partial QA scores — the model returned N of 9 dimensions.&rdquo; Common on smaller models. The composite is calculated from what was returned.</p>
+      </Section>
+
+      <div style={divider} />
+
+      {/* ── Screens (condensed for 5–10 less-detailed screens) ── */}
+      <Section id="screens" title="Main app — screen by screen (overview)">
 
         <h3 style={subHeader}>Dashboard</h3>
         <p style={bodyText}>The default view. Shows:</p>
@@ -318,7 +388,7 @@ export const ManualView = () => (
       <div style={divider} />
 
       {/* ── Kernel ── */}
-      <Section id="kernel" title="The kernel — what it is and why it matters">
+      <Section id="kernel" title="5. The kernel — what it is and how to use it">
         <p style={bodyText}>
           The kernel is a folder of approved artifacts at{" "}
           <span style={code}>~/AgentSuite/.agentsuite/_kernel/</span>. Every run loads the kernel
@@ -345,8 +415,64 @@ export const ManualView = () => (
 
       <div style={divider} />
 
+      {/* ── Pipelines ── */}
+      <Section id="pipelines" title="6. Pipelines">
+        <p style={bodyText}>Pipelines chain multiple agents end-to-end. The output of each agent is passed as context to the next.</p>
+        <p style={bodyText}><strong>Creating a pipeline:</strong> In the Pipelines view, select the agents you want to chain and set the order. Typical sequence: Founder → Design → Product → Engineering.</p>
+        <p style={bodyText}><strong>Running a pipeline:</strong> Each step pauses at an approval gate before advancing. Approve a step to run the next agent. Enable <em>Auto-approve</em> in Settings to skip the gates.</p>
+        <p style={bodyText}><strong>Resuming after error:</strong> If a pipeline step fails, click <strong>Resume from step N</strong> in the Pipelines view to restart from the failed step without re-running earlier steps.</p>
+      </Section>
+
+      <div style={divider} />
+
+      {/* ── Model management ── */}
+      <Section id="models" title="7. Model management">
+        <p style={bodyText}>Open <strong>Settings → Models</strong> (or click <strong>Models</strong> in the sidebar) to manage your local models.</p>
+        <p style={bodyText}><strong>Installed models</strong> lists all models Ollama has pulled, with size and last-used date. Use <strong>Set as active</strong> to switch the active model. Use <strong>Delete</strong> (with confirmation) to remove a model from disk.</p>
+        <p style={bodyText}><strong>Recommended models:</strong></p>
+        <table style={tableStyle}>
+          <thead><tr><th style={thStyle}>Tier</th><th style={thStyle}>Model</th><th style={thStyle}>Disk</th><th style={thStyle}>Min RAM</th></tr></thead>
+          <tbody>
+            {[
+              ["Fast", "gemma2:2b", "1.7 GB", "8 GB"],
+              ["Balanced", "gemma4:e4b", "4.1 GB", "16 GB"],
+              ["Powerful", "llama3.1:8b", "4.7 GB", "24 GB"],
+            ].map(([t, m, d, r]) => (
+              <tr key={t}><td style={tdBold}>{t}</td><td style={tdStyle}><span style={code}>{m}</span></td><td style={tdStyle}>{d}</td><td style={tdStyle}>{r}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={bodyText}>Click <strong>Pull</strong> next to any recommended model to download it. A live progress bar shows download progress streamed directly from Ollama.</p>
+      </Section>
+
+      <div style={divider} />
+
+      {/* ── Settings reference ── */}
+      <Section id="settings" title="8. Settings reference">
+        <table style={tableStyle}>
+          <thead><tr><th style={thStyle}>Setting</th><th style={thStyle}>Default</th><th style={thStyle}>Description</th></tr></thead>
+          <tbody>
+            {[
+              ["Model tier", "balanced", "Which tier to use for all runs"],
+              ["Run timeout", "15 min", "Max time before a run is killed with an error"],
+              ["Auto-approve", "off", "Skip the Approval Gate and promote artifacts automatically"],
+              ["QA gate threshold", "7.0", "Minimum composite QA score to enable the Approve button"],
+              ["Workspace path", "~/AgentSuite", "Where runs and the kernel are stored"],
+              ["Desktop notifications", "on", "OS toast when a run reaches a terminal state"],
+              ["Telemetry", "off", "Local-only JSONL log of app events"],
+            ].map(([s, d, desc]) => (
+              <tr key={s}><td style={tdBold}>{s}</td><td style={tdStyle}>{d}</td><td style={tdStyle}>{desc}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={bodyText}><strong>Cloud fallback:</strong> when an Anthropic API key is present, a model dropdown appears. Selecting a cloud model routes all future runs through the Anthropic API. A permanent warning reads: &ldquo;Cloud runs send your goal and context to Anthropic&apos;s servers and incur API costs. Local runs are always free.&rdquo;</p>
+        <p style={bodyText}><strong>Uninstall:</strong> Settings → Danger zone → <strong>Uninstall AgentSuiteLocal</strong> opens a three-step flow: confirm workspace deletion, confirm Ollama model deletion, then calls the system uninstaller.</p>
+      </Section>
+
+      <div style={divider} />
+
       {/* ── Tips ── */}
-      <Section id="tips" title="Tips">
+      <Section id="tips" title="Tips (quick reference)">
         {[
           {
             title: "Goal quality matters more than anything else.",
@@ -379,7 +505,7 @@ export const ManualView = () => (
       <div style={divider} />
 
       {/* ── Troubleshooting ── */}
-      <Section id="troubleshooting" title="Troubleshooting">
+      <Section id="troubleshooting" title="9. Troubleshooting">
 
         <TroubleEntry title="The installer is stuck on 'Ollama runtime' and Continue never lights up">
           The AI engine isn&#x2019;t running yet. Look for an Ollama icon in your system tray (Windows) — it looks like a small llama. If you don&#x2019;t see it, open the Ollama app and wait for it to appear. Once the icon is visible, go back to the installer and it should unlock within a few seconds.
@@ -415,7 +541,43 @@ export const ManualView = () => (
         </TroubleEntry>
 
         <TroubleEntry title="My run disappeared after I restarted the app">
-          Completed runs survive restarts — they&#x2019;re stored at <span style={code}>~/.agentsuitelocal/runs.json</span>. If a run was actively running when the app closed, it will show as errored on restart, but the artifacts written so far remain on disk under <span style={code}>~/AgentSuite/.agentsuite/runs/{"{run-id}"}/</span>.
+          Completed runs survive restarts — they&apos;re stored at <span style={code}>~/.agentsuitelocal/runs.json</span>. If a run was actively running when the app closed, it will show as errored on restart with message &ldquo;AgentSuiteLocal restarted while this run was in progress.&rdquo; The artifacts written so far remain on disk under <span style={code}>~/AgentSuite/.agentsuite/runs/{"{run-id}"}/</span>. Use the Retry button to restart.
+        </TroubleEntry>
+
+        <TroubleEntry title="Run shows 'Timed out after 15 minutes'">
+          The model stopped responding mid-run. Options: (a) increase the run timeout in <strong>Settings → Run timeout</strong>, (b) switch to a lighter model tier, (c) reduce the size of your inputs folder, or (d) check that Ollama is still running — it can crash under memory pressure.
+        </TroubleEntry>
+
+        <TroubleEntry title="Approve button is grayed out despite a score above 7.0">
+          Check the QA gate threshold in <strong>Settings</strong> — it may have been raised above the current score. You can also click <strong>Override &amp; approve</strong> (amber button) to bypass the threshold with a confirmation dialog.
+        </TroubleEntry>
+
+        <TroubleEntry title="'Connection lost — reconnecting' banner in the live view">
+          The SSE connection to the backend dropped. The app reconnects automatically (up to 10 attempts: 1s → 2s → 4s → … → 30s cap). The run continues in the background. If reconnection fails, navigate to the Runs view to check status.
+        </TroubleEntry>
+
+        <TroubleEntry title="Desktop notifications are not appearing">
+          On Windows: check Windows Settings → System → Notifications → AgentSuiteLocal. On macOS: System Settings → Notifications → AgentSuiteLocal. Also verify the <strong>Desktop notifications</strong> toggle is on in AgentSuiteLocal Settings.
+        </TroubleEntry>
+
+        <TroubleEntry title="The Retry button doesn't pre-fill the goal field">
+          Runs created before v0.7.0 may not have a <span style={code}>goal</span> field saved. Fill in the goal manually when retrying. All runs created in v0.7.0 and later save the goal automatically.
+        </TroubleEntry>
+
+        <TroubleEntry title="'make build-installer' says 'iscc not found'">
+          Inno Setup is not on your PATH. Install Inno Setup 6 from <a href="https://jrsoftware.org/isdl.php" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>jrsoftware.org/isdl.php</a> or run <span style={code}>choco install innosetup</span>.
+        </TroubleEntry>
+
+        <TroubleEntry title="pytest fails with import errors on a clean clone">
+          Run <span style={code}>pip install -e &quot;.[dev]&quot;</span> from the repo root. This installs the package in editable mode with all dev dependencies.
+        </TroubleEntry>
+
+        <TroubleEntry title="Vite build fails with 'top-level await' error">
+          Check that <span style={code}>ApprovalGateView.jsx</span> uses static imports for <span style={code}>react-markdown</span> and <span style={code}>remark-gfm</span>, not dynamic <span style={code}>await import()</span>. Dynamic imports at module scope are not supported in the configured Vite target environment.
+        </TroubleEntry>
+
+        <TroubleEntry title="Kernel view shows no entries after approving a run">
+          A run must be approved before its artifacts appear in the Kernel. If the run shows &ldquo;approved&rdquo; in Runs but the Kernel is empty, check the workspace path in Settings — the kernel is stored under that path, not necessarily <span style={code}>~/AgentSuite/</span>.
         </TroubleEntry>
 
       </Section>
@@ -423,36 +585,28 @@ export const ManualView = () => (
       <div style={divider} />
 
       {/* ── FAQ ── */}
-      <Section id="faq" title="Common questions">
+      <Section id="faq" title="10. FAQ">
         {[
-          {
-            q: "What's the kernel?",
-            a: "The kernel is the folder of approved artifacts at ~/AgentSuite/.agentsuite/_kernel/. Every future run reads it as canonical context — so the more you approve, the more informed each run becomes. Think of it as your AI's long-term memory.",
-          },
-          {
-            q: "Why did my run get a score below 7.0?",
-            a: "The QA stage scores output on 9 dimensions (accuracy, completeness, brand fit, etc.) and flags runs below 7.0 as needing improvement. The most common cause is an under-specified goal. Try re-running with a more focused, concrete one-sentence goal.",
-          },
-          {
-            q: "The Approval Gate won't let me click Approve — it's grayed out.",
-            a: "The Approve button unlocks only when the composite QA score is 7.0 or above. Re-run with a more specific goal to raise the score.",
-          },
-          {
-            q: "Can I run without Ollama?",
-            a: "Only if you provide an Anthropic API key in Settings. Without a key or Ollama, runs fail at the LLM call with an actionable error message.",
-          },
-          {
-            q: "Can I edit the artifacts before approving?",
-            a: "Yes — find them at ~/AgentSuite/.agentsuite/runs/{run-id}/ and edit them directly on disk. The approval gate re-reads the files on load, so edits made before approving are what gets promoted.",
-          },
-          {
-            q: "What happens if I reject a run?",
-            a: "The run is marked rejected and its artifacts stay in the run folder but are never promoted to the kernel. You can start a new run at any time.",
-          },
-          {
-            q: "How do I update to a new version?",
-            a: "Download the new release from the Releases page on GitHub, unzip, and replace your existing app folder with the new one. Your workspace (runs, kernel, settings) is stored separately at ~/AgentSuite/ and ~/.agentsuitelocal/ — it will not be overwritten.",
-          },
+          { q: "Does any data leave my machine?", a: "No. All processing uses your local Ollama model. The only outbound calls are: an optional GitHub API request to check for updates (no payload), and cloud API calls if you configure an API key and select a cloud model. Telemetry, if enabled, writes only to a local JSONL file." },
+          { q: "What's the kernel?", a: "The kernel is the folder of approved artifacts at ~/AgentSuite/.agentsuite/_kernel/. Every future run reads it as canonical context — so the more you approve, the more informed each run becomes. Think of it as your AI's long-term memory." },
+          { q: "Why did my run score below 7.0?", a: "The most common cause is an under-specified goal. Try re-running with a more focused, concrete one-sentence goal. Adding an inputs folder with real brand/product notes also helps significantly. Switching to a higher model tier improves scores on the same goal." },
+          { q: "The Approve button is grayed out.", a: "The Approve button unlocks only when the composite QA score meets the threshold (default 7.0). Check the threshold in Settings. Or click Override & approve (amber button) to bypass with a confirmation dialog." },
+          { q: "Can I run without Ollama?", a: "Only if you provide an Anthropic API key in Settings and select a cloud model. Without a key or Ollama, runs fail at the LLM call with a clear error message." },
+          { q: "Can I edit artifacts before approving?", a: "Yes — find them at ~/AgentSuite/.agentsuite/runs/{run-id}/ and edit them directly on disk. The Approval Gate re-reads files on load, so edits made before approving are what gets promoted to the kernel." },
+          { q: "What happens if I reject a run?", a: "The run is marked rejected and its artifacts stay in the run folder but are not promoted to the kernel. A Retry button appears on the rejected run so you can re-run with the same setup." },
+          { q: "How do I update to a new version?", a: "A non-blocking banner appears at the top of the Dashboard when a new version is available. Click Download to open the GitHub releases page and download the new installer. Run it to update — your workspace is stored separately and will not be overwritten." },
+          { q: "How much disk space does it need?", a: "The installed app is ~300 MB. Models are 1.7–4.7 GB depending on tier. Each run produces ~2–5 MB of artifacts. A full kernel for one project across all seven agents is typically 15–30 MB." },
+          { q: "Can I run multiple agents in parallel?", a: "Not yet. Agents run sequentially. A pipeline queues them one at a time with approval gates between steps." },
+          { q: "How do I back up my kernel?", a: "Copy ~/AgentSuite/.agentsuite/_kernel/ to a safe location. It's plain markdown files — no database, no binary format." },
+          { q: "Where are crash reports stored?", a: "At ~/.agentsuitelocal/crash-reports/{timestamp}.json. Each file contains: exception type, message, stack trace, app version, Python version, OS version, and the request path. No request body or user data." },
+          { q: "What's the 'Stage decisions so far' panel?", a: "The K1 cross-stage context feature. After each stage completes, the app summarizes the first 500 words of the primary artifact and shows it in a collapsible panel. This is what the next stage sees as prior context." },
+          { q: "Can I use a model not on the recommended list?", a: "Yes. Pull it manually with 'ollama pull model-name' in a terminal, then open Settings → Models and click Set as active next to it. Any model in your Ollama library works." },
+          { q: "What Python version does it require?", a: "Python 3.11 or 3.12. The bundled executable ships its own Python runtime, so you don't need Python installed to run the distributed build. You only need Python for development." },
+          { q: "Does the Retry button carry over my inputs folder?", a: "Yes. Clicking Retry pre-populates the New Run screen with the same agent, goal, project, and inputs folder from the original run. You can edit any field before launching." },
+          { q: "Is there a CLI?", a: "The agentsuitelocal command is installed when you 'pip install -e .' for development. But it's the AgentSuite library's CLI, not the desktop app. For the full experience including the UI, run the desktop app." },
+          { q: "How do I contribute?", a: "Read CONTRIBUTING.md. The short version: fork the repo, make changes on a feature branch, run pytest and npm run test, then open a pull request." },
+          { q: "What's the difference between Reject and starting a new run?", a: "Reject marks the existing run as rejected and preserves its artifacts. Starting a new run creates a new run record. Use Reject to keep a clear record of what you tried; use a new run for a completely different approach." },
+          { q: "Can I run AgentSuiteLocal on a server?", a: "It's designed for desktop use — it needs a running Ollama daemon. You could run it headless and connect remotely, but that's not a supported configuration." },
         ].map((item) => (
           <QA key={item.q} q={item.q} a={item.a} />
         ))}

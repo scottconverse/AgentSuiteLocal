@@ -55,6 +55,7 @@ def _log(msg: str) -> None:
 
 def _start_server(port: int) -> None:
     import traceback
+
     import uvicorn
     try:
         from agentsuitelocal.api.main import app
