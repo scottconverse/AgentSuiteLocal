@@ -47,8 +47,8 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   const [exportPath, setExportPath] = useState(null);
   // D4: export dropdown
   const [exportOpen, setExportOpen] = useState(false);
-  // C3: QA partial notice
-  const EXPECTED_QA_DIMS = 5;
+  // C3: QA partial notice — must match data.js QA_DIMENSIONS count (9)
+  const EXPECTED_QA_DIMS = 9;
 
   // Load run data + settings (for threshold)
   useEffect(() => {

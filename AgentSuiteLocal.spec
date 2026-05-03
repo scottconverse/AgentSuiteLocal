@@ -152,13 +152,25 @@ coll = COLLECT(
 
 # macOS: wrap in a .app bundle
 if sys.platform == "darwin":
+    # M-6: macOS requires .icns (not .ico). Generate icon.icns from brand assets
+    # on macOS using: python scripts/generate_icns.py  (requires Pillow + iconutil)
+    _mac_icon = ROOT / "agentsuitelocal" / "assets" / "icon.icns"
+    if not _mac_icon.exists():
+        _mac_icon = ROOT / "agentsuitelocal" / "assets" / "icon.ico"  # fallback for CI
+    # m-4: derive version from __version__.py instead of hardcoding
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT))
+    try:
+        from agentsuitelocal.__version__ import __version__ as _APP_VERSION
+    except ImportError:
+        _APP_VERSION = "0.7.0"
     app = BUNDLE(
         coll,
         name="AgentSuiteLocal.app",
-        icon=str(ROOT / "agentsuitelocal" / "assets" / "icon.ico"),
+        icon=str(_mac_icon),
         bundle_identifier="com.scottconverse.agentsuitelocal",
         info_plist={
-            "CFBundleShortVersionString": "0.7.0",
+            "CFBundleShortVersionString": _APP_VERSION,
             "CFBundleName": "AgentSuiteLocal",
             "NSHighResolutionCapable": True,
             "LSUIElement": False,           # Show in Dock

@@ -15,7 +15,7 @@ _Nothing pending._
 
 **Backend**
 - Run watchdog: `asyncio.wait_for` enforces `run_timeout_seconds` (60–3600s, default 900). Timeout sends `status: timeout` and saves partial artifacts (B3).
-- SSE event buffer: `collections.deque(maxlen=500)` per run. Clients reconnect with `?since=<seq>` to replay missed events (B4).
+- SSE event buffer: `collections.deque(maxlen=100)` per run. Clients reconnect with `?since=<seq>` to replay missed events (B4).
 - Cancel endpoint: `POST /api/run/{id}/cancel` — signals asyncio task, saves partial artifacts to `cancelled-outputs/`, returns 400 on wrong state (B1/B2).
 - QA gate override: `POST /api/run/{id}/approve` accepts `override: true`; stored on the run record (C1).
 - Kernel diff: `GET /api/kernel/diff?a=&b=` — `difflib.unified_diff` between two kernel files (D3).

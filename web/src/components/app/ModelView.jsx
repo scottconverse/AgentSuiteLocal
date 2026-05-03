@@ -1,17 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
+// C-3/M-3: source RECOMMENDED from data.js to keep installer and model manager consistent
+import { MODELS } from "../../data.js";
 
-// G3: Recommended models list — name, tier, size, RAM
-const RECOMMENDED = [
-  { id: "gemma2:2b",      tier: "fast",     size: "1.6 GB", ram: "4 GB",  label: "Gemma 2 2B"      },
-  { id: "gemma4:e4b",     tier: "balanced", size: "5.0 GB", ram: "8 GB",  label: "Gemma 4 E4B"     },
-  { id: "llama3.1:8b",    tier: "powerful", size: "4.7 GB", ram: "10 GB", label: "Llama 3.1 8B"    },
-  { id: "qwen2.5:3b",     tier: "fast",     size: "2.0 GB", ram: "4 GB",  label: "Qwen 2.5 3B"     },
-  { id: "mistral:7b",     tier: "balanced", size: "4.1 GB", ram: "8 GB",  label: "Mistral 7B"      },
-];
+// Map data.js MODELS to the shape ModelView uses internally
+const RECOMMENDED = MODELS.map(m => ({
+  id: m.model,       // e.g. "gemma4:e2b"
+  tier: m.id,        // "light" | "balanced" | "pro" — matches _TIER_MODEL_MAP keys
+  size: m.size,
+  ram: m.ram,
+  label: `${m.tier} — ${m.model}`,
+}));
 
-const TIER_COLORS = { fast: "var(--good)", balanced: "var(--accent)", powerful: "var(--warn)" };
+// C-3: tier colors keyed by data.js IDs
+const TIER_COLORS = { light: "var(--good)", balanced: "var(--accent)", pro: "var(--warn)" };
 
 export const ModelView = ({ onBack }) => {
   const [installedModels, setInstalledModels] = useState([]);
@@ -21,7 +24,6 @@ export const ModelView = ({ onBack }) => {
 
   // G3: per-model pull state
   const [pulling, setPulling]     = useState({}); // { modelId: { progress, status, done, error } }
-  const pullAborts                = useRef({});
 
   // G3: delete confirmation
   const [confirmDelete, setConfirmDelete] = useState(null); // modelId
@@ -47,9 +49,9 @@ export const ModelView = ({ onBack }) => {
   useEffect(() => { fetchModels(); }, [fetchModels]);
 
   const setActiveModel = async (modelId) => {
-    // Determine tier from recommended list; fallback to "powerful"
+    // Determine tier from recommended list; fallback to "pro" (matches _TIER_MODEL_MAP and data.js)
     const rec = RECOMMENDED.find(r => r.id === modelId);
-    const tier = rec?.tier || "powerful";
+    const tier = rec?.tier || "pro";
     await fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -64,35 +66,58 @@ export const ModelView = ({ onBack }) => {
     fetchModels();
   };
 
-  // G3: SSE pull with live progress
-  const pullModel = (modelId) => {
+  // G3: Pull model via POST + fetch streaming (C-1: EventSource is GET-only; endpoint is POST)
+  const pullModel = async (modelId) => {
     if (pulling[modelId]?.active) return;
     setPulling(prev => ({ ...prev, [modelId]: { active: true, progress: 0, status: "Starting…", done: false, error: null } }));
 
-    const es = new EventSource(`/api/ollama/pull?model=${encodeURIComponent(modelId)}`);
-    pullAborts.current[modelId] = es;
+    try {
+      const resp = await fetch("/api/ollama/pull", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId }),
+      });
 
-    es.onmessage = (evt) => {
-      try {
-        const d = JSON.parse(evt.data);
-        if (d.status === "success") {
-          setPulling(prev => ({ ...prev, [modelId]: { active: false, progress: 100, status: "Done", done: true, error: null } }));
-          es.close();
-          fetchModels();
-          return;
+      if (!resp.ok) {
+        throw new Error(`Server returned ${resp.status}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        for (const line of text.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data:")) continue;
+          try {
+            const d = JSON.parse(trimmed.slice(5).trim());
+            if (d.status === "success") {
+              setPulling(prev => ({ ...prev, [modelId]: { active: false, progress: 100, status: "Done", done: true, error: null } }));
+              fetchModels();
+              break outer;
+            }
+            const pct = d.total && d.completed ? Math.round((d.completed / d.total) * 100) : 0;
+            setPulling(prev => ({ ...prev, [modelId]: { active: true, progress: pct, status: d.status || "Pulling…", done: false, error: null } }));
+          } catch { /* skip malformed SSE lines */ }
         }
-        const pct = d.total && d.completed ? Math.round((d.completed / d.total) * 100) : 0;
-        setPulling(prev => ({ ...prev, [modelId]: { active: true, progress: pct, status: d.status || "Pulling…", done: false, error: null } }));
-      } catch { /* ignore parse errors */ }
-    };
+      }
 
-    es.onerror = () => {
+      // Stream ended without explicit success event — treat as done
+      setPulling(prev => {
+        if (prev[modelId]?.done) return prev;  // already handled
+        return { ...prev, [modelId]: { active: false, progress: 100, status: "Done", done: true, error: null } };
+      });
+      fetchModels();
+
+    } catch (err) {
       setPulling(prev => ({
         ...prev,
-        [modelId]: { active: false, progress: 0, status: null, done: false, error: "Pull failed — check Ollama is running" },
+        [modelId]: { active: false, progress: 0, status: null, done: false, error: err.message || "Pull failed — check Ollama is running" },
       }));
-      es.close();
-    };
+    }
   };
 
   const activeModel = settings?.model_name;

@@ -5,8 +5,9 @@ import { ProjectsView } from "./ProjectsView.jsx";
 const makeProject = (overrides = {}) => ({
   slug: "my-project",
   name: "My Project",
-  run_count: 3,
-  last_run_at: Math.floor(Date.now() / 1000) - 86400,
+  // M-1: API returns "runs" and "last_touch" — not "run_count"/"last_run_at"
+  runs: 3,
+  last_touch: Math.floor(Date.now() / 1000) - 86400,
   archived: false,
   ...overrides,
 });

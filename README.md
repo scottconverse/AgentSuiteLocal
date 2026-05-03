@@ -90,7 +90,7 @@ Vite proxies `/api/*` to `:8766`. Open **http://localhost:5173** (or whichever p
 ```
 agentsuitelocal/
   api/
-    main.py         FastAPI app — REST + SSE, ~440 lines
+    main.py         FastAPI app — REST + SSE, ~2000 lines, 48 routes
 
 web/
   src/

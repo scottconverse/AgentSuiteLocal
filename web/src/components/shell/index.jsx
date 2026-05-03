@@ -11,7 +11,7 @@ export const TrayMenu = ({ onAction }) => (
       <Brand size={13} />
       <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
         <span className="dot" style={{ color: "var(--good)" }} />
-        Daemon healthy · gemma4:e4b loaded
+        Daemon healthy
       </div>
     </div>
     {[
@@ -47,7 +47,7 @@ export const TrayMenu = ({ onAction }) => (
   </div>
 );
 
-export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0 }) => {
+export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = null }) => {
   // UX-016: badge is computed from live waitingCount, not hardcoded
   const items = [
     { id: "home",     icon: "home",     label: "Dashboard" },
@@ -79,7 +79,7 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0 }) => {
           fontSize: 12, fontWeight: 500, marginBottom: 8,
         }}>
           <Icon name="folder" size={13} style={{ color: "var(--accent)" }} />
-          <span style={{ flex: 1 }}>{projectSlug || "myco-pivot"}</span>
+          <span style={{ flex: 1 }}>{projectSlug || "—"}</span>
           <Icon name="chevD" size={12} style={{ color: "var(--ink-3)" }} />
         </div>
       </div>
@@ -120,7 +120,7 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0 }) => {
             <span style={{ fontSize: 11, fontWeight: 600 }}>Local engine</span>
           </div>
           <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", lineHeight: 1.5 }}>
-            gemma4:e4b<br />18.4 tok/s · 7.2 GB
+            {model || "—"}
           </div>
         </div>
       </div>

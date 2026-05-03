@@ -68,6 +68,8 @@ export default function App() {
   // H2: auto-update banner
   const [updateInfo, setUpdateInfo] = useState(null); // { version, url } | null
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  // M-8: live model name for Sidebar footer
+  const [liveModel, setLiveModel] = useState(null);
 
   const showToast = (msg, kind = "good") => {
     setActionToast({ msg, kind });
@@ -86,12 +88,16 @@ export default function App() {
     return () => clearInterval(iv);
   }, [mode]);
 
-  // H2: check for update once on app entry
+  // H2: check for update + M-8: fetch live model name once on app entry
   useEffect(() => {
     if (mode !== "app") return;
     fetch("/api/update/check")
       .then(r => r.json())
-      .then(d => { if (d.update_available) setUpdateInfo({ version: d.latest_version, url: d.release_url }); })
+      .then(d => { if (d.has_update) setUpdateInfo({ version: d.latest, url: d.release_url }); })   // C-2: field names match API
+      .catch(() => {});
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(s => setLiveModel(s.model_name || null))
       .catch(() => {});
   }, [mode]);
 
@@ -240,7 +246,7 @@ export default function App() {
             )}
             <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
               {showSidebar && (
-                <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" waitingCount={waitingCount} />
+                <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" waitingCount={waitingCount} model={liveModel} />
               )}
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
                 {/* F4: crash banner shown on first render if crash detected */}

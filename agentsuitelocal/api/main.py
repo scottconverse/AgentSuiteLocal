@@ -31,6 +31,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field, model_validator
 from sse_starlette.sse import EventSourceResponse
 
@@ -57,8 +58,8 @@ app.add_middleware(
 _runs: dict[str, dict[str, Any]] = {}
 _pipelines: dict[str, dict[str, Any]] = {}
 
-_state_write_lock = threading.Lock()
-_settings_lock = threading.Lock()
+_state_write_lock = threading.RLock()   # RLock: callers may hold lock before calling _save_state()
+_settings_lock = threading.RLock()
 
 _RUNS_FILE = Path.home() / ".agentsuitelocal" / "runs.json"
 _PIPELINES_FILE = Path.home() / ".agentsuitelocal" / "pipelines.json"
@@ -125,10 +126,11 @@ _load_state()
 _SETTINGS_FILE = Path.home() / ".agentsuitelocal" / "settings.json"
 
 # G1: model tier → concrete model name mapping
+# Keys MUST match frontend data.js tier IDs: "light", "balanced", "pro"
 _TIER_MODEL_MAP = {
-    "fast":      "gemma2:2b",
+    "light":     "gemma4:e2b",
     "balanced":  "gemma4:e4b",
-    "powerful":  "llama3.1:8b",
+    "pro":       "gemma4:26b-moe",
 }
 
 _SETTINGS_DEFAULTS: dict[str, Any] = {
@@ -1145,8 +1147,13 @@ async def export_run_zip(run_id: str):
             tmp_path,
             media_type="application/zip",
             headers={"Content-Disposition": f"attachment; filename={run_id}-artifacts.zip"},
+            background=BackgroundTask(os.unlink, tmp_path),  # M-5: clean up temp file after response
         )
     except Exception as exc:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -1450,6 +1457,62 @@ async def list_projects():
         for p in seen.values()
     ]
     return {"projects": sorted(projects, key=lambda p: p["last_touch"], reverse=True)}
+
+
+# ---------------------------------------------------------------------------
+# Project mutations (B-1)
+# ---------------------------------------------------------------------------
+
+
+class RenameProjectRequest(BaseModel):
+    new_name: str = Field(..., min_length=1, max_length=200)
+
+
+@app.post("/api/projects/{slug}/rename")
+async def rename_project(slug: str, body: RenameProjectRequest):
+    """B-1: Rename all runs belonging to a project slug."""
+    new_slug = body.new_name.strip().lower().replace(" ", "-")
+    if not new_slug:
+        raise HTTPException(status_code=422, detail="new_name must be non-empty after normalisation")
+    with _state_write_lock:
+        matched = [r for r in _runs.values() if r.get("project") == slug]
+        if not matched:
+            raise HTTPException(status_code=404, detail=f"Project '{slug}' not found")
+        for run in matched:
+            run["project"] = new_slug
+        _save_state()
+    return {"slug": new_slug, "previous_slug": slug, "runs_updated": len(matched)}
+
+
+@app.post("/api/projects/{slug}/archive")
+async def archive_project(slug: str):
+    """B-1: Mark all runs in a project as archived."""
+    with _state_write_lock:
+        matched = [r for r in _runs.values() if r.get("project") == slug]
+        if not matched:
+            raise HTTPException(status_code=404, detail=f"Project '{slug}' not found")
+        for run in matched:
+            run["archived"] = True
+        _save_state()
+    return {"slug": slug, "archived": True, "runs_updated": len(matched)}
+
+
+@app.delete("/api/projects/{slug}")
+async def delete_project(slug: str):
+    """B-1: Delete all runs and artifacts for a project."""
+    with _state_write_lock:
+        matched = [rid for rid, r in _runs.items() if r.get("project") == slug]
+        if not matched:
+            raise HTTPException(status_code=404, detail=f"Project '{slug}' not found")
+        for rid in matched:
+            run = _runs.pop(rid)
+            as_run_id = run.get("agentsuite_run_id") or rid
+            artifacts_dir = _workspace() / ".agentsuite" / "runs" / as_run_id
+            if artifacts_dir.exists():
+                import shutil
+                shutil.rmtree(artifacts_dir, ignore_errors=True)
+        _save_state()
+    return {"slug": slug, "deleted": True, "runs_deleted": len(matched)}
 
 
 # ---------------------------------------------------------------------------
@@ -1972,7 +2035,11 @@ async def uninstall_hook():
     """A6 / I1: Called by Inno Setup [UninstallRun] to gracefully stop the backend."""
     async def _shutdown():
         await asyncio.sleep(1.0)
-        os.kill(os.getpid(), 15)  # SIGTERM — uvicorn handles graceful shutdown
+        # M-4: On Windows, SIGTERM sent to self is a no-op. Use os._exit(0) instead.
+        if sys.platform == "win32":
+            os._exit(0)
+        else:
+            os.kill(os.getpid(), 15)  # SIGTERM — uvicorn handles graceful shutdown on POSIX
 
     asyncio.create_task(_shutdown())
     return {"message": "Shutting down"}

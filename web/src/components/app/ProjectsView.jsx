@@ -115,8 +115,8 @@ export const ProjectsView = () => {
                     </div>
                   )}
                   <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
-                    {p.run_count ?? 0} run{p.run_count !== 1 ? "s" : ""}
-                    {p.last_run_at ? ` · last run ${new Date(p.last_run_at * 1000).toLocaleDateString()}` : ""}
+                    {p.runs ?? 0} run{p.runs !== 1 ? "s" : ""}
+                    {p.last_touch ? ` · last run ${new Date(p.last_touch * 1000).toLocaleDateString()}` : ""}
                   </div>
                 </div>
 
