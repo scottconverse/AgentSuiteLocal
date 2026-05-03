@@ -137,6 +137,10 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=str(ROOT / "agentsuitelocal" / "assets" / "icon.ico"),
+    # N-2: Per-Monitor DPI v2 awareness manifest — crisp on HiDPI / multi-monitor.
+    # The manifest also declares Windows 10/11 compatibility and long-path support.
+    manifest=str(ROOT / "agentsuitelocal" / "assets" / "AgentSuiteLocal.manifest")
+    if sys.platform == "win32" else None,
 )
 
 coll = COLLECT(

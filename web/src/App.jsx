@@ -117,6 +117,8 @@ export default function App() {
     } catch {
       // settings persist is best-effort; don't block app entry
     }
+    // N-3: Clear apiKey from React state after persist — don't hold credentials in memory longer than needed
+    setApiKey("");
     localStorage.setItem(SETUP_KEY, "1");
     setMode("app");
     setScene("main");
