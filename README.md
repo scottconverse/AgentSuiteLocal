@@ -50,6 +50,16 @@ You will only see this once per machine. If you prefer to verify the binary befo
 Get-FileHash .\AgentSuiteLocal.exe -Algorithm SHA256
 ```
 
+### macOS Gatekeeper warning
+
+Because the DMG is unsigned, macOS may show "AgentSuiteLocal cannot be opened because it is from an unidentified developer." To open it:
+
+1. In Finder, **right-click** (or Control-click) the app icon inside the mounted DMG.
+2. Choose **Open** from the context menu.
+3. Click **Open** in the warning dialog.
+
+You will only need to do this once. If the app is already blocked (quarantine flag set), go to **System Settings → Privacy & Security** → scroll down to the blocked app entry → click **Open Anyway**.
+
 ---
 
 ## Building the distributable
@@ -267,8 +277,10 @@ Your cloud API key (if configured) is stored in the OS credential store — Wind
 
 ## Known issues (v0.7.0)
 
+- **PDF export requires GTK/Cairo on Windows.** The PDF export feature uses WeasyPrint, which requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). The PyInstaller bundle includes WeasyPrint's Python code but not the native GTK DLLs. If PDF export returns a 501 error, install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) separately. ZIP and Markdown export work without any additional runtime.
+- **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.
 - K1/K2 (cross-stage context passing and intra-stage progress events) are not yet merged upstream to `scottconverse/AgentSuite`. The `pyproject.toml` pin still points to the v0.1.2 commit SHA until the upstream PR lands.
-- macOS build paths for `open-folder` and `pync` notifications are implemented but untested on CI (macOS GitHub Actions runner is not in the release gate for this milestone).
+- E2E test suite uses `gemma2:2b` (Gemma 2 family), not a Gemma 4 model. Tests exercise the API surface but not the model architecture used in production. This is documented in `tests/e2e/conftest.py`.
 - E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`.
 
 ---

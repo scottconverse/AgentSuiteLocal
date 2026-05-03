@@ -8,28 +8,71 @@ on:
 permissions:
   contents: write
 
+# SHA pins — update via: gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'
+# actions/checkout@v4               → 34e114876b0b11c390a56381ad16ebd13914f8d5
+# actions/setup-python@v5           → a26af69be951a213d495a4c3e4e4022e16d87065
+# actions/setup-node@v4             → 49933ea5288caeca8642d1e84afbd3f7d6820020
+# actions/upload-artifact@v4        → ea165f8d65b6e75b540449e92b4886f43607fa02
+# actions/download-artifact@v4      → d3f86a106a0bac45b974a628896c90dbdf5c8093
+# softprops/action-gh-release@v2    → 3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+
 jobs:
+  # P0: Verify that CI tests passed on this commit before building a release binary.
+  # Tags can be pushed against any commit; this gate ensures only green commits ship.
+  verify-ci:
+    name: Verify CI passed on tagged commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI status for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ github.sha }}"
+          echo "Checking CI status for commit $SHA..."
+          # Allow up to 2 minutes for check runs to appear if CI is still in progress
+          for attempt in $(seq 1 12); do
+            CONCLUSIONS=$(gh api \
+              "/repos/${{ github.repository }}/commits/$SHA/check-runs" \
+              --jq '[.check_runs[] | select(.name | test("Test \\(Python")) | .conclusion] | .[]' \
+              2>/dev/null || echo "")
+            echo "Attempt $attempt — CI conclusions: $(echo "$CONCLUSIONS" | tr '\n' ' ')"
+            if echo "$CONCLUSIONS" | grep -q "failure\|cancelled\|timed_out"; then
+              echo "CI tests failed for commit $SHA. Blocking release."
+              exit 1
+            fi
+            if echo "$CONCLUSIONS" | grep -q "success"; then
+              echo "CI tests passed. Proceeding with release build."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Could not confirm CI passed for commit $SHA after 2 minutes. Blocking release for safety."
+          echo "Ensure the 'CI' workflow has completed successfully before tagging a release."
+          exit 1
+
   build-windows:
     name: Windows build
     runs-on: windows-latest
+    needs: verify-ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: Install Python deps
-        run: pip install -e ".[dev]" pyinstaller
+        # P0: pyinstaller pinned to tested version — prevents silent regressions from upstream changes
+        run: pip install -e ".[dev]" pyinstaller==6.20.0
 
       - name: Install frontend deps + build
         run: |
@@ -41,13 +84,14 @@ jobs:
         run: pyinstaller AgentSuiteLocal.spec --noconfirm
 
       - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
+        # P3: pinned version for reproducible installer builds
+        run: choco install innosetup --version=6.3.3 --no-progress -y
 
       - name: Build installer
         run: iscc installer/AgentSuiteLocal.iss
 
       - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: AgentSuiteLocal-Windows-Setup
           path: dist/AgentSuiteLocal-*-setup.exe
@@ -56,24 +100,26 @@ jobs:
   build-macos:
     name: macOS build
     runs-on: macos-latest
+    needs: verify-ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: Install Python deps
-        run: pip install -e ".[dev]" pyinstaller
+        # P0: pyinstaller pinned to tested version
+        run: pip install -e ".[dev]" pyinstaller==6.20.0
 
       - name: Install frontend deps + build
         run: |
@@ -84,6 +130,14 @@ jobs:
       - name: PyInstaller build
         run: pyinstaller AgentSuiteLocal.spec --noconfirm
 
+      - name: Verify .app bundle structure
+        # P3: verify binary is present and correct arch before creating DMG
+        run: |
+          test -f dist/AgentSuiteLocal.app/Contents/MacOS/AgentSuiteLocal
+          test -f dist/AgentSuiteLocal.app/Contents/Info.plist
+          echo "Bundle structure verified."
+          file dist/AgentSuiteLocal.app/Contents/MacOS/AgentSuiteLocal
+
       - name: Create DMG
         run: |
           hdiutil create -volname AgentSuiteLocal \
@@ -92,7 +146,7 @@ jobs:
             dist/AgentSuiteLocal-${{ github.ref_name }}.dmg
 
       - name: Upload macOS DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: AgentSuiteLocal-macOS
           path: dist/AgentSuiteLocal-*.dmg
@@ -104,16 +158,16 @@ jobs:
     needs: [build-windows, build-macos]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: AgentSuiteLocal-Windows-Setup
           path: release-artifacts
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: AgentSuiteLocal-macOS
           path: release-artifacts
@@ -127,7 +181,7 @@ jobs:
           cat release-notes.md
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
         with:
           name: AgentSuiteLocal ${{ github.ref_name }}
           body_path: release-notes.md

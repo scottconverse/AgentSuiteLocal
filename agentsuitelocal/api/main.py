@@ -647,9 +647,11 @@ async def ollama_status():
             ps = await client.get("http://localhost:11434/api/ps")
         models = [m["name"] for m in tags.json().get("models", [])]
         loaded = [m["name"] for m in ps.json().get("models", [])]
-        # A1: try to read version
+        # A1: try to read version — use asyncio.to_thread so subprocess.run doesn't block the event loop
         try:
-            ver_result = subprocess.run(["ollama", "--version"], capture_output=True, text=True, timeout=3)
+            ver_result = await asyncio.to_thread(
+                subprocess.run, ["ollama", "--version"], capture_output=True, text=True, timeout=3
+            )
             ver = ver_result.stdout.strip().split()[-1] if ver_result.returncode == 0 else None
         except Exception:
             ver = None
@@ -2115,7 +2117,9 @@ async def uninstall_phase3(body: UninstallPhase3Request):
     """A6 Phase 3: Optionally delete the Ollama model."""
     if body.delete_model and body.model_name:
         try:
-            subprocess.run(
+            # asyncio.to_thread — subprocess.run with timeout=30 would block the event loop otherwise
+            await asyncio.to_thread(
+                subprocess.run,
                 ["ollama", "rm", body.model_name],
                 capture_output=True,
                 timeout=30,
