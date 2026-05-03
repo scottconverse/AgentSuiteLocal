@@ -112,7 +112,7 @@ def _load_state() -> None:
                     if v.get("qa_dimensions"):
                         v["qa_dimensions"] = [
                             d for d in v["qa_dimensions"]
-                            if isinstance(d.get("score"), (int, float)) and math.isfinite(float(d["score"]))
+                            if isinstance(d.get("score"), int | float) and math.isfinite(float(d["score"]))
                         ]
                     store[k] = v
             except Exception:
@@ -1873,7 +1873,7 @@ def _scrub_nan_from_run(run: dict) -> dict:
     if out.get("qa_dimensions"):
         out["qa_dimensions"] = [
             d for d in out["qa_dimensions"]
-            if isinstance(d.get("score"), (int, float)) and math.isfinite(float(d["score"]))
+            if isinstance(d.get("score"), int | float) and math.isfinite(float(d["score"]))
         ]
     return out
 
