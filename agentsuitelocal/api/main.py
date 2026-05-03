@@ -143,9 +143,14 @@ _SETTINGS_FILE = Path.home() / ".agentsuitelocal" / "settings.json"
 _KEYRING_SERVICE = "agentsuitelocal"
 _KEYRING_USERNAME = "api_key"
 
+# In-memory fallback for environments where keyring is importable but has no
+# usable backend at runtime (e.g. Linux CI without a D-Bus secret service).
+# Never written to disk; scoped to process lifetime only.
+_API_KEY_MEM: str | None = None
+
 
 def _load_api_key() -> str | None:
-    """Load API key from OS keychain (preferred) with JSON fallback for migration."""
+    """Load API key from OS keychain (preferred) with in-memory and JSON fallbacks."""
     if _KEYRING_AVAILABLE:
         try:
             val = _keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
@@ -153,7 +158,10 @@ def _load_api_key() -> str | None:
                 return val
         except Exception:
             pass
-    # Fallback: read from JSON file (supports migration + CI environments without a keyring backend)
+    # In-memory fallback: used when keyring is present but has no runtime backend
+    if _API_KEY_MEM:
+        return _API_KEY_MEM
+    # JSON fallback: migration path for keys stored before keychain support
     if _SETTINGS_FILE.exists():
         try:
             stored = json.loads(_SETTINGS_FILE.read_text())
@@ -170,8 +178,10 @@ def _load_api_key() -> str | None:
 
 
 def _save_api_key(key: str | None) -> None:
-    """Store API key in OS keychain; delete if key is None/empty."""
+    """Store API key in OS keychain with in-memory fallback for CI/no-backend envs."""
+    global _API_KEY_MEM
     if not _KEYRING_AVAILABLE:
+        _API_KEY_MEM = key or None
         return
     try:
         if key:
@@ -181,8 +191,12 @@ def _save_api_key(key: str | None) -> None:
                 _keyring.delete_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
             except Exception:
                 pass
+        _API_KEY_MEM = None  # keychain succeeded; clear memory fallback
     except Exception:
-        pass  # keyring errors are non-fatal; key remains in JSON fallback if keychain fails
+        # Keyring importable but no runtime backend (e.g. Linux without D-Bus).
+        # Fall back to process-scoped memory — not persistent but sufficient for
+        # the current session (and for CI test runs).
+        _API_KEY_MEM = key or None
 
 # G1: model tier → concrete model name mapping
 # Keys MUST match frontend data.js tier IDs: "light", "balanced", "pro"
