@@ -1,10 +1,12 @@
 # AgentSuiteLocal
 
-**v0.7.0** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v0.7.1** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run.
 
 **New in v0.7.0:** run cancellation, timeout watchdog, QA gate enforcement with override, markdown artifact preview, run export (ZIP/Markdown/PDF), cloud model fallback (Claude Haiku/Sonnet/Opus), desktop notifications, auto-update check, local telemetry, crash recovery, Model Management panel, Projects view, and a Windows Inno Setup installer.
+
+**Patched in v0.7.1:** 30+ bug fixes including project mutation endpoints (rename/archive/delete were 404), ModelView pull (was GET not POST), tier model map, update banner field names, optimistic approve/reject UI, 5-screen installer, KernelView artifact preview, skeleton loading states, OS keychain for API key, supply-chain hardening (SHA-pinned CI actions, pinned PyInstaller, release CI gate), and blocking subprocess.run → asyncio.to_thread.
 
 ---
 
@@ -33,7 +35,7 @@ Runs entirely on-device — no internet connection required after setup.
 
 ## Install
 
-**Non-technical users:** download `AgentSuiteLocal-0.7.0-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
+**Non-technical users:** download `AgentSuiteLocal-0.7.1-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
 
@@ -72,7 +74,7 @@ make dist              # auto-detects OS — builds frontend then runs PyInstall
 # or explicitly:
 make build-mac         # → dist/AgentSuiteLocal.app  (macOS)
 make build-win         # → dist/AgentSuiteLocal/     (Windows onedir)
-make build-installer   # → dist/AgentSuiteLocal-0.7.0-setup.exe  (Windows only, requires Inno Setup)
+make build-installer   # → dist/AgentSuiteLocal-0.7.1-setup.exe  (Windows only, requires Inno Setup)
 ```
 
 The onedir output is self-contained — no Python or Node required on the target machine. `build-installer` wraps the onedir into a standard Windows installer with uninstall support.
@@ -109,7 +111,7 @@ web/
     hooks/
       useSSE.js              SSE → React state bridge
     components/
-      installer/             11-screen setup wizard
+      installer/             5-screen setup wizard
         InstallerShell.jsx   Chrome (header, nav, progress)
         ScreenWelcome.jsx    Step 1 — splash
         ScreenLicense.jsx    Step 2 — license gate
@@ -182,7 +184,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | DELETE | `/api/ollama/models/{name}` | Delete an installed model |
 | GET | `/api/model/verify/{name}` | Verify model is functional |
 | GET | `/api/update/check` | Check for a newer GitHub release |
-| GET | `/api/version` | Return `{"version": "0.7.0"}` |
+| GET | `/api/version` | Return current version, e.g. `{"version": "0.7.1"}` |
 | GET | `/api/crash-reports/latest` | Most recent crash report |
 | GET | `/api/telemetry/summary` | Local usage event counts |
 | GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.log` |
@@ -275,7 +277,7 @@ Your cloud API key (if configured) is stored in the OS credential store — Wind
 
 ---
 
-## Known issues (v0.7.0)
+## Known issues (v0.7.1)
 
 - **PDF export requires GTK/Cairo on Windows.** The PDF export feature uses WeasyPrint, which requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). The PyInstaller bundle includes WeasyPrint's Python code but not the native GTK DLLs. If PDF export returns a 501 error, install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) separately. ZIP and Markdown export work without any additional runtime.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.

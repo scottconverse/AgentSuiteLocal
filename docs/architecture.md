@@ -1,6 +1,6 @@
 # Architecture
 
-AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app (~800 lines as of v0.7.0). The frontend is React + Vite. They talk REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud model fallback.
+AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app (~2000 lines, 48 routes as of v0.7.1). The frontend is React + Vite. They talk REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud model fallback.
 
 ---
 
@@ -10,7 +10,7 @@ AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github
 ┌────────────────────────────────────────────────────────────────┐
 │  Browser (React + Vite, :5173 dev / :8765 prod)                │
 │                                                                  │
-│  Installer wizard (11 screens)   Main app (12 screens)          │
+│  Installer wizard (5 screens)    Main app (12 screens)          │
 │         │                               │                        │
 │         └──── fetch /api/* ─────────────┘                       │
 └────────────────────────┬───────────────────────────────────────┘
@@ -107,23 +107,17 @@ The `on_progress` callback is invoked on the thread-pool thread. It pushes updat
 App.jsx
   scene = "installer" | "app"
 
-  scene === "installer"
-    InstallerShell  (step counter, nav buttons, progress bar)
+  scene === "installer"                      (5-screen flow, UX-1)
       step 1  ScreenWelcome
-      step 2  ScreenLicense      nextDisabled={!agreed}
-      step 3  ScreenHardware     nextDisabled until /api/hardware responds
-      step 4  ScreenTier         model picker
-      step 5  ScreenOllama       nextDisabled until /api/ollama/status running=true
-      step 6  ScreenModelDownload nextDisabled until pct=100
-      step 7  ScreenPython       nextDisabled until allDone
-      step 8  ScreenAgents       agent multi-select
-      step 9  ScreenApiKey       optional cloud fallback keys
-      step 10 ScreenSmoke        nextDisabled until all checks pass
-      step 11 ScreenSuccess      "Launch" → scene="app"
+      step 2  ScreenLicense         nextDisabled={!agreed}
+      step 3  ScreenHardwareTier    hardware probe + tier auto-select; nextDisabled while scanning
+      step 4  ScreenOllamaModel     Ollama install + model pull with retry; nextDisabled until done
+      step 5  ScreenSuccess         "Launch" → mode="app"
+      (Agent selection, API key, Python setup moved to Settings)
 
   scene === "app"
     CrashBanner (F4 — shown if crash report newer than session dismissal)
-    H2 update banner (shown if /api/update/check returns update_available=true)
+    H2 update banner (shown if /api/update/check returns has_update=true)
     Sidebar  (nav: home | agents | runs | kernel | pipeline | projects | models | settings | manual)
     view === "home"     → Dashboard
     view === "agents"   → AgentsView
@@ -183,18 +177,20 @@ The Vite dev server proxies `/api/*` to `:8766` via `vite.config.js`. In product
 
 ```
 tests/
-  test_api.py          98 unit tests  — TestClient (in-process, no network)
-                        covers all new v0.7.0 endpoints: cancel, export, kernel diff,
-                        crash reports, telemetry, model verify, validate-path, etc.
-  test_integration.py  10 integration — real uvicorn on a free port, real httpx
-  test_ollama_live.py   6 live tests  — real Ollama daemon required
-                                        auto-skip if daemon unreachable
-                                        pytest.mark.ollama
+  test_api.py          102 unit tests — TestClient (in-process, no network)
+                        covers all v0.7.1 endpoints: cancel, export, kernel diff,
+                        crash reports, telemetry, model verify, validate-path,
+                        project mutations, keyring sentinel, tier map, etc.
+  test_integration.py    6 integration — real uvicorn on a free port, real httpx
+  test_ollama_live.py    6 live tests  — real Ollama daemon required
+                                         auto-skip if daemon unreachable
+                                         pytest.mark.ollama
   e2e/
     conftest.py          session fixture — starts backend on :8766 if not up
-    test_installer.py    2 E2E — full 11-step installer walk
+    test_installer.py    2 E2E — full 5-step installer walk
     test_app.py         10 E2E — all 7 nav items + New Run + Approval Gate
                                   pytest.mark.e2e
+                                  Note: uses gemma2:2b (Gemma 2 family), not gemma4
 ```
 
 CI matrix: Python 3.11 and 3.12, Ubuntu. Ruff lint, unit + integration, and Vite build run on every push. E2E runs in a separate job after `npm run build`.

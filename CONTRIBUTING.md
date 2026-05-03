@@ -46,7 +46,7 @@ cd web && npm run build
 pytest tests/e2e/ -v -m e2e
 ```
 
-The backend test suite covers 92+ tests without needing Ollama running. E2E tests self-start the backend via `subprocess` and read the bound port from `~/.agentsuitelocal/launcher.log`.
+The backend test suite covers 108+ tests without needing Ollama running. E2E tests self-start the backend via `subprocess` and read the bound port from `~/.agentsuitelocal/launcher.log`.
 
 Every PR must keep the unit + integration suite green. New backend behaviour needs at least one pytest test. New frontend behaviour needs at least one Vitest test.
 
@@ -68,7 +68,7 @@ make build-installer
 # equivalent to: iscc installer\AgentSuiteLocal.iss
 ```
 
-Output: `dist/AgentSuiteLocal-v0.7.0-Setup.exe`
+Output: `dist/AgentSuiteLocal-v0.7.1-Setup.exe`
 
 The installer embeds the full `dist/AgentSuiteLocal/` folder produced by PyInstaller, so the PyInstaller build must complete before running Inno Setup.
 
