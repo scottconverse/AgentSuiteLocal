@@ -721,3 +721,43 @@
     The equivalent Windows cleanroom (scripts/cleanroom.ps1) ran and passed all 8 checks.
     The CI workflow (J1, J2) runs cleanroom-e2e.sh on GitHub Actions Ubuntu runners.
   status: n/a
+
+- timestamp: 2026-05-03T10:05:00Z
+  claim: "N: Push to release/v0.7.0 feature branch"
+  evidence_type: file_check
+  command: "git push origin release/v0.7.0"
+  exit_code: 0
+  evidence: |
+    Branch release/v0.7.0 pushed to github.com/scottconverse/AgentSuiteLocal.
+    Commit SHA: 64b8fa4
+    52 files changed, 6764 insertions(+), 1048 deletions(-)
+    CI run started: https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25273678369
+    Run ID: 25273678369
+  status: pass
+
+- timestamp: 2026-05-03T14:33:00Z
+  claim: "CI failure diagnosed — setuptools.backends.legacy not importable after in-place upgrade"
+  evidence_type: ci_url
+  command: "gh run view 25273713075 --repo scottconverse/AgentSuiteLocal --log-failed"
+  exit_code: 1
+  evidence: |
+    Run 25273713075 (commit 72dc122): Test (Python 3.11) failed at "Install package + dev deps".
+    Error: pip._vendor.pyproject_hooks._impl.BackendUnavailable: Cannot import 'setuptools.backends.legacy'
+    Root cause: pyproject.toml declared build-backend = "setuptools.backends.legacy:build".
+    This module path was renamed/removed in setuptools 82.x. pip's isolated build environment
+    could not import it after the in-place upgrade from 79.0.1 to 82.0.1.
+    Fix: change build-backend to "setuptools.build_meta" (stable public API, setuptools >= 40).
+    Also removed the now-unnecessary "Upgrade setuptools" CI step from ci.yml.
+    Files changed: pyproject.toml (build-backend), .github/workflows/ci.yml (removed upgrade step).
+  status: fail
+
+- timestamp: 2026-05-03T14:33:20Z
+  claim: "CI fix applied — build-backend changed to setuptools.build_meta; upgrade step removed from ci.yml"
+  evidence_type: file_check
+  command: "grep build-backend pyproject.toml && grep -c 'Upgrade setuptools' .github/workflows/ci.yml"
+  exit_code: 0
+  evidence: |
+    pyproject.toml: build-backend = "setuptools.build_meta"
+    ci.yml: "Upgrade setuptools" step removed from both test and e2e jobs.
+    Two-file change staged for commit to release/v0.7.0.
+  status: pass

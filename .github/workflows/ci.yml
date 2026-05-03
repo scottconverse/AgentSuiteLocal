@@ -42,9 +42,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Upgrade setuptools (ensures backends subpackage available)
-        run: pip install --upgrade setuptools pip
-
       - name: Install package + dev deps (cleanroom)
         run: pip install -e ".[dev]"
 
@@ -93,9 +90,6 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-
-      - name: Upgrade setuptools
-        run: pip install --upgrade setuptools pip
 
       - name: Install Python deps
         run: pip install -e ".[dev]"
