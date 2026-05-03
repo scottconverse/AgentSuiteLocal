@@ -46,7 +46,8 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Unit + integration tests
-        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama"
+        # D-4: --cov-fail-under enforces coverage floor; raise by 5% each sprint (baseline 58%)
+        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=58
 
   frontend:
     name: Frontend (build + test)
@@ -74,6 +75,42 @@ jobs:
       - name: Vite build (smoke)
         run: npm run build
         working-directory: web
+
+  build-macos:
+    # D-1: macOS build verification — runs on main + version tags
+    name: macOS build (PyInstaller)
+    runs-on: macos-latest
+    needs: [test, frontend]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Python deps + PyInstaller
+        run: pip install -e ".[dev]" pyinstaller
+
+      - name: Build frontend
+        run: npm ci && npm run build
+        working-directory: web
+
+      - name: PyInstaller build
+        run: pyinstaller AgentSuiteLocal.spec
+
+      - name: Verify .app bundle exists
+        run: ls dist/AgentSuiteLocal.app
 
   e2e:
     # J3: E2E job — runs on PRs to main only (too slow for every push)
@@ -116,7 +153,11 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve &
-          sleep 3
+          # D-3: replace sleep 3 with health-check poll (up to 15 seconds)
+          for i in $(seq 1 30); do
+            curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && break
+            sleep 0.5
+          done
 
       - name: Pull gemma2:2b (smallest model)
         run: ollama pull gemma2:2b

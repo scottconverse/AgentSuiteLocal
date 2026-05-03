@@ -243,6 +243,18 @@ Runs and kernel artifacts are written to `~/AgentSuite/` by default. Override wi
 
 ---
 
+## Troubleshooting
+
+### Antivirus flagging the installer or executable
+
+Some antivirus tools flag PyInstaller-bundled executables as suspicious. This is a known false positive with self-contained Python apps — the binary contains a Python interpreter, which some heuristic scanners misclassify.
+
+**Windows Security:** Settings → Virus & threat protection → Manage settings → Add or remove exclusions → Add an exclusion for the `AgentSuiteLocal` install folder (default: `C:\Program Files\AgentSuiteLocal`).
+
+**VirusTotal:** If you want to verify the binary independently, upload `AgentSuiteLocal.exe` to [virustotal.com](https://virustotal.com). A handful of low-reputation engine detections is normal for PyInstaller onedir bundles and does not indicate malware.
+
+---
+
 ## Privacy
 
 All data stays on your machine. No telemetry is sent to any server.
