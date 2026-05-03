@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+_Nothing pending._
+
+## [0.7.1] — 2026-05-03
+
 ### Fixed (post-v0.7.0 hardening sprint)
 
 **Phase 1 — Blockers / Critical / Major**
