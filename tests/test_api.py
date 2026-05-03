@@ -239,6 +239,38 @@ def test_settings_patch_redacts_api_key():
     assert r.json()["api_key"] == "****"
 
 
+def test_settings_patch_sentinel_not_persisted():
+    """S-2 / A-8: sentinel values from GET-then-PATCH round-trips must not overwrite real key."""
+    # First set a real key
+    client.patch("/api/settings", json={"api_key": "sk-real-key"})
+    # Now PATCH with the sentinel value that GET returns
+    client.patch("/api/settings", json={"api_key": "****"})
+    # Key must still be present (not deleted) — redacted in GET response
+    r = client.get("/api/settings")
+    assert r.json()["api_key"] == "****"  # still set, not erased
+
+
+def test_settings_api_key_not_written_to_json_file():
+    """S-2: api_key must never appear in the on-disk settings.json."""
+    import json
+    from pathlib import Path
+    client.patch("/api/settings", json={"api_key": "sk-ant-json-check"})
+    settings_file = Path.home() / ".agentsuitelocal" / "settings.json"
+    if settings_file.exists():
+        data = json.loads(settings_file.read_text())
+        assert "api_key" not in data, "api_key leaked into settings.json"
+
+
+def test_open_folder_rejects_path_outside_home():
+    """S-1: open-folder must reject paths not within home or workspace."""
+    import sys
+    # Use a path that is definitely outside home on any OS
+    outside = "C:\\Windows\\System32" if sys.platform == "win32" else "/etc/passwd"
+    r = client.post("/api/open-folder", json={"path": outside})
+    # Should be 403 (outside allowed area) or 404 (doesn't exist in sandbox)
+    assert r.status_code in (403, 404)
+
+
 # ---------------------------------------------------------------------------
 # TEST-007: Path traversal guard
 # ---------------------------------------------------------------------------

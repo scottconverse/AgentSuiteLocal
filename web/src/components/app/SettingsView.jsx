@@ -273,7 +273,8 @@ export const SettingsView = ({ onGoToModels }) => {
             { key: "notifications",  l: "Desktop notifications",    sub: "Show OS notifications when runs complete. Respects Do Not Disturb." },
             {
               key: "telemetry", l: "Usage telemetry (local only)",
-              sub: "Log run events to ~/.agentsuitelocal/usage.jsonl. All data stays on this machine. Nothing is sent anywhere.",
+              // S-3: explicit disclosure of what is tracked, where it goes, and how to opt out.
+              sub: "Counts run starts, model used, and QA pass/fail. Stored locally only in ~/.agentsuitelocal/usage.jsonl — never transmitted. Disable this toggle to opt out.",
             },
           ].map(r => (
             <div key={r.key} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderTop: "1px solid var(--line)", gap: 16 }}>

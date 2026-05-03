@@ -87,6 +87,13 @@ a = Analysis(
         "ollama",
         "openai",
         "mcp",
+        # S-2: keyring — OS keychain for API key storage
+        "keyring",
+        "keyring.backends",
+        "keyring.backends.Windows",
+        "keyring.backends.macOS",
+        "keyring.backends.SecretService",
+        "keyring.backends.null",
         # weasyprint — optional PDF export (requires pango/cairo on the system)
         "weasyprint",
         "weasyprint.css",

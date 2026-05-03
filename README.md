@@ -243,6 +243,16 @@ Runs and kernel artifacts are written to `~/AgentSuite/` by default. Override wi
 
 ---
 
+## Privacy
+
+All data stays on your machine. No telemetry is sent to any server.
+
+When the **Usage telemetry** toggle is enabled in Settings, AgentSuiteLocal writes a local log (`~/.agentsuitelocal/usage.jsonl`) that counts run starts, model used, and QA pass/fail scores. This file never leaves your machine. Disable the toggle to stop all logging.
+
+Your cloud API key (if configured) is stored in the OS credential store — Windows Credential Manager on Windows, Keychain on macOS, Secret Service on Linux. It is never written to `settings.json` or any other file on disk.
+
+---
+
 ## Known issues (v0.7.0)
 
 - K1/K2 (cross-stage context passing and intra-stage progress events) are not yet merged upstream to `scottconverse/AgentSuite`. The `pyproject.toml` pin still points to the v0.1.2 commit SHA until the upstream PR lands.

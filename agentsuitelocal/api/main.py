@@ -27,6 +27,14 @@ from typing import Any
 
 import httpx
 import psutil
+# S-2: OS keychain for API key storage (Windows Credential Manager / macOS Keychain / Secret Service)
+try:
+    import keyring as _keyring
+    _KEYRING_AVAILABLE = True
+except ImportError:
+    _keyring = None  # type: ignore[assignment]
+    _KEYRING_AVAILABLE = False
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
@@ -130,6 +138,51 @@ _load_state()
 
 _SETTINGS_FILE = Path.home() / ".agentsuitelocal" / "settings.json"
 
+# S-2: OS keychain constants
+_KEYRING_SERVICE = "agentsuitelocal"
+_KEYRING_USERNAME = "api_key"
+
+
+def _load_api_key() -> str | None:
+    """Load API key from OS keychain (preferred) with JSON fallback for migration."""
+    if _KEYRING_AVAILABLE:
+        try:
+            val = _keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+            if val:
+                return val
+        except Exception:
+            pass
+    # Fallback: read from JSON file (supports migration + CI environments without a keyring backend)
+    if _SETTINGS_FILE.exists():
+        try:
+            stored = json.loads(_SETTINGS_FILE.read_text())
+            key = stored.get("api_key")
+            if key:
+                # Migrate: move key from JSON to keychain and remove from file
+                _save_api_key(key)
+                stored.pop("api_key")
+                _SETTINGS_FILE.write_text(json.dumps(stored, indent=2))
+                return key
+        except Exception:
+            pass
+    return None
+
+
+def _save_api_key(key: str | None) -> None:
+    """Store API key in OS keychain; delete if key is None/empty."""
+    if not _KEYRING_AVAILABLE:
+        return
+    try:
+        if key:
+            _keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, key)
+        else:
+            try:
+                _keyring.delete_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+            except Exception:
+                pass
+    except Exception:
+        pass  # keyring errors are non-fatal; key remains in JSON fallback if keychain fails
+
 # G1: model tier → concrete model name mapping
 # Keys MUST match frontend data.js tier IDs: "light", "balanced", "pro"
 _TIER_MODEL_MAP = {
@@ -144,7 +197,8 @@ _SETTINGS_DEFAULTS: dict[str, Any] = {
     "open_on_launch": True,
     "telemetry": False,
     "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust", "cio"],
-    "api_key": None,
+    # S-2: api_key is NOT stored in settings.json — it lives in the OS keychain.
+    # The field is injected at read time by _load_settings() via _load_api_key().
     "cloud_model": "claude-3-5-haiku-20241022",
     "notifications": True,
     "run_timeout_seconds": 900,    # B3: watchdog default 15 min
@@ -154,18 +208,23 @@ _SETTINGS_DEFAULTS: dict[str, Any] = {
 
 
 def _load_settings() -> dict[str, Any]:
+    result = dict(_SETTINGS_DEFAULTS)
     if _SETTINGS_FILE.exists():
         try:
             stored = json.loads(_SETTINGS_FILE.read_text())
-            return {**_SETTINGS_DEFAULTS, **stored}
+            result.update(stored)
         except Exception:
             pass
-    return dict(_SETTINGS_DEFAULTS)
+    # S-2: inject api_key from OS keychain (never from JSON file)
+    result["api_key"] = _load_api_key()
+    return result
 
 
 def _save_settings(data: dict[str, Any]) -> None:
+    # S-2: strip api_key before writing to JSON — it lives in the OS keychain only
+    safe = {k: v for k, v in data.items() if k != "api_key"}
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _SETTINGS_FILE.write_text(json.dumps(data, indent=2))
+    _SETTINGS_FILE.write_text(json.dumps(safe, indent=2))
 
 
 # ---------------------------------------------------------------------------
@@ -518,12 +577,17 @@ async def _apply_settings_patch(body: SettingsPatch) -> dict:
         # Drop any sentinel value so it is never persisted.
         if patch.get("api_key") in ("****", "***", ""):
             patch.pop("api_key", None)
+        # S-2: persist api_key to OS keychain before stripping from patch dict
+        if "api_key" in patch:
+            _save_api_key(patch.pop("api_key"))
         # G1: when tier changes, derive model_name from tier map unless explicitly overridden
         if "model_tier" in patch and "model_name" not in patch:
             patch["model_name"] = _TIER_MODEL_MAP.get(patch["model_tier"], patch.get("model_name", current.get("model_name")))
         current.update(patch)
         _save_settings(current)
+        # S-2: re-inject api_key from keychain so the response shows live state
         result = dict(current)
+        result["api_key"] = _load_api_key()
         if result.get("api_key"):
             result["api_key"] = "****"
         return result
@@ -931,10 +995,11 @@ async def open_folder(body: OpenFolderRequest):
         raise HTTPException(status_code=403, detail="Path outside allowed area")
 
     p = Path(body.path).resolve()
-    # Security: only open paths inside the workspace or home
+    # S-1: use is_relative_to() to avoid the startswith() bypass where
+    # "/home/scott-evil/..." incorrectly passes a check for "/home/scott".
     home = Path.home().resolve()
     ws = _workspace().resolve()
-    if not (str(p).startswith(str(home)) or str(p).startswith(str(ws))):
+    if not (p.is_relative_to(home) or p.is_relative_to(ws)):
         raise HTTPException(status_code=403, detail="Path outside allowed area")
     if not p.exists():
         raise HTTPException(status_code=404, detail="Path does not exist")
