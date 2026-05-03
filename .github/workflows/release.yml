@@ -84,16 +84,17 @@ jobs:
         run: pyinstaller AgentSuiteLocal.spec --noconfirm
 
       - name: Install Inno Setup
-        # Use pre-installed version if present (runner ships 6.7.1+); install if absent.
-        # Pinning an exact version fails when runner already has a newer release.
+        # Use pre-installed version if iscc is on PATH (runner ships 6.7.1+).
+        # Pinning an exact older version fails when runner already has a newer release.
+        # Note: do NOT invoke iscc here — iscc /? exits 1, which fails the step.
         shell: pwsh
         run: |
           if (Get-Command iscc -ErrorAction SilentlyContinue) {
-            $v = (iscc /? 2>&1 | Select-String 'Inno Setup \d').Matches[0].Value
-            Write-Host "Inno Setup already available: $v — skipping install"
+            Write-Host "Inno Setup already on PATH — skipping choco install"
           } else {
             choco install innosetup --no-progress -y
           }
+          exit 0
 
       - name: Build installer
         run: iscc installer/AgentSuiteLocal.iss
