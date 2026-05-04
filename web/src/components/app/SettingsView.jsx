@@ -134,14 +134,18 @@ export const SettingsView = ({ onGoToModels }) => {
   const [showWorkspaceInfo, setShowWorkspaceInfo] = useState(false);
   // G1: tier model warning
   const [tierModelWarning, setTierModelWarning] = useState(null);
+  // A5: actual bound port (may differ from 8765 if port was in use at launch)
+  const [livePort, setLivePort] = useState(8765);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/settings").then(r => r.json()).catch(() => ({})),
       fetch("/api/ollama/status").then(r => r.json()).catch(() => null),
-    ]).then(([s, o]) => {
+      fetch("/api/launcher/port").then(r => r.json()).catch(() => ({ port: 8765 })),
+    ]).then(([s, o, p]) => {
       setSettings(s);
       setOllamaStatus(o);
+      setLivePort(p.port ?? 8765);
       const stored = s.api_key && s.api_key !== "****" ? s.api_key : "";
       setApiKeyDraft(stored);
     });
@@ -269,7 +273,7 @@ export const SettingsView = ({ onGoToModels }) => {
         <div className="card" style={{ padding: 18 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Behavior</div>
           {[
-            { key: "open_on_launch", l: "Open browser on launch",  sub: "Auto-open dashboard at localhost:8765" },
+            { key: "open_on_launch", l: "Open browser on launch",  sub: `Auto-open dashboard at localhost:${livePort}${livePort !== 8765 ? " (port 8765 was in use at launch)" : ""}` },
             { key: "notifications",  l: "Desktop notifications",    sub: "Show OS notifications when runs complete. Respects Do Not Disturb." },
             {
               key: "telemetry", l: "Usage telemetry (local only)",

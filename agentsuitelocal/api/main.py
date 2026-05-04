@@ -85,6 +85,10 @@ _SSE_BUFFER_SIZE = 100
 
 # B3: per-run asyncio Tasks (for cancel)
 _run_tasks: dict[str, asyncio.Task] = {}
+# B3: per-run threading.Events — signals the executor thread to stop between pipeline stages.
+# task.cancel() stops the asyncio coroutine but cannot kill run_in_executor threads.
+# Setting this token causes on_progress to raise, exiting the thread cooperatively.
+_run_cancel_tokens: dict[str, threading.Event] = {}
 
 
 def _load_state() -> None:
@@ -1059,7 +1063,9 @@ async def start_run(req: RunRequest):
     }
     _run_event_buffers[run_id] = collections.deque(maxlen=_SSE_BUFFER_SIZE)
     _save_state()
-    task = asyncio.create_task(_execute_run(run_id, req))
+    cancel_token = threading.Event()
+    _run_cancel_tokens[run_id] = cancel_token
+    task = asyncio.create_task(_execute_run(run_id, req, cancel_token))
     _run_tasks[run_id] = task
     _log_telemetry("run_started", agent=req.agent_id, project=req.project)
     return {"run_id": run_id}
@@ -1074,6 +1080,12 @@ async def cancel_run(run_id: str):
         run = _runs[run_id]
         if run["status"] not in ("running",):
             raise HTTPException(status_code=400, detail=f"Cannot cancel run in state: {run['status']}")
+
+    # B3: set the thread-level token first so the executor thread stops cooperatively
+    # between pipeline stages, even though asyncio task cancellation cannot kill threads.
+    token = _run_cancel_tokens.get(run_id)
+    if token:
+        token.set()
 
     task = _run_tasks.get(run_id)
     if task and not task.done():
@@ -1717,7 +1729,7 @@ def _friendly_error(raw: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-async def _execute_run(run_id: str, req: RunRequest) -> None:
+async def _execute_run(run_id: str, req: RunRequest, cancel_token: threading.Event | None = None) -> None:
     run = _runs[run_id]
     settings = _load_settings()
     timeout_secs = int(settings.get("run_timeout_seconds", 900))
@@ -1747,6 +1759,11 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
 
         def _run_sync():
             def on_progress(event: str, step, pipeline):
+                # B3: check cancel token before processing each stage boundary.
+                # Raises here so the orchestrator thread exits cooperatively even
+                # though asyncio task cancellation cannot reach executor threads.
+                if cancel_token is not None and cancel_token.is_set():
+                    raise RuntimeError("Run cancelled")
                 evt_dict = {
                     "type": "stage_update" if event not in ("agent_start", "agent_done", "agent_waiting") else event,
                     "run_id": run_id,

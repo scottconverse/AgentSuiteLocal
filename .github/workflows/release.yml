@@ -63,10 +63,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -84,20 +84,28 @@ jobs:
         run: pyinstaller AgentSuiteLocal.spec --noconfirm
 
       - name: Install Inno Setup
-        # Use pre-installed version if iscc is on PATH (runner ships 6.7.1+).
-        # Pinning an exact older version fails when runner already has a newer release.
+        # Uses pre-installed Inno Setup if iscc is on PATH (GitHub windows-latest runner
+        # ships 6.4.3 as of 2026-05 — verify at https://github.com/actions/runner-images).
+        # If the runner image upgrades Inno Setup and breaks the build, pin explicitly:
+        #   choco install innosetup --version=6.4.3 --force --no-progress -y
         # Note: do NOT invoke iscc here — iscc /? exits 1, which fails the step.
         shell: pwsh
         run: |
           if (Get-Command iscc -ErrorAction SilentlyContinue) {
-            Write-Host "Inno Setup already on PATH — skipping choco install"
+            $isccPath = (Get-Command iscc).Source
+            $isccVer = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1' -ErrorAction SilentlyContinue).DisplayVersion
+            Write-Host "Inno Setup on PATH: $isccPath (version: $isccVer)"
           } else {
-            choco install innosetup --no-progress -y
+            choco install innosetup --version=6.4.3 --no-progress -y
           }
           exit 0
 
       - name: Build installer
-        run: iscc installer/AgentSuiteLocal.iss
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}".TrimStart('v')
+          Write-Host "Building installer for version $ver"
+          iscc /DMYAPPVERSION=$ver installer/AgentSuiteLocal.iss
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
@@ -119,10 +127,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
 

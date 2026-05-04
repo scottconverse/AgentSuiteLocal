@@ -1,9 +1,14 @@
 ; AgentSuiteLocal Inno Setup installer script
-; Build with: iscc installer\AgentSuiteLocal.iss
+; Local build:    iscc installer\AgentSuiteLocal.iss
+; Versioned build: iscc /DMYAPPVERSION=0.8.0 installer\AgentSuiteLocal.iss
 ; Requires: Inno Setup 6 (https://jrsoftware.org/isinfo.php)
 
 #define MyAppName "AgentSuiteLocal"
-#define MyAppVersion "0.7.0"
+; MyAppVersion can be injected via /DMYAPPVERSION=X.Y.Z at build time.
+; The #ifndef guard ensures local builds fall back to "0.0.0-local".
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0-local"
+#endif
 #define MyAppPublisher "Scott Converse"
 #define MyAppURL "https://github.com/scottconverse/AgentSuiteLocal"
 #define MyAppExeName "AgentSuiteLocal.exe"
