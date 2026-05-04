@@ -12,6 +12,7 @@ PyInstaller uses this file as the script target.  The --windowed flag in the
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 import threading
@@ -77,6 +78,13 @@ def _start_server(port: int) -> None:
 
 
 def main() -> None:
+    # Enable all seven registered agents by default. Without this, AgentSuite's
+    # DEFAULT_ENABLED is "founder" only and get_class() raises UnknownAgent for
+    # any other agent selection. setdefault preserves an operator override.
+    os.environ.setdefault(
+        "AGENTSUITE_ENABLED_AGENTS",
+        "founder,design,product,engineering,marketing,trust_risk,cio",
+    )
     _log("launcher main() starting")
     port = _find_free_port(PORT)
     _log(f"using port {port}")
