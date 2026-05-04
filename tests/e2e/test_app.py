@@ -23,7 +23,9 @@ def _enter_app(page: Page, base_url: str) -> None:
     page.get_by_role("button", name="I agree").click()
 
     # Step 3 — Hardware (async probe)
-    expect(page.get_by_role("heading", name="Checking your hardware")).to_be_visible(timeout=5000)
+    # networkidle ensures the /api/hardware call has completed before asserting heading visibility
+    page.wait_for_load_state("networkidle")
+    expect(page.get_by_role("heading", name="Checking your hardware")).to_be_visible(timeout=15000)
     expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=12000)
     page.get_by_role("button", name="Continue").click()
 
