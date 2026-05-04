@@ -164,20 +164,17 @@ async def _execute_run(
         loop = asyncio.get_running_loop()
 
         def _run_sync():
-            # on_progress and kernel_progress_callback will wire intra-stage SSE
-            # events once AgentSuite v1.1.0 ships PipelineOrchestrator.
-            # See https://github.com/scottconverse/AgentSuiteLocal/issues/10
-            def on_progress(event: str, step, pipeline) -> None:  # noqa: ARG001
-                pass  # awaiting AgentSuite v1.1.0
-
-            def kernel_progress_callback(event: dict) -> None:  # noqa: ARG001
-                pass  # awaiting AgentSuite v1.1.0
-
             if cancel_token is not None and cancel_token.is_set():
                 raise RuntimeError("Run cancelled")
 
             from agentsuite.agents.registry import default_registry
             from agentsuite.kernel.schema import AgentRequest as _AgentRequest
+
+            def progress_callback(event: dict) -> None:
+                evt = dict(event)
+                loop.call_soon_threadsafe(
+                    lambda e=evt: emit("stage_update", **{k: v for k, v in e.items() if k != "type"})
+                )
 
             agent_cls = default_registry().get_class(req.agent_id)
             agent = agent_cls(output_root=output_root, llm=llm)
@@ -187,7 +184,7 @@ async def _execute_run(
                 user_request=req.goal,
                 business_goal=req.goal,
             )
-            return agent.run(request=request, run_id=str(uuid4()))
+            return agent.run(request=request, run_id=str(uuid4()), progress_callback=progress_callback)
 
         return await loop.run_in_executor(None, _run_sync)
 
@@ -292,14 +289,18 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
         step_orch_id = f"{pipeline_id}-step{step_idx}"
 
         def _run_sync():
-            # on_progress will wire stage-boundary SSE events once AgentSuite
-            # v1.1.0 ships PipelineOrchestrator.
-            # See https://github.com/scottconverse/AgentSuiteLocal/issues/10
-            def on_progress(event: str, step_state, _pipeline_state) -> None:  # noqa: ARG001
-                pass  # awaiting AgentSuite v1.1.0
-
             from agentsuite.agents.registry import default_registry
             from agentsuite.kernel.schema import AgentRequest as _AgentRequest
+
+            def progress_callback(event: dict) -> None:
+                evt = dict(event)
+                loop.call_soon_threadsafe(
+                    lambda e=evt: _emit_pipeline(
+                        pipeline_id, "stage_update",
+                        step=step_idx,
+                        **{k: v for k, v in e.items() if k != "type"},
+                    )
+                )
 
             agent_cls = default_registry().get_class(agent_id)
             agent = agent_cls(output_root=output_root, llm=llm)
@@ -309,7 +310,7 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
                 user_request=pipeline["goal"],
                 business_goal=pipeline["goal"],
             )
-            return agent.run(request=request, run_id=step_orch_id)
+            return agent.run(request=request, run_id=step_orch_id, progress_callback=progress_callback)
 
         result = await loop.run_in_executor(None, _run_sync)
 
