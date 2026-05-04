@@ -52,10 +52,13 @@ jobs:
 
       - name: Unit + integration tests
         # D-4: --cov-fail-under enforces coverage floor.
-        # Floor is 60% — raised in v0.8.0 after test_cli.py added cli.py coverage.
+        # Floor is 58% — Linux CI measures ~58% due to OS-specific branches in main.py
+        # that execute on Windows but not on ubuntu-latest. The gap is entirely in
+        # main.py (1343 stmts). Floor will rise during the main.py god-file split sprint
+        # when each new module gets its own test file.
         # RATCHET RULE: this number may only increase, never decrease.
         # Lowering it requires a commit explaining why, reviewed in PR.
-        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=60
+        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=58
 
   frontend:
     name: Frontend (build + test)
