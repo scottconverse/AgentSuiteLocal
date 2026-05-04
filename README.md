@@ -1,8 +1,8 @@
 # AgentSuiteLocal
 
-**v0.7.1** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v0.8.1** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
-Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run.
+Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run. All seven agents are enabled by default; override via `AGENTSUITE_ENABLED_AGENTS`.
 
 **New in v0.7.0:** run cancellation, timeout watchdog, QA gate enforcement with override, markdown artifact preview, run export (ZIP/Markdown/PDF), cloud model fallback (Claude Haiku/Sonnet/Opus), desktop notifications, auto-update check, local telemetry, crash recovery, Model Management panel, Projects view, and a Windows Inno Setup installer.
 

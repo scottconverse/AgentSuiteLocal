@@ -87,3 +87,90 @@ async def test_execute_run_completes_without_module_not_found_error():
         f"Error: {run.get('error', '(none)')}"
     )
     assert run["agentsuite_run_id"] == "agentsuite-test-run-id"
+
+
+async def test_execute_run_dispatches_non_founder_agent():
+    """_execute_run must reach status='waiting' for a non-founder agent.
+
+    Regression guard for the AGENTSUITE_ENABLED_AGENTS footgun: without
+    the setdefault in launcher.py/cli.py, get_class('design') raises
+    UnknownAgent and the run lands in status='error'.
+    """
+    import os
+    os.environ.setdefault(
+        "AGENTSUITE_ENABLED_AGENTS",
+        "founder,design,product,engineering,marketing,trust_risk,cio",
+    )
+
+    run_id = "run-exec-test-design-001"
+    req = RunRequest(agent_id="design", goal="Design integration test", project="exec-test")
+    _make_run(run_id, agent_id="design")
+
+    fake_state = _fake_run_state("agentsuite-design-run-id")
+    mock_llm = MagicMock()
+
+    with (
+        patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
+        patch("agentsuite.agents.design.agent.DesignAgent.run", return_value=fake_state),
+        patch("agentsuitelocal.api.execution._save_state"),
+        patch("agentsuitelocal.api.execution._log_telemetry"),
+        patch("agentsuitelocal.api.execution._send_notification"),
+        patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
+    ):
+        await _execute_run(run_id, req, cancel_token=threading.Event())
+
+    run = _runs[run_id]
+    assert run["status"] == "waiting", (
+        f"Expected status='waiting' but got status='{run['status']}'. "
+        f"Error: {run.get('error', '(none)')}"
+    )
+    assert run["agentsuite_run_id"] == "agentsuite-design-run-id"
+
+
+async def test_execute_pipeline_step_dispatches_non_founder_agent():
+    """_execute_pipeline_step must complete for a non-founder agent.
+
+    Covers the second shim site (line ~305 in execution.py), which had
+    zero test coverage. Also guards against the AGENTSUITE_ENABLED_AGENTS
+    footgun for pipeline runs.
+    """
+    import os
+    os.environ.setdefault(
+        "AGENTSUITE_ENABLED_AGENTS",
+        "founder,design,product,engineering,marketing,trust_risk,cio",
+    )
+
+    from agentsuitelocal.api.execution import _execute_pipeline_step
+    from agentsuitelocal.api.state import _pipelines
+
+    pipeline_id = "pipe-exec-test-001"
+    _pipelines[pipeline_id] = {
+        "id": pipeline_id,
+        "project": "exec-test",
+        "goal": "Pipeline integration test",
+        "inputs_dir": None,
+        "auto_approve": False,
+        "status": "running",
+        "current_step": 0,
+        "steps": [{"agent": "design", "status": "running", "run_id": None, "artifacts": [], "qa_score": None, "qa_dimensions": []}],
+        "events": [],
+        "updated_at": time.time(),
+        "error_message": None,
+    }
+
+    fake_state = _fake_run_state("agentsuite-pipeline-design-run-id")
+    mock_llm = MagicMock()
+
+    with (
+        patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
+        patch("agentsuite.agents.design.agent.DesignAgent.run", return_value=fake_state),
+        patch("agentsuitelocal.api.execution._save_state"),
+        patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
+    ):
+        await _execute_pipeline_step(pipeline_id, 0)
+
+    step = _pipelines[pipeline_id]["steps"][0]
+    assert step["run_id"] == "agentsuite-pipeline-design-run-id"
+    assert step["status"] == "awaiting_approval"
+
+    del _pipelines[pipeline_id]

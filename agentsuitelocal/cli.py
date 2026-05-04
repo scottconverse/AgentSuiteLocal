@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import threading
 import time
@@ -18,6 +19,10 @@ import webbrowser
 
 
 def main() -> None:
+    os.environ.setdefault(
+        "AGENTSUITE_ENABLED_AGENTS",
+        "founder,design,product,engineering,marketing,trust_risk,cio",
+    )
     parser = argparse.ArgumentParser(
         prog="agentsuitelocal",
         description="AgentSuiteLocal — local AI workspace for non-technical founders",
