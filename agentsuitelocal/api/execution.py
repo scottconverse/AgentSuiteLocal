@@ -10,8 +10,8 @@ import os
 import re
 import threading
 import time
-from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import httpx
 
@@ -160,55 +160,46 @@ async def _execute_run(
             except Exception:
                 raise RuntimeError("Ollama is not running. Open Ollama and try again.")
 
-        from agentsuite.pipeline.orchestrator import PipelineOrchestrator
-
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
 
         def _run_sync():
-            def on_progress(event: str, step, pipeline):
-                # B3: check cancel token before processing each stage boundary.
-                if cancel_token is not None and cancel_token.is_set():
-                    raise RuntimeError("Run cancelled")
-                evt_dict = {
-                    "type": "stage_update" if event not in ("agent_start", "agent_done", "agent_waiting") else event,
-                    "run_id": run_id,
-                    "stage": event,
-                    "agent": step.agent,
-                    "ts": time.time(),
-                }
-                loop.call_soon_threadsafe(run["events"].append, evt_dict)
-                loop.call_soon_threadsafe(buf.append, evt_dict)
+            # on_progress and kernel_progress_callback will wire intra-stage SSE
+            # events once AgentSuite v1.1.0 ships PipelineOrchestrator.
+            # See https://github.com/scottconverse/AgentSuiteLocal/issues/10
+            def on_progress(event: str, step, pipeline) -> None:  # noqa: ARG001
+                pass  # awaiting AgentSuite v1.1.0
 
-            def kernel_progress_callback(event: dict) -> None:
-                """K1/K2: Forward BaseAgent intra-stage events to SSE stream."""
-                evt_dict = {**event, "run_id": run_id, "ts": time.time()}
-                loop.call_soon_threadsafe(run["events"].append, evt_dict)
-                loop.call_soon_threadsafe(buf.append, evt_dict)
+            def kernel_progress_callback(event: dict) -> None:  # noqa: ARG001
+                pass  # awaiting AgentSuite v1.1.0
 
-            orch = PipelineOrchestrator(output_root=output_root)
-            return orch.run(
-                agents=[req.agent_id],
-                project_slug=req.project,
+            if cancel_token is not None and cancel_token.is_set():
+                raise RuntimeError("Run cancelled")
+
+            from agentsuite.agents.registry import default_registry
+            from agentsuite.kernel.schema import AgentRequest as _AgentRequest
+
+            agent_cls = default_registry().get_class(req.agent_id)
+            agent = agent_cls(output_root=output_root, llm=llm)
+            request = _AgentRequest(
+                agent_name=req.agent_id,
+                role_domain=req.agent_id,
+                user_request=req.goal,
                 business_goal=req.goal,
-                inputs_dir=Path(req.inputs_dir) if req.inputs_dir else None,
-                llm=llm,
-                on_progress=on_progress,
-                kernel_progress_callback=kernel_progress_callback,
             )
+            return agent.run(request=request, run_id=str(uuid4()))
 
         return await loop.run_in_executor(None, _run_sync)
 
     try:
-        pipeline = await asyncio.wait_for(_do_run(), timeout=timeout_secs)
+        state = await asyncio.wait_for(_do_run(), timeout=timeout_secs)
 
-        step = pipeline.steps[0] if pipeline.steps else None
         artifacts: list[str] = []
         qa_score: float | None = None
         qa_dimensions: list[dict] = []
 
-        if step and step.run_id:
-            run_dir = _workspace() / ".agentsuite" / "runs" / step.run_id
+        if state and state.run_id:
+            run_dir = _workspace() / ".agentsuite" / "runs" / state.run_id
             if run_dir.exists():
                 artifacts = [
                     str(f.relative_to(run_dir))
@@ -233,7 +224,7 @@ async def _execute_run(
                     except Exception:
                         pass
 
-        run["agentsuite_run_id"] = step.run_id if step else None
+        run["agentsuite_run_id"] = state.run_id if state else None
         run["artifacts"] = artifacts
         run["qa_score"] = qa_score
         run["qa_dimensions"] = qa_dimensions
@@ -296,42 +287,36 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
         settings = _load_settings()
         llm = _resolve_llm(settings)
 
-        from agentsuite.pipeline.orchestrator import PipelineOrchestrator
-
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
         step_orch_id = f"{pipeline_id}-step{step_idx}"
 
         def _run_sync():
-            def on_progress(event: str, step_state, _pipeline_state):
-                event_dict = {
-                    "type": "stage_update" if event not in ("agent_start", "agent_done", "agent_waiting") else event,
-                    "pipeline_id": pipeline_id,
-                    "stage": event,
-                    "agent": step_state.agent,
-                    "step": step_idx,
-                    "ts": time.time(),
-                }
-                loop.call_soon_threadsafe(_pipelines[pipeline_id]["events"].append, event_dict)
+            # on_progress will wire stage-boundary SSE events once AgentSuite
+            # v1.1.0 ships PipelineOrchestrator.
+            # See https://github.com/scottconverse/AgentSuiteLocal/issues/10
+            def on_progress(event: str, step_state, _pipeline_state) -> None:  # noqa: ARG001
+                pass  # awaiting AgentSuite v1.1.0
 
-            orch = PipelineOrchestrator(output_root=output_root)
-            return orch.run(
-                agents=[agent_id],
-                project_slug=pipeline["project"],
+            from agentsuite.agents.registry import default_registry
+            from agentsuite.kernel.schema import AgentRequest as _AgentRequest
+
+            agent_cls = default_registry().get_class(agent_id)
+            agent = agent_cls(output_root=output_root, llm=llm)
+            request = _AgentRequest(
+                agent_name=agent_id,
+                role_domain=agent_id,
+                user_request=pipeline["goal"],
                 business_goal=pipeline["goal"],
-                pipeline_id=step_orch_id,
-                inputs_dir=Path(pipeline["inputs_dir"]) if pipeline["inputs_dir"] else None,
-                llm=llm,
-                on_progress=on_progress,
             )
+            return agent.run(request=request, run_id=step_orch_id)
 
         result = await loop.run_in_executor(None, _run_sync)
-        result_step = result.steps[0] if result.steps else None
 
-        step["run_id"] = result_step.run_id if (result_step and result_step.run_id) else None
+        step["run_id"] = result.run_id if (result and result.run_id) else None
 
-        if result_step and result_step.run_id:
-            run_dir = output_root / "runs" / result_step.run_id
+        if result and result.run_id:
+            run_dir = output_root / "runs" / result.run_id
             if run_dir.exists():
                 step["artifacts"] = [
                     str(f.relative_to(run_dir))
