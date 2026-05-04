@@ -16,7 +16,7 @@ import json
 import httpx
 import pytest
 
-from agentsuitelocal.api.main import _runs
+from agentsuitelocal.api.state import _runs
 
 # live_server is session-scoped and defined in tests/conftest.py
 
