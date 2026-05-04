@@ -11,7 +11,6 @@ with a direct BaseAgent.run() call, the test should pass with the mocked LLM.
 
 from __future__ import annotations
 
-import asyncio
 import threading
 import time
 from pathlib import Path
