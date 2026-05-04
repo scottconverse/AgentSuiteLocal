@@ -23,6 +23,22 @@ jobs:
     name: Verify CI passed on tagged commit
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Verify package version matches git tag
+        run: |
+          TAG_VER="${{ github.ref_name }}"
+          TAG_VER="${TAG_VER#v}"
+          PKG_VER=$(python -c "import re; print(re.search(r'__version__ = \"(.+?)\"', open('agentsuitelocal/__version__.py').read()).group(1))")
+          echo "Tag version:     $TAG_VER"
+          echo "Package version: $PKG_VER"
+          if [ "$TAG_VER" != "$PKG_VER" ]; then
+            echo "Version mismatch: tag is v$TAG_VER but __version__.py says $PKG_VER"
+            echo "Bump __version__.py and pyproject.toml to $TAG_VER before tagging."
+            exit 1
+          fi
+          echo "Versions match. Proceeding."
+
       - name: Check CI status for this commit
         env:
           GH_TOKEN: ${{ github.token }}

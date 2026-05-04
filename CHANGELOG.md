@@ -9,6 +9,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.8.2] — 2026-05-04
+
+### Fixed
+- **Version metadata**: `pyproject.toml` and `agentsuitelocal/__version__.py` bumped to `0.8.2`. v0.8.0 and v0.8.1 shipped with version `0.7.1` in package metadata — `pip show` and `/api/version` reported the wrong value. Fixed going forward; see note below.
+- **CI version gate**: `release.yml` `verify-ci` job now checks that the package version in `__version__.py` matches the git tag before any build starts. Prevents this class of drift from recurrence.
+
+> **Note:** v0.8.0 and v0.8.1 wheels report version `0.7.1` from `pip show` due to the metadata bump being missed in those releases. The git tags and release assets are unaffected. v0.8.2 fixes this and adds CI enforcement to prevent recurrence.
+
+## [0.8.1] — 2026-05-04
+
+### Fixed
+- **All 7 agents enabled at launch**: `launcher.py` and `cli.py` now call `os.environ.setdefault("AGENTSUITE_ENABLED_AGENTS", "founder,design,product,engineering,marketing,trust_risk,cio")` at startup. Without this, AgentSuite `DEFAULT_ENABLED = "founder"` caused `UnknownAgent` to be raised for any non-Founder agent selection, silently landing every Design/Product/Engineering/Marketing/Trust_Risk/CIO run in `status="error"`.
+
+### Added
+- Integration tests `test_execute_run_dispatches_non_founder_agent` and `test_execute_pipeline_step_dispatches_non_founder_agent` — regression guards for the above footgun. The pipeline-step test is also the first test of the `_execute_pipeline_step` code path.
+
+> **Note:** This release ships with package version `0.7.1` in wheel metadata due to a missed bump. Fixed in v0.8.2.
+
+## [0.8.0] — 2026-05-04
+
+### Fixed
+- **PipelineOrchestrator shim**: `agentsuite.pipeline.orchestrator` does not exist in v1.0.11. Both `_execute_run` and `_execute_pipeline_step` were failing at the deferred import on every run. Replaced with direct `BaseAgent.run()` calls via `default_registry().get_class(agent_id)`. `on_progress` and `kernel_progress_callback` preserved as no-op stubs pending AgentSuite v1.1.0 ([Issue #10](https://github.com/scottconverse/AgentSuiteLocal/issues/10)).
+
+### Changed
+- **SQLite state storage**: `runs.json` and `pipelines.json` replaced by a single WAL-mode SQLite database at `~/.agentsuitelocal/state.db`. One-time migration runs on first startup. Crash recovery (`running → error`) and pipeline orphan repair retained.
+- **main.py split**: 1343-statement monolith split into 14 modules (9 APIRouters + 5 support files) under `agentsuitelocal/api/`.
+- **CI: node20 → node24**: All five pinned GitHub Actions updated to node24-compatible versions before the 2026-06-02 deprecation deadline.
+
+### Added
+- Integration test `test_execute_run_completes_without_module_not_found_error` — end-to-end test for `_execute_run` with a mocked LLM.
+- Cross-repo tracking: [AgentSuiteLocal #10](https://github.com/scottconverse/AgentSuiteLocal/issues/10) and [AgentSuite #41](https://github.com/scottconverse/AgentSuite/issues/41) opened for the `PipelineOrchestrator` work.
+
+> **Note:** This release ships with package version `0.7.1` in wheel metadata due to a missed bump. Fixed in v0.8.2.
+
 ## [0.7.1] — 2026-05-03
 
 ### Fixed (post-v0.7.0 hardening sprint)
