@@ -1,12 +1,14 @@
 # AgentSuiteLocal
 
-**v0.8.1** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v0.8.3** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run. All seven agents are enabled by default; override via `AGENTSUITE_ENABLED_AGENTS`.
 
 **New in v0.7.0:** run cancellation, timeout watchdog, QA gate enforcement with override, markdown artifact preview, run export (ZIP/Markdown/PDF), cloud model fallback (Claude Haiku/Sonnet/Opus), desktop notifications, auto-update check, local telemetry, crash recovery, Model Management panel, Projects view, and a Windows Inno Setup installer.
 
 **Patched in v0.7.1:** 30+ bug fixes including project mutation endpoints (rename/archive/delete were 404), ModelView pull (was GET not POST), tier model map, update banner field names, optimistic approve/reject UI, 5-screen installer, KernelView artifact preview, skeleton loading states, OS keychain for API key, supply-chain hardening (SHA-pinned CI actions, pinned PyInstaller, release CI gate), and blocking subprocess.run → asyncio.to_thread.
+
+**Updated in v0.8.0–v0.8.2:** All seven agents enabled by default (was founder-only); `PipelineOrchestrator` replaced with direct `BaseAgent.run()` invocation (Sprint 1 shim); wheel metadata version corrected; dynamic `pyproject.toml` version sourced from `__version__.py`.
 
 ---
 
@@ -35,7 +37,7 @@ Runs entirely on-device — no internet connection required after setup.
 
 ## Install
 
-**Non-technical users:** download `AgentSuiteLocal-0.7.1-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
+**Non-technical users:** download `AgentSuiteLocal-0.8.3-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
 
@@ -74,7 +76,7 @@ make dist              # auto-detects OS — builds frontend then runs PyInstall
 # or explicitly:
 make build-mac         # → dist/AgentSuiteLocal.app  (macOS)
 make build-win         # → dist/AgentSuiteLocal/     (Windows onedir)
-make build-installer   # → dist/AgentSuiteLocal-0.7.1-setup.exe  (Windows only, requires Inno Setup)
+make build-installer   # → dist/AgentSuiteLocal-0.8.3-setup.exe  (Windows only, requires Inno Setup)
 ```
 
 The onedir output is self-contained — no Python or Node required on the target machine. `build-installer` wraps the onedir into a standard Windows installer with uninstall support.
@@ -144,7 +146,7 @@ web/
         index.jsx            Icon, MetricCard, ProgressBar, Toggle
 ```
 
-**Data flow:** `POST /api/run` starts a background task that wraps AgentSuite's `PipelineOrchestrator`. The frontend subscribes to `GET /api/run/{id}/stream` (SSE) and renders progress in real time. When the pipeline finishes, the run enters `waiting` state and the approval gate becomes available. Approving promotes artifacts to `~/AgentSuite/.agentsuite/_kernel/{project}/{agent}/`.
+**Data flow:** `POST /api/run` starts a background task that invokes the selected AgentSuite agent directly via `BaseAgent.run()`. The frontend subscribes to `GET /api/run/{id}/stream` (SSE) and renders progress in real time. When the agent finishes, the run enters `waiting` state and the approval gate becomes available. Approving promotes artifacts to `~/AgentSuite/.agentsuite/_kernel/{project}/{agent}/`.
 
 See [docs/architecture.md](docs/architecture.md) for the full design doc.
 
@@ -184,7 +186,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | DELETE | `/api/ollama/models/{name}` | Delete an installed model |
 | GET | `/api/model/verify/{name}` | Verify model is functional |
 | GET | `/api/update/check` | Check for a newer GitHub release |
-| GET | `/api/version` | Return current version, e.g. `{"version": "0.7.1"}` |
+| GET | `/api/version` | Return current version, e.g. `{"version": "0.8.3"}` |
 | GET | `/api/crash-reports/latest` | Most recent crash report |
 | GET | `/api/telemetry/summary` | Local usage event counts |
 | GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.log` |
@@ -277,11 +279,24 @@ Your cloud API key (if configured) is stored in the OS credential store — Wind
 
 ---
 
-## Known issues (v0.7.1)
+## Recent releases
+
+See [CHANGELOG.md](CHANGELOG.md) for the full release history.
+
+| Version | Highlights |
+|---------|-----------|
+| **v0.8.3** | Test floor for entry-point env-var; single version source of truth; README sync |
+| **v0.8.2** | Fix wheel metadata (was shipping as v0.7.1); dynamic `pyproject.toml` version |
+| **v0.8.1** | Enable all seven agents by default; enabled-agents env-var regression tests |
+| **v0.8.0** | Replace `PipelineOrchestrator` shim; direct `BaseAgent.run()` invocation |
+| **v0.7.1** | 30+ bug fixes; OS keychain; supply-chain hardening; Windows installer |
+
+---
+
+## Known issues (v0.8.3)
 
 - **PDF export requires GTK/Cairo on Windows.** The PDF export feature uses WeasyPrint, which requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). The PyInstaller bundle includes WeasyPrint's Python code but not the native GTK DLLs. If PDF export returns a 501 error, install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) separately. ZIP and Markdown export work without any additional runtime.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.
-- K1/K2 (cross-stage context passing and intra-stage progress events) are not yet merged upstream to `scottconverse/AgentSuite`. The `pyproject.toml` pin still points to the v0.1.2 commit SHA until the upstream PR lands.
 - E2E test suite uses `gemma2:2b` (Gemma 2 family), not a Gemma 4 model. Tests exercise the API surface but not the model architecture used in production. This is documented in `tests/e2e/conftest.py`.
 - E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`.
 
