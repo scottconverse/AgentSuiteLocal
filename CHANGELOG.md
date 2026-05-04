@@ -9,6 +9,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.8.4] — 2026-05-04
+
+### Fixed
+- **`softprops/action-gh-release` node24 migration**: `release.yml` was pinned to `3bb12739` (v2, node20). Updated to `b4309332` (v3.0.0, node24). This completes the Sprint 0 node24 migration — all five `actions/*` pins were already on node24; this was the one missed action.
+- **SHA-pins comment block**: updated to `@v3` notation and added `(node24)` annotation to every entry so future audits can verify compatibility without an API call.
+
+> **Note:** Sprint 0 was declared complete after migrating `actions/checkout`, `actions/setup-python`, `actions/setup-node`, `actions/upload-artifact`, and `actions/download-artifact`. `softprops/action-gh-release` was listed in the same comment block but its pinned SHA was not checked for node20/24 status. The deprecation warning appeared on the v0.8.3 release run. Node.js 20 forced-default deadline: 2026-06-02. Node.js 20 hard-removal from runners: 2026-09-16.
+
 ## [0.8.3] — 2026-05-04
 
 ### Added

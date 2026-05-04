@@ -1,6 +1,6 @@
 # AgentSuiteLocal
 
-**v0.8.3** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v0.8.4** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run. All seven agents are enabled by default; override via `AGENTSUITE_ENABLED_AGENTS`.
 
@@ -37,7 +37,7 @@ Runs entirely on-device — no internet connection required after setup.
 
 ## Install
 
-**Non-technical users:** download `AgentSuiteLocal-0.8.3-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
+**Non-technical users:** download `AgentSuiteLocal-0.8.4-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
 
@@ -76,7 +76,7 @@ make dist              # auto-detects OS — builds frontend then runs PyInstall
 # or explicitly:
 make build-mac         # → dist/AgentSuiteLocal.app  (macOS)
 make build-win         # → dist/AgentSuiteLocal/     (Windows onedir)
-make build-installer   # → dist/AgentSuiteLocal-0.8.3-setup.exe  (Windows only, requires Inno Setup)
+make build-installer   # → dist/AgentSuiteLocal-0.8.4-setup.exe  (Windows only, requires Inno Setup)
 ```
 
 The onedir output is self-contained — no Python or Node required on the target machine. `build-installer` wraps the onedir into a standard Windows installer with uninstall support.
@@ -186,7 +186,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | DELETE | `/api/ollama/models/{name}` | Delete an installed model |
 | GET | `/api/model/verify/{name}` | Verify model is functional |
 | GET | `/api/update/check` | Check for a newer GitHub release |
-| GET | `/api/version` | Return current version, e.g. `{"version": "0.8.3"}` |
+| GET | `/api/version` | Return current version, e.g. `{"version": "0.8.4"}` |
 | GET | `/api/crash-reports/latest` | Most recent crash report |
 | GET | `/api/telemetry/summary` | Local usage event counts |
 | GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.log` |
@@ -285,6 +285,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 | Version | Highlights |
 |---------|-----------|
+| **v0.8.4** | Complete node24 migration — `softprops/action-gh-release` missed in Sprint 0 |
 | **v0.8.3** | Test floor for entry-point env-var; single version source of truth; README sync |
 | **v0.8.2** | Fix wheel metadata (was shipping as v0.7.1); dynamic `pyproject.toml` version |
 | **v0.8.1** | Enable all seven agents by default; enabled-agents env-var regression tests |
@@ -293,7 +294,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ---
 
-## Known issues (v0.8.3)
+## Known issues (v0.8.4)
 
 - **PDF export requires GTK/Cairo on Windows.** The PDF export feature uses WeasyPrint, which requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). The PyInstaller bundle includes WeasyPrint's Python code but not the native GTK DLLs. If PDF export returns a 501 error, install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) separately. ZIP and Markdown export work without any additional runtime.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.

@@ -9,12 +9,12 @@ permissions:
   contents: write
 
 # SHA pins — update via: gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'
-# actions/checkout@v6               → de0fac2e4500dabe0009e67214ff5f5447ce83dd
-# actions/setup-python@v6           → a309ff8b426b58ec0e2a45f0f869d46889d02405
-# actions/setup-node@v6             → 48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-# actions/upload-artifact@v7        → 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-# actions/download-artifact@v8      → 3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-# softprops/action-gh-release@v2    → 3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+# actions/checkout@v6               → de0fac2e4500dabe0009e67214ff5f5447ce83dd  (node24)
+# actions/setup-python@v6           → a309ff8b426b58ec0e2a45f0f869d46889d02405  (node24)
+# actions/setup-node@v6             → 48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  (node24)
+# actions/upload-artifact@v7        → 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  (node24)
+# actions/download-artifact@v8      → 3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  (node24)
+# softprops/action-gh-release@v3    → b4309332981a82ec1c5618f44dd2e27cc8bfbfda  (node24)
 
 jobs:
   # P0: Verify that CI tests passed on this commit before building a release binary.
@@ -214,7 +214,7 @@ jobs:
           cat release-notes.md
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3.0.0
         with:
           name: AgentSuiteLocal ${{ github.ref_name }}
           body_path: release-notes.md
