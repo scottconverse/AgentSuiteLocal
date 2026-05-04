@@ -9,6 +9,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.8.5] — 2026-05-04
+
+Sprint 2 — wire AgentSuite v1.1.0 intra-stage progress events to SSE stream.
+
+### Changed
+- **AgentSuite pin bumped `@v1.0.11` → `@v1.1.0`**: brings in K1 cross-stage context accumulator and K2 intra-stage progress callbacks (`BaseAgent.run(progress_callback=...)` + `PipelineOrchestrator(kernel_progress_callback=...)`).
+- **Real `progress_callback` wired in `_execute_run`**: replaces no-op stubs. Uses `loop.call_soon_threadsafe` to safely push `stage_update` SSE events from the thread-pool executor thread to the asyncio event loop. The frontend `LiveRunView.jsx` already handles `stage_update` events.
+- **Real `progress_callback` wired in `_execute_pipeline_step`**: same pattern; events arrive as `stage_update` with an additional `step` field carrying the pipeline step index.
+
+### Fixed
+- Closes [Issue #10](https://github.com/scottconverse/AgentSuiteLocal/issues/10) — intra-stage SSE events were blocked on AgentSuite v1.1.0 shipping `PipelineOrchestrator`. That work is now tagged and the no-op stubs are removed.
+
 ## [0.8.4] — 2026-05-04
 
 ### Fixed

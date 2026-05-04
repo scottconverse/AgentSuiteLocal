@@ -20,7 +20,7 @@ dependencies = [
     "winotify>=1.1.0; sys_platform == 'win32'",
     "pync>=2.0.3; sys_platform == 'darwin'",
     # Pinned to a tagged release — update intentionally before each dist build
-    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@v1.0.11",
+    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@v1.1.0",
     # N-1: Pin transitive LLM client deps to prevent silent breaking upgrades.
     # These are pulled in by agentsuite but pinned here so the distributable
     # build is reproducible and security patches are explicit.
