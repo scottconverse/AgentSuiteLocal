@@ -12,12 +12,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agentsuitelocal.__version__ import __version__
-from agentsuitelocal.api.main import (
-    _pipelines,
-    _runs,
-    _sanitize_qa_dimensions,
-    app,
-)
+from agentsuitelocal.api.execution import _sanitize_qa_dimensions
+from agentsuitelocal.api.main import app
+from agentsuitelocal.api.state import _pipelines, _runs
 
 client = TestClient(app)
 
@@ -126,7 +123,7 @@ def test_approve_run_wrong_state_returns_400():
     run_id = r.json()["run_id"]
     # Run is "running" or "error" — not "waiting" — so approve should 400
     # Force status to running to ensure consistent state
-    from agentsuitelocal.api.main import _runs
+    from agentsuitelocal.api.state import _runs
     _runs[run_id]["status"] = "running"
     r2 = client.post(f"/api/run/{run_id}/approve", json={"approver": "test"})
     assert r2.status_code == 400
@@ -139,7 +136,7 @@ def test_approve_run_in_waiting_state():
         "project": "proj",
     })
     run_id = r.json()["run_id"]
-    from agentsuitelocal.api.main import _runs
+    from agentsuitelocal.api.state import _runs
     _runs[run_id]["status"] = "waiting"
     r2 = client.post(f"/api/run/{run_id}/approve", json={"approver": "alice"})
     assert r2.status_code == 200
@@ -740,7 +737,7 @@ def test_sanitize_qa_dimensions_rejects_infinity():
 
 def test_get_run_returns_200_with_nan_qa_dimensions():
     """GET /api/run/{id} must return 200 even when qa_dimensions contains NaN."""
-    from agentsuitelocal.api.main import _runs
+    from agentsuitelocal.api.state import _runs
     r = client.post("/api/run", json={
         "agent_id": "founder",
         "goal": "Test nan qa",
@@ -772,7 +769,7 @@ def test_run_rejects_sibling_home_path_as_inputs_dir():
 
 def test_get_artifact_rejects_path_traversal():
     """is_relative_to guard blocks paths that escape the run directory."""
-    from agentsuitelocal.api.main import _workspace
+    from agentsuitelocal.api.workspace import _workspace
     # Build a real run_dir and a path that escapes it — test the guard directly
     fake_run_id = "test-traversal-run"
     run_dir = (_workspace() / ".agentsuite" / "runs" / fake_run_id).resolve()
@@ -794,7 +791,7 @@ def test_cancel_run_wrong_state_returns_400():
     """Cancel on a non-running run must return 400."""
     r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
     run_id = r.json()["run_id"]
-    from agentsuitelocal.api.main import _runs
+    from agentsuitelocal.api.state import _runs
     _runs[run_id]["status"] = "waiting"
     r2 = client.post(f"/api/run/{run_id}/cancel")
     assert r2.status_code == 400
@@ -808,7 +805,7 @@ def test_cancel_run_404_for_unknown():
 def test_cancel_run_running_returns_cancelled():
     r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
     run_id = r.json()["run_id"]
-    from agentsuitelocal.api.main import _runs
+    from agentsuitelocal.api.state import _runs
     _runs[run_id]["status"] = "running"
     r2 = client.post(f"/api/run/{run_id}/cancel")
     assert r2.status_code == 200
@@ -843,7 +840,7 @@ def test_validate_path_accepts_missing_path_gracefully():
 def test_approve_returns_export_path():
     r = client.post("/api/run", json={"agent_id": "founder", "goal": "Test", "project": "proj"})
     run_id = r.json()["run_id"]
-    from agentsuitelocal.api.main import _runs
+    from agentsuitelocal.api.state import _runs
     _runs[run_id]["status"] = "waiting"
     r2 = client.post(f"/api/run/{run_id}/approve", json={"approver": "user"})
     assert r2.status_code == 200
@@ -988,7 +985,7 @@ def test_run_timeout_seconds_in_settings():
 
 def test_crash_recovery_sets_running_runs_to_error():
     """load_state must repair running → error on startup (F1)."""
-    from agentsuitelocal.api.main import _load_state, _runs
+    from agentsuitelocal.api.state import _load_state, _runs
     run_id = "test-crash-recovery"
     _runs[run_id] = {"id": run_id, "status": "running", "agent": "founder", "project": "p",
                      "goal": "g", "started_at": 0, "events": [], "artifacts": [], "qa_score": None,
@@ -1001,7 +998,7 @@ def test_crash_recovery_sets_running_runs_to_error():
     tmp = Path(tempfile.mktemp(suffix=".json"))
     tmp.write_text(json.dumps({run_id: _runs[run_id]}))
     _runs.clear()
-    with patch("agentsuitelocal.api.main._RUNS_FILE", tmp):
+    with patch("agentsuitelocal.api.state._RUNS_FILE", tmp):
         _load_state()
     assert _runs[run_id]["status"] == "error"
     assert "restarted" in _runs[run_id].get("error", "")
