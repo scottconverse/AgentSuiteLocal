@@ -9,6 +9,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.8.3] — 2026-05-04
+
+### Added
+- `tests/test_launcher.py` — two tests: `test_primes_enabled_agents_env` and `test_does_not_override_operator_env`. Regression guard: removing the `setdefault` from `launcher.main()` causes these to fail immediately.
+- `TestEnabledAgents` class in `tests/test_cli.py` — same two assertions for `cli.main()`.
+
+### Changed
+- `pyproject.toml`: replaced static `version = "0.8.2"` with `dynamic = ["version"]` + `[tool.setuptools.dynamic]` pointing to `agentsuitelocal.__version__.__version__`. `__version__.py` is now the single source of truth; `pyproject.toml` has no independent version string that can drift.
+- `tests/test_execution.py`: removed inline `os.environ.setdefault(...)` calls from `test_execute_run_dispatches_non_founder_agent` and `test_execute_pipeline_step_dispatches_non_founder_agent`. Replaced with `_all_agents_enabled` pytest fixture (uses `monkeypatch`). Failure signals are now clean: entry-point tests fail for entry-point regressions; execution tests fail for execution regressions.
+- `README.md`: bumped version header to `v0.8.2`, updated installer filename references, updated `/api/version` example, updated data-flow description (PipelineOrchestrator → BaseAgent.run()), updated Known Issues header, removed stale v0.1.2 commit-SHA bullet, added Recent releases table.
+
 ## [0.8.2] — 2026-05-04
 
 ### Fixed

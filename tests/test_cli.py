@@ -6,6 +6,7 @@ rather than patching a module-level attribute.
 
 from __future__ import annotations
 
+import os
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -99,6 +100,32 @@ class TestCustomArgs:
             main()
         _, kwargs = uv.run.call_args
         assert kwargs["reload"] is True
+
+
+class TestEnabledAgents:
+    def test_cli_main_primes_enabled_agents_env(self, monkeypatch):
+        """cli.main() must set AGENTSUITE_ENABLED_AGENTS to all seven agents."""
+        monkeypatch.delenv("AGENTSUITE_ENABLED_AGENTS", raising=False)
+        uv = _mock_uvicorn()
+        with (
+            patch.object(sys, "argv", ["agentsuitelocal", "--no-browser"]),
+            patch.dict(sys.modules, {"uvicorn": uv}),
+        ):
+            main()
+        val = os.environ.get("AGENTSUITE_ENABLED_AGENTS", "")
+        for agent in ("founder", "design", "product", "engineering", "marketing", "trust_risk", "cio"):
+            assert agent in val, f"'{agent}' missing from AGENTSUITE_ENABLED_AGENTS={val!r}"
+
+    def test_does_not_override_operator_env(self, monkeypatch):
+        """cli.main() must not overwrite an operator-set AGENTSUITE_ENABLED_AGENTS."""
+        monkeypatch.setenv("AGENTSUITE_ENABLED_AGENTS", "founder,design")
+        uv = _mock_uvicorn()
+        with (
+            patch.object(sys, "argv", ["agentsuitelocal", "--no-browser"]),
+            patch.dict(sys.modules, {"uvicorn": uv}),
+        ):
+            main()
+        assert os.environ["AGENTSUITE_ENABLED_AGENTS"] == "founder,design"
 
 
 class TestUvicornMissing:

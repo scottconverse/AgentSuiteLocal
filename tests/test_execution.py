@@ -30,6 +30,20 @@ def _clear_runs():
     _runs.clear()
 
 
+@pytest.fixture
+def _all_agents_enabled(monkeypatch):
+    """Prime AGENTSUITE_ENABLED_AGENTS as the entry points do at startup.
+
+    Applied explicitly to non-founder tests so that removing the setdefault
+    from launcher.py / cli.py causes test_launcher.py / test_cli.py to fail,
+    not these tests — keeping failure signals clear.
+    """
+    monkeypatch.setenv(
+        "AGENTSUITE_ENABLED_AGENTS",
+        "founder,design,product,engineering,marketing,trust_risk,cio",
+    )
+
+
 def _make_run(run_id: str, agent_id: str = "founder", project: str = "exec-test") -> dict:
     run = {
         "id": run_id,
@@ -89,18 +103,13 @@ async def test_execute_run_completes_without_module_not_found_error():
     assert run["agentsuite_run_id"] == "agentsuite-test-run-id"
 
 
-async def test_execute_run_dispatches_non_founder_agent():
+async def test_execute_run_dispatches_non_founder_agent(_all_agents_enabled):
     """_execute_run must reach status='waiting' for a non-founder agent.
 
     Regression guard for the AGENTSUITE_ENABLED_AGENTS footgun: without
     the setdefault in launcher.py/cli.py, get_class('design') raises
     UnknownAgent and the run lands in status='error'.
     """
-    import os
-    os.environ.setdefault(
-        "AGENTSUITE_ENABLED_AGENTS",
-        "founder,design,product,engineering,marketing,trust_risk,cio",
-    )
 
     run_id = "run-exec-test-design-001"
     req = RunRequest(agent_id="design", goal="Design integration test", project="exec-test")
@@ -127,18 +136,13 @@ async def test_execute_run_dispatches_non_founder_agent():
     assert run["agentsuite_run_id"] == "agentsuite-design-run-id"
 
 
-async def test_execute_pipeline_step_dispatches_non_founder_agent():
+async def test_execute_pipeline_step_dispatches_non_founder_agent(_all_agents_enabled):
     """_execute_pipeline_step must complete for a non-founder agent.
 
     Covers the second shim site (line ~305 in execution.py), which had
     zero test coverage. Also guards against the AGENTSUITE_ENABLED_AGENTS
     footgun for pipeline runs.
     """
-    import os
-    os.environ.setdefault(
-        "AGENTSUITE_ENABLED_AGENTS",
-        "founder,design,product,engineering,marketing,trust_risk,cio",
-    )
 
     from agentsuitelocal.api.execution import _execute_pipeline_step
     from agentsuitelocal.api.state import _pipelines
