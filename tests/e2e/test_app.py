@@ -2,6 +2,9 @@
 E2E: Main app screens — verifies all 7 sidebar nav items render and the
 New Run → Cancel round-trip works. Each test walks the full installer first
 to reach the app; the installer flow is also a regression guard for step 8.
+
+UX-1: installer is 5 steps (Welcome → License → Hardware & model →
+Ollama & model → Ready). Tests reflect the combined screen headings.
 """
 
 import httpx
@@ -10,7 +13,7 @@ from playwright.sync_api import Page, expect
 
 
 def _enter_app(page: Page, base_url: str) -> None:
-    """Walk the installer to reach the main app."""
+    """Walk the 5-step installer to reach the main app."""
     page.goto(base_url)
 
     # Step 1 — Welcome
@@ -22,32 +25,19 @@ def _enter_app(page: Page, base_url: str) -> None:
     page.get_by_role("checkbox").check()
     page.get_by_role("button", name="I agree").click()
 
-    # Step 3 — Hardware (async probe)
-    # networkidle ensures the /api/hardware call has completed before asserting heading visibility
+    # Step 3 — Hardware & model (UX-1: combined screen; async probe disables Continue)
+    # networkidle ensures /api/hardware has responded before we assert the heading
     page.wait_for_load_state("networkidle")
-    expect(page.get_by_role("heading", name="Checking your hardware")).to_be_visible(timeout=15000)
-    expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=12000)
+    expect(page.get_by_role("heading", name="Hardware & model")).to_be_visible(timeout=15000)
+    expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=15000)
     page.get_by_role("button", name="Continue").click()
 
-    # Steps 4–9: Pick a model → Ollama → Model download → Python → Agents → API keys
-    for heading in [
-        "Pick a model",
-        "Ollama runtime",
-        "Downloading model",
-        "Setting up the runtime",
-        "Pick your agents",
-        "Cloud fallback (optional)",
-    ]:
-        expect(page.get_by_role("heading", name=heading)).to_be_visible(timeout=5000)
-        expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=15000)
-        page.get_by_role("button", name="Continue").click()
-
-    # Step 10 — Smoke test (can be slow on first run; allow 30s)
-    expect(page.get_by_role("heading", name="First-run smoke test")).to_be_visible(timeout=5000)
-    expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=30000)
+    # Step 4 — Ollama & model (UX-1: combined screen; disabled until model verified)
+    expect(page.get_by_role("heading", name="Ollama & model")).to_be_visible(timeout=5000)
+    expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=120000)
     page.get_by_role("button", name="Continue").click()
 
-    # Step 11 — Launch
+    # Step 5 — Ready
     expect(page.get_by_text("You're set up.")).to_be_visible(timeout=5000)
     page.get_by_role("button", name="Launch AgentSuiteLocal").click()
 
@@ -144,7 +134,7 @@ def test_runs_list_shows_seeded_run(app_page: Page):
     # Full approval-gate flow requires a waiting run from actual agent execution;
     # tested separately when Ollama is available and agents complete.
     r = httpx.post(
-        "http://127.0.0.1:8766/api/run",
+        "http://127.0.0.1:8765/api/run",
         json={"agent_id": "founder", "goal": "E2E runs list test", "project": "e2e-test"},
     )
     assert r.status_code == 200
