@@ -985,24 +985,34 @@ def test_run_timeout_seconds_in_settings():
 
 def test_crash_recovery_sets_running_runs_to_error():
     """load_state must repair running → error on startup (F1)."""
-    from agentsuitelocal.api.state import _load_state, _runs
-    run_id = "test-crash-recovery"
-    _runs[run_id] = {"id": run_id, "status": "running", "agent": "founder", "project": "p",
-                     "goal": "g", "started_at": 0, "events": [], "artifacts": [], "qa_score": None,
-                     "qa_dimensions": []}
-    # Simulate saving and reloading by calling _load_state with patched file
     import json
+    import sqlite3
     import tempfile
     from pathlib import Path
     from unittest.mock import patch
-    tmp = Path(tempfile.mktemp(suffix=".json"))
-    tmp.write_text(json.dumps({run_id: _runs[run_id]}))
+
+    from agentsuitelocal.api.state import _load_state, _runs
+
+    run_id = "test-crash-recovery"
+    run_data = {"id": run_id, "status": "running", "agent": "founder", "project": "p",
+                "goal": "g", "started_at": 0, "events": [], "artifacts": [], "qa_score": None,
+                "qa_dimensions": []}
+
+    # Seed a temp SQLite DB with a "running" run, then reload from it
+    tmp_db = Path(tempfile.mktemp(suffix=".db"))
+    conn = sqlite3.connect(str(tmp_db))
+    conn.execute("CREATE TABLE runs (id TEXT PRIMARY KEY, data TEXT NOT NULL, started_at REAL)")
+    conn.execute("CREATE TABLE pipelines (id TEXT PRIMARY KEY, data TEXT NOT NULL)")
+    conn.execute("INSERT INTO runs VALUES (?, ?, ?)", (run_id, json.dumps(run_data), 0))
+    conn.commit()
+    conn.close()
+
     _runs.clear()
-    with patch("agentsuitelocal.api.state._RUNS_FILE", tmp):
+    with patch("agentsuitelocal.api.state._DB_FILE", tmp_db):
         _load_state()
     assert _runs[run_id]["status"] == "error"
     assert "restarted" in _runs[run_id].get("error", "")
-    tmp.unlink(missing_ok=True)
+    tmp_db.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
