@@ -104,9 +104,14 @@ def test_runtime_verify_endpoint_lists_every_declared_dep() -> None:
     from agentsuitelocal.api.routers import ollama as ollama_router
 
     src = Path(ollama_router.__file__).read_text()
+    declared = set(_declared_deps())
     # The endpoint reports a curated subset; require at minimum that the
-    # ones most likely to break first runs are checked.
+    # ones most likely to break first runs are checked, AND that each is
+    # actually declared in pyproject.toml (catches typos in the must_check set).
     must_check = {"agentsuite", "ollama", "anthropic", "openai", "mcp", "keyring"}
+    assert must_check.issubset(declared), (
+        f"must_check has names not in pyproject.toml: {must_check - declared}"
+    )
     missing = [name for name in must_check if f'"{name}"' not in src]
     assert not missing, (
         f"runtime_verify() does not check these critical deps: {missing}. "

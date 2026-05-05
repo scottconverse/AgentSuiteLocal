@@ -7,7 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Fixed (audit round 2 — 2026-05-05)
+_Nothing pending._
+
+## [0.8.8] — 2026-05-05
+
+This release started life as a CHANGELOG-correction patch and grew into a substantial bug-fix release. Three audit rounds produced 28 Critical/Major fixes plus the v0.8.7 broken-bundle remediation. All fixes were authored, reviewed, and validated within a single sprint window; per-finding detail lives in `audit-AgentSuiteLocal-2026-05-05/`.
+
+### Fixed (broken-v0.8.7-bundle remediation, `bf74eb3`)
+
+- **`ollama` SDK was missing from runtime dependencies** (`57ab097`): SDK was assumed-imported in installer/model-management code paths but never declared in `pyproject.toml`'s runtime deps, so wheel installs and frozen builds failed on first `import ollama` outside the dev environment. This is the headline regression — every other remediation in this round exists because v0.8.7's structural gaps allowed it to ship.
+- **Installer flow re-adds Smoke as Step 5** (was dead code in v0.8.7): `web/src/App.jsx` `TOTAL_STEPS` 5→6; `STEP_FIX_MAP` keys re-aligned to the labels actually emitted by `/api/smoke` (old keys were stale, so failed users saw no fix guidance). E2E walks all 6 steps.
+- **Smoke now exercises the real Python kernel path**: `/api/smoke` constructs an `OllamaProvider` via the same `_resolve_llm` New Run uses, then issues a 1-token completion via `provider.complete`. Until v0.8.7 the smoke test verified the *environment* (Ollama daemon healthy) but never the *app* (Python bundle can resolve and call a provider) — exactly why a build with a missing `ollama` SDK passed install and broke on first New Run.
+- **Ollama install starts the daemon explicitly + 90s wait + actionable error**: the Windows installer auto-launches a desktop GUI but does not reliably start the API daemon. We now `Popen` `ollama serve` ourselves, then poll for 90s (was 30s — too tight on first boot with AV scan + GPU detection + tray handshake). Failure message points to the exact PowerShell command instead of a vague "Try launching Ollama manually."
+- **WeasyPrint PDF export: graceful "PDF unavailable in this build"**: the bundled distributable doesn't ship GTK runtime libs (cairo/pango/gdk-pixbuf). Telling end users to `pip install weasyprint` is advice they can't act on (no `pip` in a PyInstaller bundle, and the native libs are still missing). Now returns a clear "use ZIP/Markdown instead" error, with both `ImportError` and `OSError` (missing native libs) branches handled.
+- **Resolver stops swallowing real failures into silent `None`**: `_resolve_llm` previously had `except Exception: return None`, which hid both the missing-`ollama`-SDK bug AND a separate `OllamaProvider(model=…)` → `OllamaProvider(default_model=…)` kwarg mismatch. Now logs the failure (traceback at ERROR level) and stores it in a module-level snapshot retrievable via `get_last_resolver_error()`.
+- **SSE keepalive comments no longer break installer fetch-stream parsers** (`b5fc36b`): four installer screens (`ScreenModelDownload`, `ScreenOllama`, two paths in `ScreenOllamaModel`) consume server-sent-event streams via `fetch` + `ReadableStream`. `sse-starlette` periodically emits `: ping - N` keepalive comments, which the hand-rolled parsers were treating as malformed event data. Fixed by skipping any line beginning with `:` (per the SSE spec for comments).
+
+### Fixed (audit round 1 — 12 Criticals + 8 Majors, `7d3a24a`)
+
+- **UX-001:** strip CLI exposure from macOS install fallback copy. `ScreenOllama.jsx` and `ScreenOllamaModel.jsx` no longer tell Mac users to run `brew install ollama` in Terminal. Both screens now route to the same osascript-with-admin install path used by the Windows .exe runner. User-manual / FAQ / architecture docs rewritten in the same pass.
+- **DOC-001 / DOC-002 / DOC-004 / DOC-005:** replace stale 11-step / 5-step installer descriptions with the actual 6-step flow. `ManualView.jsx`, `docs/user-manual.md`, `docs/architecture.md`, `docs/FAQ.md` all updated to match `App.jsx TOTAL_STEPS=6`. ManualView trailing note now points to Settings for cloud key / agent selection.
+- **DOC-003:** rewrite `SECURITY.md` to reflect OS-keychain reality. Old doc claimed API keys live in `settings.json` — they have actually been stored in Windows Credential Manager / macOS Keychain / Secret Service since v0.7.1.
+- **TEST-002:** document cleanroom proxy limitation in `start.sh` so future maintainers know cold-pull / SSE-keepalive bug classes are architecturally invisible to cleanroom.
+- **TEST-003:** new `tests/e2e/test_new_run.py` walks 6-step installer → Dashboard → New Run → asserts orchestrator dispatches without immediate failure. Honors `AGENTSUITE_LLM_PROVIDER_FACTORY` for mock injection. Closes the gap where the agent code path was untested at the UI level — exactly what the v0.8.7 missing-SDK bug crashed.
+- **QA-001:** stop hardcoding port 8765 in places the launcher's free-port fallback breaks. `launcher.py` writes `~/.agentsuitelocal/launcher.port.json` (single-purpose JSON, separate from the plaintext log being corrupted by overlapping writes). Inno uninstall hook reads it via PowerShell instead of POSTing to a hardcoded `:8765/api/uninstall`. `execution.py` notification `action_url` uses `_read_launcher_port()`.
+- Plus 12 additional Critical/Major findings closed in this round; full IDs in `audit-AgentSuiteLocal-2026-05-05/`.
+
+### Fixed (audit round 2 — 5 Criticals + 8 Majors, `2445268`)
 
 - **Major — Windows console-flicker bug:** `subprocess.run(["ollama", "--version"])` from `/api/ollama/status` flashed a console window on every poll because the `--windowed` PyInstaller bundle has no parent console. Frontend polls every few seconds. Added `creationflags=CREATE_NO_WINDOW` to that call and to the uninstall `ollama rm` call. Indistinguishable from malware to non-technical users.
 - **In-app uninstall discoverability:** added "Uninstall" entry to sidebar with red treatment, scrolls Settings to Danger zone on click. Settings panel was already correct — users couldn't find it without scrolling.
@@ -21,41 +47,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **QA-203:** `/api/smoke` calls `raise_for_status()` after `/api/generate` — a 5xx no longer marks probes green.
 - **QA-204:** "Open Ollama" button checks `response.ok` — 404 (Ollama not installed) no longer treated as success.
 - **QA-205:** `_resolve_llm` serialized via `_resolver_lock` — concurrent callers can't race on scoped env restoration.
-- **TEST2-001:** mock-factory env vars set in conftest before backend import + in CI workflow Start-backend step. New sentinel-file assertion in test_new_run.py proves mock ran in CI.
+- **TEST2-001:** mock-factory env vars set in conftest before backend import + in CI workflow Start-backend step. New sentinel-file assertion in `test_new_run.py` proves mock ran in CI.
 - **UX2-001:** added `<Icon name="open" />` definition. Mac smoke recovery button no longer has phantom gap.
-- **UX-004:** Live Run no longer fakes a token counter (was `setTokens(t => t + 18)` per stage_update). Cost line is "Local — no cloud cost".
+- **UX-004:** Live Run no longer fakes a token counter (was `setTokens(t => t + 18)` per `stage_update`). Cost line is "Local — no cloud cost".
 - **UX-005:** Run-failed dead-end replaced with Retry / Open Settings / Diagnostic / Back. Retry uses the new state-guarded endpoint.
-- **DOC2-001:** docs/user-manual.md tier→model table was wrong (`gemma2:2b` / `llama3.1:8b`); aligned to canonical map (`gemma4:e2b` / `gemma4:e4b` / `gemma4:26b-moe`).
+- **DOC2-001:** `docs/user-manual.md` tier→model table was wrong (`gemma2:2b` / `llama3.1:8b`); aligned to canonical map (`gemma4:e2b` / `gemma4:e4b` / `gemma4:26b-moe`).
 - **DOC2-003 / DOC2-004:** README architecture section updated — `main.py` no longer described as 2000-line monolith; installer screens reflect 6-screen active flow.
-- **CLI exposure removed from user-manual.md:** "pull custom models from the terminal" rewritten — regression from round-1 doc rewrite.
+- **CLI exposure removed from `user-manual.md`:** "pull custom models from the terminal" rewritten — regression from round-1 doc rewrite.
+
+### Fixed (audit round 3 — 3 Criticals + 5 Majors, `1a433ec`)
+
+- **ENG-R3-001 (Critical) — `threading.Lock` in async event loop:** the QA-205 lock was acquired sync from inside 5 async route handlers and 1 async smoke endpoint — a contended sync lock blocks the FastAPI event loop while one resolver waits on another. Converted `_resolve_llm` to async, replaced `threading.Lock` with `asyncio.Lock`, ran the sync constructor body in a threadpool via `asyncio.to_thread`. All 5 call sites in `execution.py` + 1 in `routers/ollama.py` updated to `await`.
+- **DOC3-001 (Critical) — tier→model fan-out:** DOC2-001 only landed in `docs/user-manual.md`. Searched the whole repo for `gemma2:2b` / `llama3.1:8b` — found 13 references. Updated `docs/architecture.md` tier diagram, both discussion seeds, the ManualView recommended-models table, and the SettingsView uninstall-path fallback. CI workflow / CONTRIBUTING / known-issues notes left alone (legitimate test references).
+- **QA3-301 (Critical) — in-app uninstall now re-elevates:** `/api/uninstall/phase3` was launching `unins000.exe` via plain `subprocess.Popen`, inheriting the backend's non-admin token, so the uninstaller silently failed to remove Program Files entries and registry keys. Now uses `ctypes ShellExecuteW` with the `runas` verb to prompt UAC. Falls back to plain `Popen` for LocalAppData installs where elevation isn't required.
+- **UX3-001 (Major) — `retryError` state set but never rendered:** QA-201 added 3 `setRetryError()` branches with no JSX referencing them — silent failure on 409 / non-OK HTTP / network errors. Inline error display added.
+- **ENG-R3-002 (Major) — factory allowlist segment-boundary:** ENG-R2-003 used string-prefix match. That accepts e.g. `agentsuite.llm.mock_evil`. Replaced with segment-boundary match: `module_name == m or module_name.startswith(m + ".")`.
+- **ENG-R3-003 (Major) — `os.replace` Windows share-violation:** ENG-R2-005's atomic write failed with `PermissionError` when the destination was held open by a concurrent reader. Added a 5-attempt retry loop (≤500ms total) before giving up; cleans up the `.tmp` on final failure rather than leaving a torn artifact.
+- **ENG-R3-004 / QA3-302 (Major) — retry endpoint snapshot + ValidationError:** `/api/run/{id}/retry` was reading individual fields from `_runs[id]` one at a time — concurrent `/cancel` could mutate state mid-handler producing a torn view. Snapshot the run dict at the top of the handler. Also catches `pydantic.ValidationError` so legacy run records with stale shapes return 422 with a clear message instead of crashing with 500.
 
 ### Added
 
+- **Bundle-dependency CI guard** (`c349453`, `tests/test_dependencies.py`): catches missing-runtime-dependency bugs (like the `ollama` SDK fix above) at CI time rather than first user run. Inspects `pyproject.toml` and verifies every top-level `import` outside the test tree resolves to a declared dependency. Plus four hot-path import tests that exercise the real `OllamaProvider` constructor and `_resolve_llm` path with no patching — closing the gap where execution-test mocking masked the original missing-SDK bug.
+- **Installer Ollama-window UX warning** (`1622157`): `ScreenOllama` warns users that the Ollama desktop window may open during install/launch and is safe to close — closing it does not affect the daemon, which keeps running in the background.
 - Sidebar **Uninstall** nav entry (red treatment, scrolls Settings to Danger zone).
 - `_LAST_CLOUD_FALLBACK_REASON` snapshot in `execution.py`, surfaced via `/api/health` so cloud-key misconfiguration is no longer silent.
-- Sentinel-file mechanism in `tests/e2e/test_new_run.py` proving the mock factory was invoked in CI rather than silently falling back to real Ollama.
-
-## [0.8.8] — 2026-05-05
-
-### Fixed
-
-- **SSE keepalive comments no longer break installer fetch-stream parsers** (`b5fc36b`): four installer screens (`ScreenModelDownload`, `ScreenOllama`, two paths in `ScreenOllamaModel`) consume server-sent-event streams via `fetch` + `ReadableStream`. `sse-starlette` periodically emits `: ping - N` keepalive comments, which the hand-rolled parsers were treating as malformed event data. Fixed by skipping any line beginning with `:` (per the SSE spec for comments).
+- Sentinel-file mechanism in `tests/e2e/test_new_run.py` proving the mock factory was actually invoked in CI rather than silently falling back to real Ollama.
 
 ### Changed
 
-- **Shared SSE parser helper** (`be967de`): the four duplicated fetch-stream parsers above were extracted into `web/src/utils/sseStream.js` (an async generator that consumes a `ReadableStream` reader and yields parsed event objects, skipping comments, non-`data:` control frames, and unparseable payloads). New regression test `web/src/utils/sseStream.test.js` exercises the keepalive-ping case directly — a path neither cleanroom nor CI hits naturally because cached Ollama pulls finish before `sse-starlette`'s first ping. Net −68 lines across the four installer screens.
+- **Shared SSE parser helper** (`be967de`): the four duplicated fetch-stream parsers extracted into `web/src/utils/sseStream.js` (an async generator that consumes a `ReadableStream` reader and yields parsed event objects, skipping comments, non-`data:` control frames, and unparseable payloads). New regression test `web/src/utils/sseStream.test.js` exercises the keepalive-ping case directly — a path neither cleanroom nor CI hits naturally because cached Ollama pulls finish before `sse-starlette`'s first ping. Net −68 lines across the four installer screens.
 - **Top-of-README installer banner** (`b6df837`): redirects users away from the green "Code → Download ZIP" button toward the Releases page, with the current `.exe` and `.dmg` filenames called out.
+- Lint cleanup commits (`5c59243`, `6e51c2c`, `5dc067b`, `59a9e25`) chase ruff E402/I001/UP036/F841 across the audit-fix landings; one of them carries the `noqa: E402` on `tests/e2e/conftest.py` because the env-var setup must precede the backend import.
 
 ### Documentation
 
 - **Backfill v0.8.7 CHANGELOG with Issue #16 CI lint gate details**: the v0.8.7 entry now documents `scripts/check_action_node_versions.py`, the CI lint step that invokes it, and the exact SHA-pin checking logic that closes Issue #16.
 - **Corrected v0.8.7 test metrics**: the "135 → 129" apparent decrease was a filter difference, not test removal. v0.8.6 reported the filtered count but labelled it as "135 passing" — that was a reporting error. The v0.8.7 entry now includes an explicit note clarifying the discrepancy.
-- **Landing page (`docs/index.html`) refreshed to v0.8.8**: hero badge, nav download button, download CTA section, .exe/.dmg release URLs, footer version label, and "Release notes" link all updated from the stale v0.7.1 references. SHA256 inline checksums replaced with a link to the release page (which always carries the canonical hashes for the current build).
-- **Discussion seeds refreshed**: `docs/community/github-discussions-welcome.md` now reflects v0.8.8 as the current line and v0.7.0 as historical context. `docs/community/reddit-localllama-launch.md` reframed from a v0.7.0 launch announcement into an evergreen r/LocalLLaMA intro post; download filename and current-version reference both bumped to 0.8.8.
-- **`docs/user-manual.md` heading and a v0.7.0-qualified UI behaviour note updated** — manual heading is now v0.8.8; the "edit artifacts before approving" answer drops the version qualifier (the behaviour hasn't changed).
-- **`docs/architecture.md` version qualifier removed** — the "as of v0.7.1" markers next to the route count and the `test_api.py` description are now timeless rather than pinned to a stale tag. Counts left approximate; a deeper recount is out of scope for v0.8.8.
+- **Landing page (`docs/index.html`) refreshed to v0.8.8**: hero badge, nav download button, download CTA section, .exe/.dmg release URLs, footer version label, and "Release notes" link all updated from the stale v0.7.1 references. SHA256 inline checksums replaced with a link to the release page (which carries the canonical hashes for the current build).
+- **Discussion seeds refreshed**: `docs/community/github-discussions-welcome.md` reflects v0.8.8 as current and v0.7.0 as historical context. `docs/community/reddit-localllama-launch.md` reframed from a v0.7.0 launch announcement into an evergreen r/LocalLLaMA intro post; download filename and current-version reference both bumped to 0.8.8.
+- **`docs/user-manual.md` heading and a v0.7.0-qualified UI behaviour note updated** — manual heading is now v0.8.8.
+- **`docs/architecture.md` version qualifier removed** — the "as of v0.7.1" markers next to the route count and the `test_api.py` description are now timeless.
 
-> Commit `fe6be9c` (docs: backfill v0.8.7 CHANGELOG with Issue #16 material and test-metrics correction) was already on `main` before this version bump. This release formalises that commit under v0.8.8 and bundles the doc-consistency refresh above.
+> Commit `fe6be9c` (docs: backfill v0.8.7 CHANGELOG with Issue #16 material and test-metrics correction) was already on `main` before this version bump. This release formalises that commit under v0.8.8 and bundles all of the above.
 
 ## [0.8.7] — 2026-05-05
 
