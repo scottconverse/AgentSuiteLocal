@@ -78,7 +78,7 @@ If you're not sure whether a change is in scope, open a discussion before writin
 
 ## A note on the model quality ceiling
 
-Output quality is bounded by your model. The fast tier (gemma2:2b) is enough to see the workflow in action but is not good enough for outputs you'd actually use. The balanced tier (gemma4:e4b) produces substantially better results and runs in reasonable time on 16 GB RAM. The powerful tier (llama3.1:8b) is the best locally available option but requires more RAM and takes longer.
+Output quality is bounded by your model. The Light tier (`gemma4:e2b`) is enough to see the workflow in action but is not good enough for outputs you'd actually use. The Balanced tier (`gemma4:e4b`) produces substantially better results and runs in reasonable time on 16 GB RAM. The Pro tier (`gemma4:26b-moe`) is the best locally available option but requires 32 GB RAM and takes longer.
 
 If you have an Anthropic API key, the Settings panel lets you configure a Claude model as a cloud fallback. Cloud runs produce the best output quality but send your goal and context to Anthropic's servers and incur API costs.
 

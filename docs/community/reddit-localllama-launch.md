@@ -30,7 +30,7 @@ Models are managed through Ollama. The installer walks you through pulling a mod
 
 **Honest limitations**
 
-- Output quality is entirely dependent on your model. gemma2:2b (the default fast tier) produces noticeably worse output than llama3.1:8b. The balanced tier (gemma4:e4b) is a reasonable middle ground if you have 8 GB VRAM.
+- Output quality is entirely dependent on your model. The Light tier (`gemma4:e2b`, 8 GB RAM) is enough to see the workflow but not for outputs you'd ship. The Balanced tier (`gemma4:e4b`, 16 GB RAM) is a reasonable middle ground. The Pro tier (`gemma4:26b-moe`, 32 GB RAM) is the best locally available option but takes longer.
 - Runs take 8–25 minutes depending on model and hardware. The live view shows per-stage progress, but there's no magic speed-up.
 - PDF export requires weasyprint, which has its own system dependencies. If PDF export fails, ZIP and Markdown export work without any extra dependencies.
 - macOS build is `.app` only for now — no signed DMG yet, so Gatekeeper will block it on first launch until you right-click-open.

@@ -133,17 +133,21 @@ def test_ollama_provider_constructs_without_patching() -> None:
     assert provider.name == "ollama"
 
 
-def test_resolve_llm_returns_provider_for_default_settings() -> None:
+async def test_resolve_llm_returns_provider_for_default_settings() -> None:
     """End-to-end test of the real _resolve_llm path with no patching.
 
     Existing execution tests patch _resolve_llm out, so the swallowed
     `except Exception: return None` path was masking BOTH a missing
     `ollama` dep AND a constructor kwarg mismatch. This test catches
     either by demanding a real provider object back.
+
+    ENG-R3-001: _resolve_llm is async since round-3 (asyncio.Lock instead
+    of threading.Lock). Test is async; pytest-asyncio with asyncio_mode=auto
+    handles it. await is required.
     """
     from agentsuitelocal.api.execution import _resolve_llm, get_last_resolver_error
 
-    provider = _resolve_llm({"model_tier": "balanced"})
+    provider = await _resolve_llm({"model_tier": "balanced"})
     assert provider is not None, (
         f"_resolve_llm returned None for a default Ollama config. "
         f"Recorded error: {get_last_resolver_error()}\n"
@@ -157,7 +161,7 @@ def test_resolve_llm_returns_provider_for_default_settings() -> None:
     assert get_last_resolver_error() is None
 
 
-def test_resolve_llm_records_error_on_failure() -> None:
+async def test_resolve_llm_records_error_on_failure() -> None:
     """When _resolve_llm fails, the error must be retrievable via
     get_last_resolver_error() so the smoke screen and /api/runtime/verify
     can surface WHY local LLM resolution failed instead of returning a
@@ -169,7 +173,7 @@ def test_resolve_llm_records_error_on_failure() -> None:
     # Force the OllamaProvider import to raise a deterministic error.
     sentinel = ImportError("ollama: simulated missing SDK for test")
     with patch("agentsuite.llm.ollama.OllamaProvider", side_effect=sentinel):
-        provider = _resolve_llm({"model_tier": "balanced"})
+        provider = await _resolve_llm({"model_tier": "balanced"})
     assert provider is None
     err = get_last_resolver_error()
     assert err is not None

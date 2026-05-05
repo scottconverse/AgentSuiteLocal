@@ -99,12 +99,11 @@ def main() -> None:
         print(f"AgentSuiteLocal failed to start on port {port}.", file=sys.stderr)
         sys.exit(1)
 
-    # ENG-R2-005 fix: write launcher.port.json AFTER the server has bound
-    # the port (consumers seeing a port number in the file should be able to
-    # trust it's actually serving), and write atomically via os.replace so
-    # readers never see a torn / half-written file. The previous code wrote
-    # before bind, which meant the Inno uninstall hook could POST to a port
-    # that wasn't accepting connections yet.
+    # ENG-R2-005 / ENG-R3-003 fix: write launcher.port.json AFTER bind, atomically.
+    # On Windows, os.replace fails with PermissionError (share violation) when the
+    # destination is held open by another reader (e.g. PowerShell's Get-Content -Raw
+    # in the Inno uninstall hook). Retry briefly to avoid leaving a stale port file
+    # in the user's home directory.
     try:
         import json as _json
         port_dir = os.path.join(os.path.expanduser("~"), ".agentsuitelocal")
@@ -113,7 +112,24 @@ def main() -> None:
         tmp_file = port_file + ".tmp"
         with open(tmp_file, "w") as f:
             _json.dump({"port": port, "ts": time.time()}, f)
-        os.replace(tmp_file, port_file)  # atomic on Windows + POSIX
+        # Retry os.replace up to 5 times (≤500ms total) for Windows share-violation.
+        last_exc = None
+        for attempt in range(5):
+            try:
+                os.replace(tmp_file, port_file)
+                last_exc = None
+                break
+            except PermissionError as _pe:
+                last_exc = _pe
+                time.sleep(0.1)
+        if last_exc is not None:
+            # Couldn't atomically replace — clean up the .tmp and log. Better to
+            # leave the previous port file (possibly stale) than a torn file.
+            try:
+                os.unlink(tmp_file)
+            except OSError:
+                pass
+            _log(f"could not atomically write launcher.port.json after 5 retries: {last_exc}")
     except Exception as _exc:  # noqa: BLE001
         _log(f"could not write launcher.port.json: {_exc}")
 

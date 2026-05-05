@@ -163,7 +163,17 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel, onRetry, onOpenS
             <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 12 }}>
               {error || "An unexpected error occurred."}
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {/* UX3-001 fix: retryError state is now actually rendered. The
+                round-3 retry button set it on 3 branches (409, non-OK, catch)
+                but no JSX referenced it — silent failures, especially the 409
+                "can't retry from current state" case. Show inline above the
+                action row when set. */}
+            {retryError && (
+              <div role="alert" style={{ fontSize: 12, color: "var(--bad)", marginBottom: 10, padding: "6px 10px", background: "var(--bg)", border: "1px solid var(--bad)", borderRadius: 6 }}>
+                {retryError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <button className="btn btn-sm btn-primary" disabled={retrying} onClick={async () => {
                 // UX-005 / QA-201 / ENG-R2-001: server-side retry. Re-fetches
                 // run record under the existing view (no hash navigation —
@@ -171,6 +181,7 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel, onRetry, onOpenS
                 // in flight to prevent double-click duplicates.
                 if (retrying) return;
                 setRetrying(true);
+                setRetryError(null);
                 try {
                   const r = await fetch(`/api/run/${runId}/retry`, { method: "POST" });
                   if (r.status === 409) {
@@ -192,17 +203,21 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel, onRetry, onOpenS
               <button className="btn btn-sm" onClick={() => onOpenSettings && onOpenSettings()}>
                 <Icon name="settings" size={12} /> Open Settings
               </button>
-              <details style={{ marginLeft: "auto", fontSize: 11 }}>
+              <button className="btn btn-sm" onClick={onCancel}>
+                <Icon name="chevL" size={12} /> Back to Dashboard
+              </button>
+              {/* UX2-002 fix: Diagnostic moved AFTER the action buttons, no
+                  marginLeft:auto layout hack. Reads naturally as
+                  "[Retry] [Settings] [Back] · Diagnostic ▸". */}
+              <details style={{ fontSize: 11, marginLeft: "auto" }}>
                 <summary style={{ cursor: "pointer", color: "var(--ink-3)" }}>Diagnostic</summary>
                 <pre style={{ marginTop: 8, padding: 10, background: "var(--bg-tint)", borderRadius: 6, fontSize: 10, overflow: "auto", maxWidth: 600 }}>
                   Run ID: {runId}{"\n"}
                   Error: {error || "(none)"}{"\n"}
+                  {retryError ? `Last retry attempt: ${retryError}\n` : ""}
                   See Settings → Verify Integrity for the full health snapshot.
                 </pre>
               </details>
-              <button className="btn btn-sm" onClick={onCancel}>
-                <Icon name="chevL" size={12} /> Back to Dashboard
-              </button>
             </div>
           </div>
         </div>

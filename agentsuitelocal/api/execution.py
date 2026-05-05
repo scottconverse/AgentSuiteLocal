@@ -59,11 +59,17 @@ def get_last_cloud_fallback_reason() -> str | None:
     return _LAST_CLOUD_FALLBACK_REASON
 
 
-# QA-205: serialize _resolve_llm calls so concurrent invocations (UI
-# double-click on Retry, parallel smoke + new-run from same client) don't
-# stomp on the ANTHROPIC_API_KEY scoped-env restoration window or invert
-# the resolver-error snapshot.
-_resolver_lock = threading.Lock()
+# QA-205 / ENG-R3-001: serialize _resolve_llm calls so concurrent invocations
+# (UI double-click on Retry, parallel smoke + new-run from same client) don't
+# stomp on the ANTHROPIC_API_KEY scoped-env restoration window or invert the
+# resolver-error snapshot.
+#
+# asyncio.Lock (NOT threading.Lock) — _resolve_llm is called from async route
+# handlers and async pipeline coroutines. A sync threading.Lock in that path
+# blocks the FastAPI event loop while one resolver waits on another (audit
+# round-3 ENG-R3-001). asyncio.Lock yields to the loop while waiting; the
+# threadpool work itself stays sync via asyncio.to_thread.
+_resolver_lock = asyncio.Lock()
 
 
 _QA_KEY_RE = re.compile(r"[./]")
@@ -123,39 +129,51 @@ def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
     })
 
 
-def _resolve_llm(settings: dict) -> Any:
+async def _resolve_llm(settings: dict) -> Any:
     """Build an LLM provider from persisted settings.
 
     G1: tier maps to concrete model name.
     G2: if api_key set AND model starts with 'claude-', use Anthropic.
-    QA-205: thread-locked so concurrent callers can't race on the scoped
-    ANTHROPIC_API_KEY env restoration or the resolver-error snapshot.
+    QA-205 / ENG-R3-001: serialized via asyncio.Lock so concurrent callers
+    can't race on the scoped ANTHROPIC_API_KEY env restoration or the
+    resolver-error snapshot. The lock yields to the event loop while waiting
+    (sync threading.Lock in the same role would stall FastAPI). The actual
+    constructor work runs in a threadpool via asyncio.to_thread because
+    OllamaProvider.__init__ does blocking import + ollama.Client() init.
     """
-    with _resolver_lock:
-        return _resolve_llm_locked(settings)
+    async with _resolver_lock:
+        return await asyncio.to_thread(_resolve_llm_sync, settings)
 
 
-def _resolve_llm_locked(settings: dict) -> Any:
+def _resolve_llm_sync(settings: dict) -> Any:
     # TEST-003 hook: honor agentsuite's existing test-factory contract so the
     # new-run E2E can inject a deterministic mock LLM. Same safety rails as
     # agentsuite/cli.py — only honored under pytest unless explicitly allowed.
     #
-    # ENG-R2-003 hardening: restrict the factory module path to known test
-    # namespaces. Without this, an attacker with env-var control could point
-    # the factory at any importable Python module → arbitrary code execution
-    # at run-start. Allowlist of module prefixes is intentionally tight; tests
-    # that legitimately need to inject a mock live under tests.* or
-    # agentsuite.testing.*.
-    _ALLOWED_FACTORY_PREFIXES = ("tests.", "agentsuite.testing.", "agentsuite.llm.mock")
+    # ENG-R2-003 / ENG-R3-002 hardening: restrict the factory module path to
+    # known test namespaces. Without this, an attacker with env-var control
+    # could point the factory at any importable Python module → arbitrary code
+    # execution at run-start.
+    #
+    # Match on dotted-segment boundaries, NOT raw string prefixes — round-3
+    # found the prefix-match would accept e.g. `agentsuite.llm.mock_evil` or
+    # any sys.path-shadowed `tests/`. Allowlist entries are exact module names
+    # OR a name followed by `.` (segment boundary).
+    _ALLOWED_FACTORY_MODULES = ("tests", "agentsuite.testing", "agentsuite.llm.mock")
     factory = os.environ.get("AGENTSUITE_LLM_PROVIDER_FACTORY")
     if factory and (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("AGENTSUITE_ALLOW_MOCK_FACTORY")):
         try:
             module_name, fn_name = factory.split(":", 1)
-            if not any(module_name == p.rstrip(".") or module_name.startswith(p) for p in _ALLOWED_FACTORY_PREFIXES):
+            allowed = any(
+                module_name == m or module_name.startswith(m + ".")
+                for m in _ALLOWED_FACTORY_MODULES
+            )
+            if not allowed:
                 logger.error(
-                    "Mock factory '%s' rejected: module path not in allowlist %s. "
-                    "AGENTSUITE_LLM_PROVIDER_FACTORY can only point at test-namespace modules.",
-                    factory, _ALLOWED_FACTORY_PREFIXES,
+                    "Mock factory '%s' rejected: module '%s' not in allowlist %s. "
+                    "AGENTSUITE_LLM_PROVIDER_FACTORY accepts only exact-match or "
+                    "dotted-child-of these modules.",
+                    factory, module_name, _ALLOWED_FACTORY_MODULES,
                 )
             else:
                 import importlib
@@ -263,7 +281,7 @@ async def _execute_run(
     emit("agent_start", agent=req.agent_id, project=req.project)
 
     async def _do_run():
-        llm = _resolve_llm(settings)
+        llm = await _resolve_llm(settings)
 
         if not settings.get("api_key"):
             try:
@@ -435,7 +453,7 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
     # Primary path (step 0): PipelineOrchestrator provides K1 cross-stage context.
     try:
         settings = _load_settings()
-        llm = _resolve_llm(settings)
+        llm = await _resolve_llm(settings)
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
         current_step_ref = [0]
@@ -538,7 +556,7 @@ async def _execute_pipeline_step_direct(pipeline_id: str, step_idx: int) -> None
 
     try:
         settings = _load_settings()
-        llm = _resolve_llm(settings)
+        llm = await _resolve_llm(settings)
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
         step_run_id = f"{pipeline_id}-step{step_idx}"
@@ -623,7 +641,7 @@ async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
 
     try:
         settings = _load_settings()
-        llm = _resolve_llm(settings)
+        llm = await _resolve_llm(settings)
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
         current_step_ref = [next_idx]

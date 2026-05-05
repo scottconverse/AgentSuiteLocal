@@ -50,9 +50,9 @@ AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github
 ┌────────────────────────▼───────────────────────────────────────┐
 │  Ollama  (local LLM daemon)                                    │
 │                                                                 │
-│  Tiers: Light  (gemma2:2b)                                     │
+│  Tiers: Light    (gemma4:e2b)                                  │
 │         Balanced (gemma4:e4b)  ← recommended                   │
-│         Pro     (llama3.1:8b)                                  │
+│         Pro      (gemma4:26b-moe)                              │
 └────────────────────────────────────────────────────────────────┘
 ```
 

@@ -429,9 +429,9 @@ export const ManualView = () => (
           <thead><tr><th style={thStyle}>Tier</th><th style={thStyle}>Model</th><th style={thStyle}>Disk</th><th style={thStyle}>Min RAM</th></tr></thead>
           <tbody>
             {[
-              ["Fast", "gemma2:2b", "1.7 GB", "8 GB"],
-              ["Balanced", "gemma4:e4b", "4.1 GB", "16 GB"],
-              ["Powerful", "llama3.1:8b", "4.7 GB", "24 GB"],
+              ["Light",    "gemma4:e2b",     "~2 GB",  "8 GB"],
+              ["Balanced", "gemma4:e4b",     "~5 GB",  "16 GB"],
+              ["Pro",      "gemma4:26b-moe", "~16 GB", "32 GB"],
             ].map(([t, m, d, r]) => (
               <tr key={t}><td style={tdBold}>{t}</td><td style={tdStyle}><span style={code}>{m}</span></td><td style={tdStyle}>{d}</td><td style={tdStyle}>{r}</td></tr>
             ))}

@@ -87,12 +87,39 @@ async def uninstall_phase3(body: UninstallPhase3Request):
             pass
         inno_uninst = next((p for p in candidates if p.exists()), None)
         if inno_uninst is not None:
-            # CREATE_NO_WINDOW so the brief Inno bootstrap doesn't flicker a
-            # console window. /VERYSILENT and /SUPPRESSMSGBOXES are honored.
-            subprocess.Popen(
-                [str(inno_uninst), "/VERYSILENT", "/SUPPRESSMSGBOXES"],
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+            # QA3-301: Inno Setup's unins000.exe needs admin to remove from
+            # Program Files. Spawning it via plain Popen inherits the parent's
+            # (non-admin) token, so /VERYSILENT silently fails to remove
+            # registry keys and the [UninstallRun] taskkill can't terminate
+            # admin-owned siblings. Re-elevate via ShellExecute "runas" verb
+            # — Windows shows the standard UAC prompt.
+            #
+            # CREATE_NO_WINDOW kept on the fallback Popen path (non-admin
+            # install dirs like LocalAppData where elevation isn't required).
+            try:
+                import ctypes
+                # ShellExecuteW with "runas" verb prompts UAC and launches
+                # the uninstaller elevated. Returns >32 on success.
+                rc = ctypes.windll.shell32.ShellExecuteW(
+                    None,
+                    "runas",
+                    str(inno_uninst),
+                    "/VERYSILENT /SUPPRESSMSGBOXES",
+                    None,
+                    0,  # SW_HIDE
+                )
+                if rc <= 32:
+                    # User declined UAC, or no shell32 — fall back to non-admin
+                    # Popen so LocalAppData installs still work.
+                    subprocess.Popen(
+                        [str(inno_uninst), "/VERYSILENT", "/SUPPRESSMSGBOXES"],
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
+            except Exception:
+                subprocess.Popen(
+                    [str(inno_uninst), "/VERYSILENT", "/SUPPRESSMSGBOXES"],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
     return {"uninstall_complete": True}
 
 

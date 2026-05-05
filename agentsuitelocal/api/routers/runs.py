@@ -14,6 +14,7 @@ import zipfile
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 from starlette.background import BackgroundTask
 
@@ -72,30 +73,50 @@ _RETRYABLE_STATES = {"error", "timeout", "cancelled", "failed"}
 
 @router.post("/api/run/{run_id}/retry")
 async def retry_run(run_id: str):
-    """UX-005 / ENG-R2-001: Re-submit a failed/timed-out/cancelled run with
-    the same parameters. The original run record is preserved for history.
+    """UX-005 / ENG-R2-001 / QA3-302 / ENG-R3-004: Re-submit a failed/timed-out
+    /cancelled run with the same parameters. The original run record is
+    preserved for history.
 
     State guard prevents retry-storms: only runs that have actually concluded
     in a non-success terminal state are retryable. Calling retry on a running
     or waiting run is rejected with 409 — otherwise double-clicks would spawn
     duplicate concurrent runs sharing the same project workspace and FIFO-
-    evict legitimate run history at _MAX_RUNS=50.
+    evict legitimate run history.
+
+    QA3-302: take an immutable snapshot of the source run's fields BEFORE
+    constructing the RunRequest. /api/run/{run_id}/cancel and other handlers
+    can mutate _runs[run_id] concurrently; reading individual fields
+    one-at-a-time can produce a torn view.
+
+    ENG-R3-004: catch pydantic ValidationError. Legacy run records may have
+    stale shapes (missing inputs_dir, non-slug projects). Surface 422 with
+    the underlying error rather than crashing with 500.
     """
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
-    src = _runs[run_id]
-    status = src.get("status", "")
+
+    # Snapshot first — read all needed fields under a single dict-copy so a
+    # concurrent /cancel can't tear the view between reads.
+    snap = dict(_runs[run_id])
+    status = snap.get("status", "")
     if status not in _RETRYABLE_STATES:
         raise HTTPException(
             status_code=409,
             detail=f"Run is in state '{status}'; retry is only permitted from {sorted(_RETRYABLE_STATES)}.",
         )
-    req = RunRequest(
-        agent_id=src.get("agent"),
-        project=src.get("project"),
-        goal=src.get("goal"),
-        inputs_dir=src.get("inputs_dir"),
-    )
+
+    try:
+        req = RunRequest(
+            agent_id=snap.get("agent"),
+            project=snap.get("project"),
+            goal=snap.get("goal"),
+            inputs_dir=snap.get("inputs_dir"),
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Source run record is incompatible with current RunRequest schema: {exc}",
+        )
     return await start_run(req)
 
 

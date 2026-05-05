@@ -36,7 +36,11 @@ const UninstallPanel = () => {
 
   const phase3 = async () => {
     setWorking(true);
-    const modelName = localStorage.getItem("active_model") || "gemma2:2b";
+    // Fallback aligned with the canonical default in agentsuitelocal/api/config.py
+    // (_DEFAULT_SETTINGS.model_name = "gemma4:e4b"). The Balanced tier is the
+    // recommended default; using a stale gemma2:2b here would target the wrong
+    // model on uninstall.
+    const modelName = localStorage.getItem("active_model") || "gemma4:e4b";
     await fetch("/api/uninstall/phase3", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -441,7 +441,7 @@ async def smoke():
     try:
         from agentsuitelocal.api.execution import _resolve_llm
 
-        provider = _resolve_llm(settings)
+        provider = await _resolve_llm(settings)
         if provider is None:
             raise RuntimeError(
                 "AgentSuiteLocal could not construct an LLM provider. "
