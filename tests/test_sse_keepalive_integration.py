@@ -20,7 +20,6 @@ import uvicorn
 from fastapi import FastAPI
 from sse_starlette.sse import EventSourceResponse
 
-
 # Build a minimal app that emits a long-running SSE stream interleaved with
 # legitimate data events. We force sse-starlette to emit pings by configuring
 # a 1-second ping interval (default is 15s — too slow for a unit test).

@@ -13,7 +13,6 @@ import os
 import pytest
 from playwright.sync_api import Page, expect
 
-
 # Tell the agentsuite kernel to use our mock provider for any run started in
 # this test session. The env var is honored by agentsuite's CLI today; this
 # test doubles as a regression assertion that AgentSuiteLocal's _resolve_llm

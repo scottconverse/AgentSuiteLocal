@@ -11,6 +11,10 @@ import psutil
 from fastapi import APIRouter
 
 from agentsuitelocal.__version__ import __version__
+from agentsuitelocal.api.execution import (
+    get_last_cloud_fallback_reason,
+    get_last_resolver_error,
+)
 
 router = APIRouter()
 
@@ -35,7 +39,6 @@ async def health():
     # ENG-004: surface the last cloud-fallback reason so the UI can warn the
     # user that their cloud key didn't work and runs are silently routing to
     # local Ollama. None when no fallback has happened (key valid, or no key).
-    from agentsuitelocal.api.execution import get_last_cloud_fallback_reason, get_last_resolver_error
     return {
         "ollama": ollama_ok,
         "model": model_loaded,

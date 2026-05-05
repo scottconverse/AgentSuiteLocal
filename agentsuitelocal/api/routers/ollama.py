@@ -14,6 +14,7 @@ import zipfile
 from pathlib import Path
 
 import httpx
+from agentsuite.llm.base import LLMRequest
 from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
@@ -425,7 +426,6 @@ async def smoke():
     # constructing a real provider and running a 1-token completion through
     # the same code path New Run uses.
     try:
-        from agentsuite.llm.base import LLMRequest
         from agentsuitelocal.api.execution import _resolve_llm
 
         provider = _resolve_llm(settings)
