@@ -138,11 +138,9 @@ async def test_execute_run_dispatches_non_founder_agent(_all_agents_enabled):
 
 
 async def test_execute_pipeline_step_dispatches_non_founder_agent(_all_agents_enabled):
-    """_execute_pipeline_step must complete for a non-founder agent.
+    """_execute_pipeline_step (step 0) must complete for a non-founder agent via PipelineOrchestrator.
 
-    Covers the second shim site (line ~305 in execution.py), which had
-    zero test coverage. Also guards against the AGENTSUITE_ENABLED_AGENTS
-    footgun for pipeline runs.
+    Verifies orchestrator path: orch.run() → awaiting_approval → step state updated.
     """
 
     from agentsuitelocal.api.execution import _execute_pipeline_step
@@ -163,16 +161,35 @@ async def test_execute_pipeline_step_dispatches_non_founder_agent(_all_agents_en
         "error_message": None,
     }
 
-    fake_state = _fake_run_state("agentsuite-pipeline-design-run-id")
     mock_llm = MagicMock()
+
+    def fake_orch_run(*, agents, project_slug, business_goal, pipeline_id=None,
+                      inputs_dir=None, auto_approve=False, llm=None,
+                      on_progress=None, kernel_progress_callback=None, **_):
+        from agentsuite.pipeline.schema import PipelineState, PipelineStepState
+        step = PipelineStepState(agent="design", run_id="agentsuite-pipeline-design-run-id", status="awaiting_approval")
+        state = PipelineState(
+            pipeline_id=pipeline_id or "pipe-test",
+            project_slug=project_slug,
+            business_goal=business_goal,
+            agents=agents,
+            steps=[step],
+            current_step_index=0,
+            status="awaiting_approval",
+        )
+        if on_progress:
+            on_progress("agent_waiting", step, state)
+        return state
 
     with (
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
-        patch("agentsuite.agents.design.agent.DesignAgent.run", return_value=fake_state),
+        patch("agentsuite.pipeline.orchestrator.PipelineOrchestrator.run", side_effect=fake_orch_run),
         patch("agentsuitelocal.api.execution._save_state"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
         await _execute_pipeline_step(pipeline_id, 0)
+
+    await asyncio.sleep(0)  # flush call_soon_threadsafe callbacks
 
     step = _pipelines[pipeline_id]["steps"][0]
     assert step["run_id"] == "agentsuite-pipeline-design-run-id"
@@ -226,10 +243,9 @@ async def test_execute_run_emits_progress_events():
 
 
 async def test_execute_pipeline_step_emits_progress_events(_all_agents_enabled):
-    """Removing progress_callback= from agent.run() at execution.py L313 must fail this test.
+    """kernel_progress_callback must be wired through PipelineOrchestrator to produce stage_update events.
 
-    Same mechanism as test_execute_run_emits_progress_events but for the pipeline
-    step path. Events are appended to pipeline["events"] via _emit_pipeline().
+    Removing kernel_progress_callback= from orch.run() in execution.py must fail this test.
     """
     from agentsuitelocal.api.execution import _execute_pipeline_step
     from agentsuitelocal.api.state import _pipelines
@@ -249,18 +265,31 @@ async def test_execute_pipeline_step_emits_progress_events(_all_agents_enabled):
         "error_message": None,
     }
 
-    fake_state = _fake_run_state("agentsuite-pipeline-progress-run-id")
     mock_llm = MagicMock()
 
-    def fake_agent_run(*, request, run_id, progress_callback=None):  # noqa: ARG001
-        if progress_callback is not None:
-            progress_callback({"type": "stage_progress", "stage": "extract", "step": 2, "total": 5, "message": "Starting Extraction"})
-        return fake_state
+    def fake_orch_run(*, agents, project_slug, business_goal, pipeline_id=None,  # noqa: ARG001
+                      inputs_dir=None, auto_approve=False, llm=None,
+                      on_progress=None, kernel_progress_callback=None, **_):
+        if kernel_progress_callback is not None:
+            kernel_progress_callback({"type": "stage_progress", "stage": "extract", "step": 2, "total": 5, "message": "Starting Extraction"})
+        from agentsuite.pipeline.schema import PipelineState, PipelineStepState
+        step = PipelineStepState(agent="design", run_id="agentsuite-pipeline-progress-run-id", status="awaiting_approval")
+        state = PipelineState(
+            pipeline_id=pipeline_id or "pipe-test",
+            project_slug=project_slug,
+            business_goal=business_goal,
+            agents=agents,
+            steps=[step],
+            current_step_index=0,
+            status="awaiting_approval",
+        )
+        if on_progress:
+            on_progress("agent_waiting", step, state)
+        return state
 
     with (
-        patch("agentsuitelocal.api.execution._load_settings", return_value={"api_key": "mock-key", "run_timeout_seconds": 30}),
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
-        patch("agentsuite.agents.design.agent.DesignAgent.run", side_effect=fake_agent_run),
+        patch("agentsuite.pipeline.orchestrator.PipelineOrchestrator.run", side_effect=fake_orch_run),
         patch("agentsuitelocal.api.execution._save_state"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
@@ -273,7 +302,7 @@ async def test_execute_pipeline_step_emits_progress_events(_all_agents_enabled):
     assert len(stage_update_events) >= 1, (
         f"Expected ≥1 stage_update event but got {len(stage_update_events)}. "
         f"All event types: {[e['type'] for e in pipeline['events']]}. "
-        "Likely cause: progress_callback=progress_callback was removed from agent.run() at execution.py L313."
+        "Likely cause: kernel_progress_callback was removed from orch.run() call in execution.py."
     )
     assert stage_update_events[0].get("stage") == "extract"
     assert stage_update_events[0].get("step") == 0  # pipeline step index, not stage step
