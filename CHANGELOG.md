@@ -9,6 +9,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.8.8] — 2026-05-05
+
+### Documentation
+
+- **Backfill v0.8.7 CHANGELOG with Issue #16 CI lint gate details**: the v0.8.7 entry now documents `scripts/check_action_node_versions.py`, the CI lint step that invokes it, and the exact SHA-pin checking logic that closes Issue #16.
+- **Corrected v0.8.7 test metrics**: the "135 → 129" apparent decrease was a filter difference, not test removal. v0.8.6 reported the filtered count but labelled it as "135 passing" — that was a reporting error. The v0.8.7 entry now includes an explicit note clarifying the discrepancy.
+
+> Commit `fe6be9c` (docs: backfill v0.8.7 CHANGELOG with Issue #16 material and test-metrics correction) was already on `main` before this version bump. This release formalises that commit under v0.8.8 to keep semver and CHANGELOG in sync.
+
 ## [0.8.7] — 2026-05-05
 
 Two changes shipped in this tag: Issue #16 (CI lint gate, chore-only, PR #21 / merge `71c9474`) and Issue #19 (PipelineOrchestrator migration, PR #22 / merge `6db68c9`). Both are documented below.
