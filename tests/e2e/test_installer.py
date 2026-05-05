@@ -1,5 +1,6 @@
 """
-E2E: Installer flow — walks all 5 steps (UX-1 combined screens) and enters the app.
+E2E: Installer flow — walks all 6 installer steps (UX-1 combined screens
+plus the smoke step re-inserted post-v0.8.7) and enters the app.
 """
 
 import json

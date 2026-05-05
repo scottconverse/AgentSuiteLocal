@@ -36,20 +36,21 @@ def main() -> int:
     canonical = int(m.group(1))
     print(f"App.jsx TOTAL_STEPS = {canonical}")
 
-    # Each entry: (relative path, regex that captures the step count)
+    # Each entry: (relative path, regex that captures the canonical step count).
+    # Patterns target the CURRENT-state claim, not historical "was N before…" notes.
+    # FAQ.md is intentionally excluded — it doesn't make a primary step-count claim;
+    # adding one would just create another drift surface.
     targets = [
         ("web/src/components/app/ManualView.jsx",
-         r"It\s+walks\s+(?:<strong>)?(\d+)\s+short\s+steps"),
+         r"walks\s+<strong>(\d+)\s+short\s+steps</strong>"),
         ("docs/user-manual.md",
-         r"^(?:The installer|installer)\s+(?:has|is|walks)\s+(\d+)\s+(?:steps|short steps)"),
+         r"walks\s+\*\*(\d+)\s+short\s+steps\*\*"),
         ("docs/architecture.md",
          r"(\d+)-(?:step|screen)\s+installer"),
-        ("docs/FAQ.md",
-         r"(\d+)\s+(?:steps|screens)"),
         ("README.md",
-         r"(\d+)-(?:screen|step)\s+(?:setup|installer)"),
+         r"(\d+)-(?:screen|step)\s+setup\s+wizard"),
         ("tests/e2e/test_installer.py",
-         r"all\s+(\d+)\s+(?:installer|steps)"),
+         r"all\s+(\d+)\s+installer\s+steps"),
         ("tests/e2e/test_app.py",
          r"installer\s+is\s+(\d+)\s+steps"),
     ]

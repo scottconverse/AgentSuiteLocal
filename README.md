@@ -17,7 +17,7 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 
 **New in v0.7.0:** run cancellation, timeout watchdog, QA gate enforcement with override, markdown artifact preview, run export (ZIP/Markdown/PDF), cloud model fallback (Claude Haiku/Sonnet/Opus), desktop notifications, auto-update check, local telemetry, crash recovery, Model Management panel, Projects view, and a Windows Inno Setup installer.
 
-**Patched in v0.7.1:** 30+ bug fixes including project mutation endpoints (rename/archive/delete were 404), ModelView pull (was GET not POST), tier model map, update banner field names, optimistic approve/reject UI, 5-screen installer, KernelView artifact preview, skeleton loading states, OS keychain for API key, supply-chain hardening (SHA-pinned CI actions, pinned PyInstaller, release CI gate), and blocking subprocess.run → asyncio.to_thread.
+**Patched in v0.7.1:** 30+ bug fixes including project mutation endpoints (rename/archive/delete were 404), ModelView pull (was GET not POST), tier model map, update banner field names, optimistic approve/reject UI, installer compressed to five screens, KernelView artifact preview, skeleton loading states, OS keychain for API key, supply-chain hardening (SHA-pinned CI actions, pinned PyInstaller, release CI gate), and blocking subprocess.run → asyncio.to_thread.
 
 **Updated in v0.8.0–v0.8.2:** All seven agents enabled by default (was founder-only); `PipelineOrchestrator` replaced with direct `BaseAgent.run()` invocation (Sprint 1 shim); wheel metadata version corrected; dynamic `pyproject.toml` version sourced from `__version__.py`.
 
@@ -124,7 +124,7 @@ web/
     hooks/
       useSSE.js              SSE → React state bridge
     components/
-      installer/             5-screen setup wizard
+      installer/             6-screen setup wizard
         InstallerShell.jsx   Chrome (header, nav, progress)
         ScreenWelcome.jsx    Step 1 — splash
         ScreenLicense.jsx    Step 2 — license gate
