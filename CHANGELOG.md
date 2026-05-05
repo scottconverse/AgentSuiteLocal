@@ -15,8 +15,12 @@ _Nothing pending._
 
 - **Backfill v0.8.7 CHANGELOG with Issue #16 CI lint gate details**: the v0.8.7 entry now documents `scripts/check_action_node_versions.py`, the CI lint step that invokes it, and the exact SHA-pin checking logic that closes Issue #16.
 - **Corrected v0.8.7 test metrics**: the "135 → 129" apparent decrease was a filter difference, not test removal. v0.8.6 reported the filtered count but labelled it as "135 passing" — that was a reporting error. The v0.8.7 entry now includes an explicit note clarifying the discrepancy.
+- **Landing page (`docs/index.html`) refreshed to v0.8.8**: hero badge, nav download button, download CTA section, .exe/.dmg release URLs, footer version label, and "Release notes" link all updated from the stale v0.7.1 references. SHA256 inline checksums replaced with a link to the release page (which always carries the canonical hashes for the current build).
+- **Discussion seeds refreshed**: `docs/community/github-discussions-welcome.md` now reflects v0.8.8 as the current line and v0.7.0 as historical context. `docs/community/reddit-localllama-launch.md` reframed from a v0.7.0 launch announcement into an evergreen r/LocalLLaMA intro post; download filename and current-version reference both bumped to 0.8.8.
+- **`docs/user-manual.md` heading and a v0.7.0-qualified UI behaviour note updated** — manual heading is now v0.8.8; the "edit artifacts before approving" answer drops the version qualifier (the behaviour hasn't changed).
+- **`docs/architecture.md` version qualifier removed** — the "as of v0.7.1" markers next to the route count and the `test_api.py` description are now timeless rather than pinned to a stale tag. Counts left approximate; a deeper recount is out of scope for v0.8.8.
 
-> Commit `fe6be9c` (docs: backfill v0.8.7 CHANGELOG with Issue #16 material and test-metrics correction) was already on `main` before this version bump. This release formalises that commit under v0.8.8 to keep semver and CHANGELOG in sync.
+> Commit `fe6be9c` (docs: backfill v0.8.7 CHANGELOG with Issue #16 material and test-metrics correction) was already on `main` before this version bump. This release formalises that commit under v0.8.8 and bundles the doc-consistency refresh above.
 
 ## [0.8.7] — 2026-05-05
 

@@ -86,4 +86,4 @@ We're working on better model guidance in the docs as we learn more about what m
 
 ---
 
-Thanks for trying AgentSuiteLocal. This is v0.7.0 — the first release that's feature-complete enough to use for real work. We expect to find bugs and rough edges; the issues list is the right place for them.
+Thanks for trying AgentSuiteLocal. The current release is v0.8.8 — the v0.7.0 line was the first that was feature-complete enough to use for real work, and the v0.8.x line has been hardening reliability, supply-chain posture, and the pipeline orchestrator. We still expect bugs and rough edges; the issues list is the right place for them.
