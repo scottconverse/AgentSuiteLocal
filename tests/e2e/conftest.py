@@ -22,16 +22,17 @@ import time
 # is imported, otherwise _resolve_llm closes over an unset value at import
 # time. Conftest is the earliest hook that runs before the test module body,
 # so set it here. Tests that don't need the mock just don't reference it.
+# E402 noqa intentional — the import order is the fix; reordering breaks it.
 os.environ.setdefault(
     "AGENTSUITE_LLM_PROVIDER_FACTORY",
     "tests.e2e.test_new_run:_mock_provider_factory",
 )
 os.environ.setdefault("AGENTSUITE_ALLOW_MOCK_FACTORY", "1")
 
-import pytest
-import uvicorn
+import pytest  # noqa: E402
+import uvicorn  # noqa: E402
 
-from agentsuitelocal.api.main import app
+from agentsuitelocal.api.main import app  # noqa: E402
 
 
 def _read_launcher_port() -> int:
