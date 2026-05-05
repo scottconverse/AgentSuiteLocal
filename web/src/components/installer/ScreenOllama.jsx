@@ -57,7 +57,9 @@ export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          const raw = line.startsWith("data: ") ? line.slice(6) : line;
+          if (line.startsWith(":")) continue;
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6);
           try {
             const evt = JSON.parse(raw);
             if (evt.type === "error") {

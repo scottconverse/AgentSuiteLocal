@@ -80,7 +80,9 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
           const lines = buf.split("\n"); buf = lines.pop();
           for (const line of lines) {
             if (!line.trim()) continue;
-            const raw = line.startsWith("data: ") ? line.slice(6) : line;
+            if (line.startsWith(":")) continue;
+            if (!line.startsWith("data: ")) continue;
+            const raw = line.slice(6);
             try {
               const evt = JSON.parse(raw);
               if (evt.type === "error") { setOllamaError(evt.message); setOllamaPhase("error"); return; }
@@ -161,7 +163,9 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
         const lines = buf.split("\n"); buf = lines.pop();
         for (const line of lines) {
           if (!line.trim()) continue;
-          const raw = line.startsWith("data: ") ? line.slice(6) : line;
+          if (line.startsWith(":")) continue;
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6);
           try {
             const evt = JSON.parse(raw);
             if (evt.type === "error") throw new Error(evt.message);
