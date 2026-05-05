@@ -964,3 +964,29 @@
     No structural changes needed for a docs-only release; version references
     in the page link to /releases (tag-agnostic).
   status: pass
+
+- timestamp: 2026-05-05T10:48:05Z
+  claim: "Push to feature branch release/v0.8.8"
+  evidence_type: file_check
+  command: "git push origin release/v0.8.8"
+  exit_code: 0
+  evidence: |
+    Branch release/v0.8.8 pushed to github.com/scottconverse/AgentSuiteLocal.
+    Commit SHA: 6be29a1 (full: 6be29a14106bedf4f3f1a451963c82633b89cb8e)
+    CI run started: https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25363079175
+    Run ID: 25363079175
+    Status at push time: in_progress
+  status: pass
+
+- timestamp: 2026-05-05T10:50:15Z
+  claim: "CI green on feature branch (poll every 110s, max 30 min)"
+  evidence_type: ci_url
+  command: "gh run view 25363079175 --repo scottconverse/AgentSuiteLocal --json conclusion,status,url"
+  exit_code: 0
+  evidence: |
+    {"conclusion":"success","status":"completed","url":"https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25363079175"}
+    CI run 25363079175 completed with conclusion=success.
+    Branch: release/v0.8.8
+    Commit SHA: 6be29a14106bedf4f3f1a451963c82633b89cb8e
+    Polled once at 110s — already terminal.
+  status: pass

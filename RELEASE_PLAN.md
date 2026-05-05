@@ -24,8 +24,8 @@
 - [x] docs/index.html current
 
 ## Release
-- [ ] Push to feature branch `release/v0.8.8`
-- [ ] CI green on feature branch (poll every 110s, max 30 min)
+- [x] Push to feature branch `release/v0.8.8`
+- [x] CI green on feature branch (poll every 110s, max 30 min)
 - [ ] Merge feature branch to main
 - [ ] Tag v0.8.8
 - [ ] `gh release create v0.8.8` with summary as release notes
