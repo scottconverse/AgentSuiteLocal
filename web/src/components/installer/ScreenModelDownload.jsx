@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Icon, ProgressBar } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 import { MODELS } from "../../data.js";
+import { parseSseStream } from "../../utils/sseStream.js";
 
 // A2: retry loop — 3 attempts, 5s backoff
 // A3: verify model with /api/model/verify/{name} before enabling Next
@@ -66,75 +67,54 @@ export const ScreenModelDownload = ({ onBack, onNext, tier, totalSteps }) => {
       body: JSON.stringify({ model: model.model }),
       signal: ctrl.signal,
     }).then(async (res) => {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop();
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          if (line.startsWith(":")) continue;
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6);
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.type === "error") {
-              throw new Error(evt.message);
+      try {
+        for await (const evt of parseSseStream(res.body.getReader())) {
+          if (evt.type === "error") throw new Error(evt.message);
+          if (evt.status) setStatusLine(evt.status);
+          if (evt.total && evt.completed != null) {
+            const totalB = evt.total;
+            const doneB  = evt.completed;
+            setTotalMB(Math.round(totalB / 1024 / 1024));
+            setDownloadedMB(Math.round(doneB / 1024 / 1024));
+            const now = Date.now();
+            const dtSec = (now - lastTimeRef.current) / 1000;
+            if (dtSec > 0.5) {
+              const delta = doneB - lastBytesRef.current;
+              setSpeedMBs(Math.round((delta / 1024 / 1024) / dtSec * 10) / 10);
+              lastBytesRef.current = doneB;
+              lastTimeRef.current  = now;
             }
-            if (evt.status) setStatusLine(evt.status);
-            if (evt.total && evt.completed != null) {
-              const totalB = evt.total;
-              const doneB  = evt.completed;
-              setTotalMB(Math.round(totalB / 1024 / 1024));
-              setDownloadedMB(Math.round(doneB / 1024 / 1024));
-              const now = Date.now();
-              const dtSec = (now - lastTimeRef.current) / 1000;
-              if (dtSec > 0.5) {
-                const delta = doneB - lastBytesRef.current;
-                setSpeedMBs(Math.round((delta / 1024 / 1024) / dtSec * 10) / 10);
-                lastBytesRef.current = doneB;
-                lastTimeRef.current  = now;
-              }
-              setPct(Math.round((doneB / totalB) * 100));
-            }
-            if (evt.status === "success") {
-              // A3: verify after download completes
-              await verifyModel(model.model);
-              return;
-            }
-          } catch (innerErr) {
-            if (innerErr.name === "AbortError") return;
-            // A2: retry on failure if under MAX_RETRIES
-            if (attemptNum < MAX_RETRIES) {
-              setStatus("retrying");
-              setStatusLine(`Attempt ${attemptNum} failed — retrying in 5s (${attemptNum}/${MAX_RETRIES})…`);
-              setErrorMsg(innerErr.message);
-              let cd = 5;
-              setRetryCountdown(cd);
-              const iv = setInterval(() => {
-                cd--;
-                setRetryCountdown(cd);
-                if (cd <= 0) {
-                  clearInterval(iv);
-                  doPull(attemptNum + 1);
-                }
-              }, 1000);
-            } else {
-              setStatus("error");
-              setErrorMsg(`Failed after ${MAX_RETRIES} attempts: ${innerErr.message}`);
-            }
+            setPct(Math.round((doneB / totalB) * 100));
+          }
+          if (evt.status === "success") {
+            await verifyModel(model.model);
             return;
           }
         }
+        // Stream ended without success event — treat as done and verify
+        await verifyModel(model.model);
+      } catch (innerErr) {
+        if (innerErr.name === "AbortError") return;
+        if (attemptNum < MAX_RETRIES) {
+          setStatus("retrying");
+          setStatusLine(`Attempt ${attemptNum} failed — retrying in 5s (${attemptNum}/${MAX_RETRIES})…`);
+          setErrorMsg(innerErr.message);
+          let cd = 5;
+          setRetryCountdown(cd);
+          const iv = setInterval(() => {
+            cd--;
+            setRetryCountdown(cd);
+            if (cd <= 0) {
+              clearInterval(iv);
+              doPull(attemptNum + 1);
+            }
+          }, 1000);
+        } else {
+          setStatus("error");
+          setErrorMsg(`Failed after ${MAX_RETRIES} attempts: ${innerErr.message}`);
+        }
+        return;
       }
-      // Stream ended without success event — treat as done and verify
-      await verifyModel(model.model);
     }).catch(e => {
       if (e.name === "AbortError") return;
       if (attemptNum < MAX_RETRIES) {
