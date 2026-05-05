@@ -59,7 +59,10 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
           setStageElapsed(0);
         }
         setStreamLines(prev => [...prev, `▸ ${evt.stage}${evt.message ? ": " + evt.message : ""}`]);
-        setTokens(t => t + 18);
+        // UX-004: only update token count from real telemetry. The stage_update
+        // event carries `tokens` when the orchestrator has counted them; otherwise
+        // leave the counter alone. Fabricating +18 per stage misled users.
+        if (typeof evt.tokens === "number") setTokens(evt.tokens);
       }
       if (evt.type === "agent_waiting") {
         setStageIdx(STAGES.length);
@@ -144,7 +147,9 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
         </div>
       )}
 
-      {/* Error / timeout card */}
+      {/* Error / timeout card — UX-005: provide actionable next steps,
+          not just Back. Retry re-submits the same goal; Verify Integrity
+          opens the runtime-verify panel; Settings opens the model picker. */}
       {(isError || isTimeout) && (
         <div style={{ margin: "16px 24px", padding: 16, background: "var(--bad-soft)", borderRadius: 10, border: "1px solid var(--bad)", display: "flex", gap: 12, alignItems: "flex-start" }}>
           <Icon name="alert" size={18} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
@@ -152,12 +157,39 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 4 }}>
               {isTimeout ? "Timed out — the model stopped responding" : "Run failed"}
             </div>
-            <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 12 }}>
               {error || "An unexpected error occurred."}
             </div>
-            <button className="btn btn-sm" onClick={onCancel}>
-              <Icon name="chevL" size={12} /> Back to Dashboard
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="btn btn-sm btn-primary" onClick={() => {
+                // UX-005: server-side retry — same params, new run_id.
+                fetch(`/api/run/${runId}/retry`, { method: "POST" })
+                  .then(r => r.ok ? r.json() : Promise.reject())
+                  .then(d => {
+                    if (d.run_id) {
+                      window.location.hash = `#/runs/${d.run_id}`;
+                      window.location.reload();
+                    }
+                  })
+                  .catch(() => {});
+              }}>
+                <Icon name="refresh" size={12} /> Retry run
+              </button>
+              <button className="btn btn-sm" onClick={() => { window.location.hash = "#/settings"; }}>
+                <Icon name="settings" size={12} /> Open Settings
+              </button>
+              <details style={{ marginLeft: "auto", fontSize: 11 }}>
+                <summary style={{ cursor: "pointer", color: "var(--ink-3)" }}>Diagnostic</summary>
+                <pre style={{ marginTop: 8, padding: 10, background: "var(--bg-tint)", borderRadius: 6, fontSize: 10, overflow: "auto", maxWidth: 600 }}>
+                  Run ID: {runId}{"\n"}
+                  Error: {error || "(none)"}{"\n"}
+                  See Settings → Verify Integrity for the full health snapshot.
+                </pre>
+              </details>
+              <button className="btn btn-sm" onClick={onCancel}>
+                <Icon name="chevL" size={12} /> Back to Dashboard
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -237,8 +269,11 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
               {[
                 { l: "Total elapsed", v: elapsedStr },
                 { l: "Stage elapsed",  v: stageElapsedStr },
-                { l: "Tokens",  v: tokens.toLocaleString() },
-                { l: "Cost",    v: "$0.00" },
+                // UX-004: only show Tokens if we actually have a real count.
+                ...(tokens > 0 ? [{ l: "Tokens",  v: tokens.toLocaleString() }] : []),
+                // Cost is honest for local Ollama — say so explicitly instead
+                // of showing a meaningless $0.00 next to a $ sign.
+                { l: "Cost",    v: "Local — no cloud cost" },
                 { l: "Agent",   v: ag?.name || runMeta?.agent || "…" },
                 { l: "Project", v: runMeta?.project || "…" },
               ].map(r => (

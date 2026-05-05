@@ -1074,6 +1074,35 @@ def test_smoke_returns_required_schema():
         assert "ok" in step
 
 
+def test_smoke_includes_python_kernel_verification_step():
+    """TEST-004: smoke must execute the Python kernel verification step
+    (or fail before reaching it). If this step were silently deleted, the
+    bug class that shipped 'Ollama SDK not installed' to v0.8.7 would
+    re-open. This test locks the step's presence into the contract."""
+    r = client.get("/api/smoke")
+    assert r.status_code == 200
+    body = r.json()
+    # Either a step matching the kernel-verify label is present (success or
+    # failure), OR an earlier step failed and we short-circuited before
+    # reaching it. The forbidden state is: smoke returns ok=True without ever
+    # exercising the Python kernel.
+    labels = [s.get("label", "") for s in body["steps"]]
+    has_kernel_step = any("Python kernel" in lbl for lbl in labels)
+    earlier_failure = any(not s.get("ok") for s in body["steps"])
+    if body.get("ok"):
+        assert has_kernel_step, (
+            "smoke returned ok=True but never executed the Python-kernel "
+            "verification step. This re-opens the v0.8.7 bug class — a build "
+            "with a missing `ollama` SDK would pass smoke and fail New Run."
+        )
+    else:
+        # Allowed: ollama daemon down, model not installed, etc. — earlier
+        # steps fail before the kernel step is reached.
+        assert has_kernel_step or earlier_failure, (
+            "smoke returned ok=False but no failure was recorded — invalid state."
+        )
+
+
 # ---------------------------------------------------------------------------
 # m-6: Model verify endpoint (response shape — Ollama not required)
 # ---------------------------------------------------------------------------

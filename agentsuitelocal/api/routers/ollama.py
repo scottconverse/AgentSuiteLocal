@@ -162,15 +162,24 @@ async def install_ollama():
                     # Stripping the quarantine xattr lets the app launch without
                     # the 'unidentified developer' Gatekeeper block.
                     yield {"data": evt("step", "Installing to /Applications…", pct=70)}
-                    src = str(src_app).replace('"', '\\"')
+
+                    # ENG-002 fix: defense-in-depth quoting for the shell layer
+                    # AND the AppleScript layer. Today src is always a tempfile
+                    # path (no shell metachars in practice), but f-string
+                    # interpolation directly into a shell string is fragile —
+                    # any future change that flows untrusted input here would
+                    # be a command-injection bug.
+                    import shlex
+                    src_quoted = shlex.quote(str(src_app))
                     install_sh = (
-                        f'rm -rf "/Applications/Ollama.app" && '
-                        f'cp -R "{src}" "/Applications/Ollama.app" && '
-                        f'xattr -dr com.apple.quarantine "/Applications/Ollama.app" || true'
+                        f"rm -rf /Applications/Ollama.app && "
+                        f"cp -R {src_quoted} /Applications/Ollama.app && "
+                        f"xattr -dr com.apple.quarantine /Applications/Ollama.app || true"
                     )
-                    # Wrap for osascript: needs the inner script as a single
-                    # double-quoted string with embedded quotes escaped.
-                    osa_script = f'do shell script "{install_sh.replace(chr(34), chr(92) + chr(34))}" with administrator privileges'
+                    # AppleScript double-quoted string: escape only `"` and `\`.
+                    def _osa_escape(s: str) -> str:
+                        return s.replace("\\", "\\\\").replace('"', '\\"')
+                    osa_script = f'do shell script "{_osa_escape(install_sh)}" with administrator privileges'
                     proc = await asyncio.get_running_loop().run_in_executor(
                         None,
                         lambda: subprocess.run(
@@ -371,8 +380,18 @@ async def smoke():
     try:
         models = [m["name"] for m in r.json().get("models", [])]
         found = any(m.startswith(model.split(":")[0]) for m in models)
-        if not found and models:
-            model = models[0]
+        # ENG-005 fix: do NOT silently swap to models[0]. If the user's
+        # configured model isn't installed, smoke MUST report this loudly so
+        # the failure mode is visible — silent swap turned smoke into a
+        # false-positive (it ran on a model the user didn't pick).
+        if not found:
+            steps.append({
+                "label": f"Loading {model} into memory",
+                "ok": False,
+                "error": f"Model '{model}' is not installed.",
+                "fix": "Open Model Management and pull this model, then re-run the smoke test.",
+            })
+            return {"ok": False, "steps": steps}
         steps.append({"label": f"Loading {model} into memory", "ok": True})
     except Exception as exc:
         steps.append({"label": "Loading model into memory", "ok": False, "error": str(exc),

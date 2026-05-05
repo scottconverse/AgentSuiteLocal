@@ -67,6 +67,22 @@ async def start_run(req: RunRequest):
     return {"run_id": run_id}
 
 
+@router.post("/api/run/{run_id}/retry")
+async def retry_run(run_id: str):
+    """UX-005: Re-submit a failed/timed-out run with the same parameters.
+    Returns a new run_id. The old run record is preserved for history."""
+    if run_id not in _runs:
+        raise HTTPException(status_code=404, detail="Run not found")
+    src = _runs[run_id]
+    req = RunRequest(
+        agent_id=src.get("agent"),
+        project=src.get("project"),
+        goal=src.get("goal"),
+        inputs_dir=src.get("inputs_dir"),
+    )
+    return await start_run(req)
+
+
 @router.post("/api/run/{run_id}/cancel")
 async def cancel_run(run_id: str):
     """B1: Cancel a running run by cancelling its asyncio Task."""

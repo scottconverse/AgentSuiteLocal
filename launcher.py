@@ -88,6 +88,16 @@ def main() -> None:
     _log("launcher main() starting")
     port = _find_free_port(PORT)
     _log(f"using port {port}")
+    # QA-001: write a single-purpose port file so the Inno uninstall hook,
+    # notification deep-links, and the SettingsView panel can all find the
+    # actually-bound port instead of hardcoding 8765.
+    try:
+        import json as _json
+        port_file = os.path.join(os.path.expanduser("~"), ".agentsuitelocal", "launcher.port.json")
+        with open(port_file, "w") as f:
+            _json.dump({"port": port, "ts": time.time()}, f)
+    except Exception as _exc:  # noqa: BLE001 — best-effort, never crash the launcher
+        _log(f"could not write launcher.port.json: {_exc}")
     url = f"http://{HOST}:{port}"
 
     thread = threading.Thread(target=_start_server, args=(port,), daemon=True)

@@ -173,7 +173,7 @@ export const ManualView = () => (
 
       {/* ── Installer ── */}
       <Section id="installer" title="1. Installation walkthrough">
-        <p style={bodyText}>The installer runs once. It walks 11 short steps.</p>
+        <p style={bodyText}>The installer runs once. It walks <strong>6 short steps</strong>. After launch, it doesn&apos;t appear again unless you reinstall.</p>
         <table style={tableStyle}>
           <thead>
             <tr>
@@ -186,15 +186,10 @@ export const ManualView = () => (
             {[
               ["1", "Welcome", "Intro screen. Click Get started."],
               ["2", "License & privacy", "Read the license. Check the box. Click I agree."],
-              ["3", "Checking your hardware", "The app probes your CPU, RAM, and disk. Wait for the results."],
-              ["4", "Pick a model", "Choose a model tier based on your hardware. Balanced (16 GB RAM, gemma4:e4b) works for most people."],
-              ["5", "Ollama runtime", "Confirms Ollama is running and the model is available. If this step hangs, open a terminal and run ollama serve."],
-              ["6", "Downloading model", "Pulls the model if it's not already local. Takes a few minutes depending on connection speed."],
-              ["7", "Setting up the runtime", "Confirms Python environment."],
-              ["8", "Pick your agents", "Select which agents to enable. All seven are on by default."],
-              ["9", "Cloud fallback (optional)", "Paste an Anthropic API key if you want cloud fallback for difficult prompts. This is optional — the app runs fully local without it."],
-              ["10", "First-run smoke test", "Runs a quick end-to-end check against your local model."],
-              ["11", "You're set up", "Click Launch AgentSuiteLocal to open the main app."],
+              ["3", "Hardware & model tier", "The app probes your CPU, RAM, and disk and recommends a tier (Light / Balanced / Pro). Pick one — Balanced (16 GB RAM, gemma4:e4b) works for most people."],
+              ["4", "Ollama & model download", "Confirms Ollama is running, then pulls the model for the tier you chose. The pull includes a 3-attempt retry loop with backoff. If Ollama isn't running yet, click Install Ollama and the screen will unlock automatically."],
+              ["5", "Smoke test", "Runs five quick checks: Ollama daemon up, model loaded, /api/generate responding, real inference round-trip through the Python kernel, and workspace writable. Each shows a green tick or a fix card."],
+              ["6", "You're set up", "Click Launch AgentSuiteLocal to open the main app."],
             ].map(([step, screen, desc]) => (
               <tr key={step}>
                 <td style={{ ...tdStyle, color: "var(--ink-3)", fontFamily: "var(--font-mono)", fontSize: 12 }}>{step}</td>
@@ -204,7 +199,7 @@ export const ManualView = () => (
             ))}
           </tbody>
         </table>
-        <p style={bodyText}>After launch, the installer doesn&#x2019;t appear again unless you reinstall.</p>
+        <p style={bodyText}>Agent selection, cloud fallback API key, and Python runtime checks moved to <strong>Settings</strong> in v0.7.1 — open Settings in the sidebar to configure them.</p>
       </Section>
 
       <div style={divider} />

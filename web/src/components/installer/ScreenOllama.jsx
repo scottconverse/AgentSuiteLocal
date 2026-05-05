@@ -97,25 +97,12 @@ export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
         )}
 
         {phase === "not-found" && platform === "darwin" && (
-          /* I2: macOS — Homebrew is interactive, no silent install */
           <>
             <div style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 14, lineHeight: 1.55 }}>
-              Ollama isn't running. On macOS, install Ollama via Homebrew or the official installer.
+              Ollama isn't installed. We'll download and install it into Applications — macOS will ask for your password.
             </div>
-            <div style={{ background: "var(--bg-tint)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontFamily: "monospace", fontSize: 12, color: "var(--ink-1)" }}>
-              brew install ollama
-            </div>
-            <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 14, lineHeight: 1.5 }}>
-              Or download the macOS app from <strong>ollama.com/download</strong>. Once installed, run{" "}
-              <span style={{ fontFamily: "monospace" }}>ollama serve</span> in Terminal, then click Retry below.
-            </div>
-            <button className="btn btn-primary" onClick={() => { setPhase("detecting"); setTimeout(() => {
-              fetch("/api/ollama/status").then(r => r.json()).then(data => {
-                if (data.running) { setOllamaVersion(data.version || null); setPhase("done"); }
-                else setPhase("not-found");
-              });
-            }, 500); }}>
-              Retry detection
+            <button className="btn btn-primary" onClick={startInstall}>
+              <Icon name="download" size={14} /> Install Ollama (~280 MB)
             </button>
           </>
         )}

@@ -32,12 +32,18 @@ async def health():
                 model_loaded = tags[0]["name"]
     except Exception:
         pass
+    # ENG-004: surface the last cloud-fallback reason so the UI can warn the
+    # user that their cloud key didn't work and runs are silently routing to
+    # local Ollama. None when no fallback has happened (key valid, or no key).
+    from agentsuitelocal.api.execution import get_last_cloud_fallback_reason, get_last_resolver_error
     return {
         "ollama": ollama_ok,
         "model": model_loaded,
         "latency_ms": latency_ms,
         "status": "healthy" if ollama_ok else "no_daemon",
         "version": __version__,
+        "cloud_fallback_reason": get_last_cloud_fallback_reason(),
+        "resolver_error": get_last_resolver_error(),
     }
 
 

@@ -126,6 +126,21 @@ export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
             <button className="btn btn-sm btn-accent" onClick={runSmoke}>
               <Icon name="refresh" size={12} /> Retry all checks
             </button>
+            {/* QA-002: when the daemon-down step is the failure, offer a
+                one-click way to launch Ollama so Mac users (who can't run
+                CLI commands) have a path out. The backend's open-app endpoint
+                handles platform-specific launch. */}
+            {failedSteps.some(s => s.label === "Starting Ollama daemon") && (
+              <button className="btn btn-sm" onClick={() => {
+                fetch("/api/system/open-app", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ app: "Ollama" }),
+                }).then(() => setTimeout(runSmoke, 2000));
+              }}>
+                <Icon name="open" size={12} /> Open Ollama
+              </button>
+            )}
           </div>
         </div>
       )}

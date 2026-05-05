@@ -66,8 +66,12 @@ Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; A6: On uninstall, call the built-in uninstall endpoint to stop the backend gracefully
-Filename: "powershell.exe"; Parameters: "-NonInteractive -Command ""try {{ Invoke-RestMethod -Method POST -Uri 'http://127.0.0.1:8765/api/uninstall' -TimeoutSec 5 }} catch {{ }}"" "; Flags: runhidden
+; QA-001: Read the actually-bound port from launcher.port.json. Hardcoding 8765
+; left the uninstall hook silently broken whenever the launcher fell back to
+; a free port (8765 in use by another service / another instance / a dev
+; uvicorn). The PowerShell here parses the port file, defaults to 8765 if
+; missing, and POSTs to the live endpoint.
+Filename: "powershell.exe"; Parameters: "-NonInteractive -Command ""try {{ $f = Join-Path $env:USERPROFILE '.agentsuitelocal\launcher.port.json'; $port = 8765; if (Test-Path $f) {{ $port = (Get-Content $f -Raw | ConvertFrom-Json).port }}; Invoke-RestMethod -Method POST -Uri ('http://127.0.0.1:' + $port + '/api/uninstall') -TimeoutSec 5 }} catch {{ }}"" "; Flags: runhidden
 
 [Code]
 // A6: Check if AgentSuiteLocal is running and offer to close it before uninstall

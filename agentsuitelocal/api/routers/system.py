@@ -54,6 +54,39 @@ async def open_folder(body: OpenFolderRequest):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+_ALLOWED_OPEN_APPS = {"Ollama"}
+
+
+@router.post("/api/system/open-app")
+async def open_app(body: dict):
+    """QA-002: Launch a known external app (Ollama) so Mac users without
+    Terminal access can start the daemon from inside the installer.
+
+    The allowlist is intentional — this endpoint never executes arbitrary
+    user input. Anything outside _ALLOWED_OPEN_APPS is rejected.
+    """
+    app_name = body.get("app", "").strip()
+    if app_name not in _ALLOWED_OPEN_APPS:
+        raise HTTPException(status_code=400, detail=f"App '{app_name}' is not in the open-app allowlist")
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            subprocess.Popen(["open", "-a", app_name])
+        elif system == "Windows":
+            # On Windows the Ollama installer registers a Start-menu entry;
+            # `start` resolves it via the App Path lookup.
+            subprocess.Popen(["cmd", "/c", "start", "", app_name],
+                             creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            # Linux — try a desktop launcher; not commonly needed.
+            subprocess.Popen([app_name.lower()])
+        return {"launched": app_name}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"{app_name} is not installed")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router.get("/api/crash-reports/latest")
 async def latest_crash_report():
     """F4: Return the most recent crash report if any exist."""

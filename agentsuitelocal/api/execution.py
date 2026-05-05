@@ -29,10 +29,23 @@ def get_last_resolver_error() -> str | None:
     """Return the last _resolve_llm failure message, or None if last call was OK."""
     return _LAST_RESOLVER_ERROR
 
+
+# ENG-004: snapshot of the most recent cloud-fallback failure. Surfaced by
+# /api/health so the UI can show "Cloud provider unavailable — using local
+# model" instead of silently routing through Ollama with no signal.
+_LAST_CLOUD_FALLBACK_REASON: str | None = None
+
+
+def get_last_cloud_fallback_reason() -> str | None:
+    """Return the message describing why the last cloud-resolution attempt
+    fell back to local Ollama, or None if no fallback occurred / no key set."""
+    return _LAST_CLOUD_FALLBACK_REASON
+
 from agentsuitelocal.api.config import (
     _TIER_MODEL_MAP,
     _load_settings,
     _log_telemetry,
+    _read_launcher_port,
     _send_notification,
 )
 from agentsuitelocal.api.schemas import RunRequest
@@ -108,28 +121,66 @@ def _resolve_llm(settings: dict) -> Any:
     G1: tier maps to concrete model name.
     G2: if api_key set AND model starts with 'claude-', use Anthropic.
     """
+    # TEST-003 hook: honor agentsuite's existing test-factory contract so the
+    # new-run E2E can inject a deterministic mock LLM. Same safety rails as
+    # agentsuite/cli.py — only honored under pytest unless explicitly allowed.
+    factory = os.environ.get("AGENTSUITE_LLM_PROVIDER_FACTORY")
+    if factory and (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("AGENTSUITE_ALLOW_MOCK_FACTORY")):
+        try:
+            import importlib
+            module_name, fn_name = factory.split(":", 1)
+            return getattr(importlib.import_module(module_name), fn_name)()
+        except Exception as exc:
+            logger.error("Mock factory '%s' failed: %s", factory, exc)
+            # fall through to normal resolution
+
     api_key = settings.get("api_key")
     model_tier = settings.get("model_tier", "balanced")
     model_name = settings.get("model_name")
 
-    if not model_name or model_name == _TIER_MODEL_MAP.get(model_tier, model_name):
+    # ENG-006 fix: only coerce model_name when it's empty OR exactly equal to
+    # the current tier mapping. Previously, ANY tier not in _TIER_MODEL_MAP
+    # caused model_name to be silently overridden — forward-compat trap if a
+    # new tier label landed in data.js without a paired _TIER_MODEL_MAP entry.
+    if not model_name:
         model_name = _TIER_MODEL_MAP.get(model_tier, "gemma4:e4b")
+    elif model_tier in _TIER_MODEL_MAP and model_name == _TIER_MODEL_MAP[model_tier]:
+        # User hasn't overridden — use the canonical tier model.
+        model_name = _TIER_MODEL_MAP[model_tier]
+    # else: user has explicitly chosen a model_name; respect it.
 
     is_anthropic_model = model_name.startswith("claude-")
 
-    global _LAST_RESOLVER_ERROR
+    global _LAST_RESOLVER_ERROR, _LAST_CLOUD_FALLBACK_REASON
 
     if api_key and is_anthropic_model:
-        os.environ["ANTHROPIC_API_KEY"] = api_key
+        # ENG-001 fix: do NOT pollute os.environ. Pass the API key directly
+        # to resolve_provider so it never leaks to subprocesses (ollama serve,
+        # osascript, etc.) inheriting our environment.
         try:
             from agentsuite.llm.resolver import resolve_provider
-            provider = resolve_provider(name=model_name)
+            provider = resolve_provider(name=model_name, api_key=api_key)
             _LAST_RESOLVER_ERROR = None
             return provider
+        except TypeError:
+            # Older agentsuite versions don't accept api_key kwarg — fall back
+            # to scoped env-var, restored to its prior value in finally.
+            _prior = os.environ.get("ANTHROPIC_API_KEY")
+            os.environ["ANTHROPIC_API_KEY"] = api_key
+            try:
+                from agentsuite.llm.resolver import resolve_provider
+                provider = resolve_provider(name=model_name)
+                _LAST_RESOLVER_ERROR = None
+                return provider
+            except Exception as exc:
+                _LAST_CLOUD_FALLBACK_REASON = f"{exc.__class__.__name__}: {exc}"
+                logger.warning("Cloud provider resolution failed (%s); falling back to local Ollama", exc)
+            finally:
+                if _prior is None:
+                    os.environ.pop("ANTHROPIC_API_KEY", None)
+                else:
+                    os.environ["ANTHROPIC_API_KEY"] = _prior
         except Exception as exc:
-            # Cloud-fallback resolver failed — log but continue to local Ollama.
-            # Don't set _LAST_RESOLVER_ERROR here; the local path is the next
-            # attempt and the user cares about whichever path ultimately fails.
             logger.warning("Cloud provider resolution failed (%s); falling back to local Ollama", exc)
 
     try:
@@ -261,10 +312,13 @@ async def _execute_run(
         _save_state()
         _log_telemetry("run_completed", agent=req.agent_id, project=req.project,
                        duration=time.time() - run["started_at"])
+        # QA-001: read live launcher port instead of hardcoding 8765 — the
+        # launcher falls back to a free port if 8765 is in use, and a stale
+        # hardcode produces dead notification deep-links.
         _send_notification(
             "AgentSuiteLocal",
             f"{req.agent_id} run on {req.project} is ready for review.",
-            action_url="http://localhost:8765",
+            action_url=f"http://localhost:{_read_launcher_port()}",
         )
 
     except TimeoutError:

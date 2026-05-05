@@ -221,20 +221,27 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
           {ollamaPhase === "error"     && <span className="chip chip-bad">Failed</span>}
         </div>
 
-        {ollamaPhase === "not_found" && ollamaPlatform !== "darwin" && (
-          <button className="btn btn-primary btn-sm" onClick={installOllama}>
-            <Icon name="download" size={13} /> Install Ollama (~280 MB)
-          </button>
-        )}
-        {ollamaPhase === "not_found" && ollamaPlatform === "darwin" && (
-          <div style={{ fontSize: 12, color: "var(--ink-2)", lineHeight: 1.55 }}>
-            Install via <span className="mono">brew install ollama</span> or from <strong>ollama.com/download</strong>, then click
-            <button className="btn btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={checkOllama}>Check again</button>
-          </div>
+        {ollamaPhase === "not_found" && (
+          <>
+            <button className="btn btn-primary btn-sm" onClick={installOllama}>
+              <Icon name="download" size={13} /> Install Ollama (~280 MB)
+            </button>
+            {ollamaPlatform === "darwin" && (
+              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 8, lineHeight: 1.5 }}>
+                macOS will ask for your password to install Ollama into Applications.
+              </div>
+            )}
+          </>
         )}
         {ollamaPhase === "installing" && (
           <div style={{ marginTop: 8 }}>
             <ProgressBar value={ollamaInstallPct} label={ollamaInstallMsg} accent />
+            {ollamaPlatform === "win32" && (
+              <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--bg-tint)", borderRadius: 6, fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <Icon name="info" size={12} style={{ marginTop: 2, flexShrink: 0 }} />
+                <span>An Ollama desktop window may pop up during install — it's a separate app from AgentSuiteLocal. <strong>Closing it is safe</strong>; the background service stays running.</span>
+              </div>
+            )}
           </div>
         )}
         {ollamaPhase === "error" && (
@@ -314,10 +321,6 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
         <span>Model is stored in <span className="mono">~/.ollama/models</span> — shared with any other Ollama app. Subsequent launches are instant.</span>
       </div>
 
-      <div style={{ marginTop: 6, fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 8, alignItems: "flex-start" }}>
-        <Icon name="info" size={12} style={{ marginTop: 2 }} />
-        <span>An Ollama desktop window may open during install — it's a separate app and safe to close. The Ollama background service keeps running.</span>
-      </div>
     </InstallerShell>
   );
 };

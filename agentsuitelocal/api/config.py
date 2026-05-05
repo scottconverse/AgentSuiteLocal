@@ -34,7 +34,11 @@ _API_KEY_MEM: str | None = None
 
 _TELEMETRY_FILE = Path.home() / ".agentsuitelocal" / "usage.jsonl"
 _CRASH_DIR = Path.home() / ".agentsuitelocal" / "crash-reports"
-_LAUNCHER_LOG = Path.home() / ".agentsuitelocal" / "launcher.log"
+# QA-001 fix: launcher.log is plaintext appended to by launcher.py; if config.py
+# wrote port JSON to the same path, the two would corrupt each other (last writer
+# wins). Use a separate single-purpose file for the structured port snapshot.
+_LAUNCHER_PORT_FILE = Path.home() / ".agentsuitelocal" / "launcher.port.json"
+_LAUNCHER_LOG = _LAUNCHER_PORT_FILE  # back-compat alias; prefer _LAUNCHER_PORT_FILE
 
 # G1: model tier → concrete model name mapping
 # Keys MUST match frontend data.js tier IDs: "light", "balanced", "pro"

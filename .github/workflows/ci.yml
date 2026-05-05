@@ -35,6 +35,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/check_action_node_versions.py
 
+      - name: Check installer step count drift (DOC-NEW)
+        run: python scripts/check_installer_step_count.py
+
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
