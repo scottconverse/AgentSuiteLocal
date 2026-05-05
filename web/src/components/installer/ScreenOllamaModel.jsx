@@ -313,6 +313,11 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
         <Icon name="info" size={12} style={{ marginTop: 2 }} />
         <span>Model is stored in <span className="mono">~/.ollama/models</span> — shared with any other Ollama app. Subsequent launches are instant.</span>
       </div>
+
+      <div style={{ marginTop: 6, fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <Icon name="info" size={12} style={{ marginTop: 2 }} />
+        <span>An Ollama desktop window may open during install — it's a separate app and safe to close. The Ollama background service keeps running.</span>
+      </div>
     </InstallerShell>
   );
 };
