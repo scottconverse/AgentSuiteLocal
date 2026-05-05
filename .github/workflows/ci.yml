@@ -30,6 +30,11 @@ jobs:
       - name: ruff check
         run: ruff check .
 
+      - name: Check action pins are node24+ (Issue #16)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/check_action_node_versions.py
+
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
