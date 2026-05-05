@@ -88,16 +88,6 @@ def main() -> None:
     _log("launcher main() starting")
     port = _find_free_port(PORT)
     _log(f"using port {port}")
-    # QA-001: write a single-purpose port file so the Inno uninstall hook,
-    # notification deep-links, and the SettingsView panel can all find the
-    # actually-bound port instead of hardcoding 8765.
-    try:
-        import json as _json
-        port_file = os.path.join(os.path.expanduser("~"), ".agentsuitelocal", "launcher.port.json")
-        with open(port_file, "w") as f:
-            _json.dump({"port": port, "ts": time.time()}, f)
-    except Exception as _exc:  # noqa: BLE001 — best-effort, never crash the launcher
-        _log(f"could not write launcher.port.json: {_exc}")
     url = f"http://{HOST}:{port}"
 
     thread = threading.Thread(target=_start_server, args=(port,), daemon=True)
@@ -108,6 +98,24 @@ def main() -> None:
         _log(f"server failed to start on port {port} (timeout)")
         print(f"AgentSuiteLocal failed to start on port {port}.", file=sys.stderr)
         sys.exit(1)
+
+    # ENG-R2-005 fix: write launcher.port.json AFTER the server has bound
+    # the port (consumers seeing a port number in the file should be able to
+    # trust it's actually serving), and write atomically via os.replace so
+    # readers never see a torn / half-written file. The previous code wrote
+    # before bind, which meant the Inno uninstall hook could POST to a port
+    # that wasn't accepting connections yet.
+    try:
+        import json as _json
+        port_dir = os.path.join(os.path.expanduser("~"), ".agentsuitelocal")
+        os.makedirs(port_dir, exist_ok=True)
+        port_file = os.path.join(port_dir, "launcher.port.json")
+        tmp_file = port_file + ".tmp"
+        with open(tmp_file, "w") as f:
+            _json.dump({"port": port, "ts": time.time()}, f)
+        os.replace(tmp_file, port_file)  # atomic on Windows + POSIX
+    except Exception as _exc:  # noqa: BLE001
+        _log(f"could not write launcher.port.json: {_exc}")
 
     _log(f"server ready on port {port}, opening browser")
     webbrowser.open(url)

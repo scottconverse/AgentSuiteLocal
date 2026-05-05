@@ -59,8 +59,9 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
     { id: "models",   icon: "server",   label: "Models"    },
   ];
   const bottom = [
-    { id: "settings", icon: "settings", label: "Settings" },
-    { id: "manual",   icon: "book",     label: "Manual"   },
+    { id: "settings",  icon: "settings", label: "Settings"  },
+    { id: "manual",    icon: "book",     label: "Manual"    },
+    { id: "uninstall", icon: "x",        label: "Uninstall", danger: true },
   ];
   return (
     <div style={{
@@ -109,7 +110,8 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
         {bottom.map(i => (
           <button key={i.id} onClick={() => setView(i.id)} className="btn-card" style={{
             cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
-            padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%", color: "var(--ink-3)",
+            padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%",
+            color: i.danger ? "var(--bad)" : "var(--ink-3)",
           }}>
             <Icon name={i.icon} size={14} /> {i.label}
           </button>

@@ -59,6 +59,13 @@ def get_last_cloud_fallback_reason() -> str | None:
     return _LAST_CLOUD_FALLBACK_REASON
 
 
+# QA-205: serialize _resolve_llm calls so concurrent invocations (UI
+# double-click on Retry, parallel smoke + new-run from same client) don't
+# stomp on the ANTHROPIC_API_KEY scoped-env restoration window or invert
+# the resolver-error snapshot.
+_resolver_lock = threading.Lock()
+
+
 _QA_KEY_RE = re.compile(r"[./]")
 
 
@@ -121,16 +128,38 @@ def _resolve_llm(settings: dict) -> Any:
 
     G1: tier maps to concrete model name.
     G2: if api_key set AND model starts with 'claude-', use Anthropic.
+    QA-205: thread-locked so concurrent callers can't race on the scoped
+    ANTHROPIC_API_KEY env restoration or the resolver-error snapshot.
     """
+    with _resolver_lock:
+        return _resolve_llm_locked(settings)
+
+
+def _resolve_llm_locked(settings: dict) -> Any:
     # TEST-003 hook: honor agentsuite's existing test-factory contract so the
     # new-run E2E can inject a deterministic mock LLM. Same safety rails as
     # agentsuite/cli.py — only honored under pytest unless explicitly allowed.
+    #
+    # ENG-R2-003 hardening: restrict the factory module path to known test
+    # namespaces. Without this, an attacker with env-var control could point
+    # the factory at any importable Python module → arbitrary code execution
+    # at run-start. Allowlist of module prefixes is intentionally tight; tests
+    # that legitimately need to inject a mock live under tests.* or
+    # agentsuite.testing.*.
+    _ALLOWED_FACTORY_PREFIXES = ("tests.", "agentsuite.testing.", "agentsuite.llm.mock")
     factory = os.environ.get("AGENTSUITE_LLM_PROVIDER_FACTORY")
     if factory and (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("AGENTSUITE_ALLOW_MOCK_FACTORY")):
         try:
-            import importlib
             module_name, fn_name = factory.split(":", 1)
-            return getattr(importlib.import_module(module_name), fn_name)()
+            if not any(module_name == p.rstrip(".") or module_name.startswith(p) for p in _ALLOWED_FACTORY_PREFIXES):
+                logger.error(
+                    "Mock factory '%s' rejected: module path not in allowlist %s. "
+                    "AGENTSUITE_LLM_PROVIDER_FACTORY can only point at test-namespace modules.",
+                    factory, _ALLOWED_FACTORY_PREFIXES,
+                )
+            else:
+                import importlib
+                return getattr(importlib.import_module(module_name), fn_name)()
         except Exception as exc:
             logger.error("Mock factory '%s' failed: %s", factory, exc)
             # fall through to normal resolution

@@ -7,7 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-_Nothing pending._
+### Fixed (audit round 2 — 2026-05-05)
+
+- **Major — Windows console-flicker bug:** `subprocess.run(["ollama", "--version"])` from `/api/ollama/status` flashed a console window on every poll because the `--windowed` PyInstaller bundle has no parent console. Frontend polls every few seconds. Added `creationflags=CREATE_NO_WINDOW` to that call and to the uninstall `ollama rm` call. Indistinguishable from malware to non-technical users.
+- **In-app uninstall discoverability:** added "Uninstall" entry to sidebar with red treatment, scrolls Settings to Danger zone on click. Settings panel was already correct — users couldn't find it without scrolling.
+- **QA-202: Inno `[UninstallRun]` dead-socket:** `InitializeUninstall` was killing the process before the hook fired. Reordered so the hook POSTs graceful-shutdown first, waits 3s, then force-kills as fallback. Workspace cleanup now actually runs.
+- **Inno `unins000.exe` path discovery:** also checks Program Files (x86), LocalAppData\Programs, and the running .exe's dir.
+- **ENG-R2-001:** `/api/run/{id}/retry` state-guarded — only retryable from `error/timeout/cancelled/failed`.
+- **ENG-R2-002:** E2E conftest reads the structured `launcher.port.json` (was reading legacy plaintext `launcher.log`).
+- **ENG-R2-003:** `AGENTSUITE_LLM_PROVIDER_FACTORY` restricted to `tests.*` / `agentsuite.testing.*` / `agentsuite.llm.mock` prefixes — closes RCE-via-env-var primitive.
+- **ENG-R2-005:** `launcher.port.json` written atomically (`os.replace`) AFTER server bind.
+- **QA-201:** LiveRunView Retry / Open Settings now use proper `setView` callbacks (App.jsx has no hash router; the buttons were dead).
+- **QA-203:** `/api/smoke` calls `raise_for_status()` after `/api/generate` — a 5xx no longer marks probes green.
+- **QA-204:** "Open Ollama" button checks `response.ok` — 404 (Ollama not installed) no longer treated as success.
+- **QA-205:** `_resolve_llm` serialized via `_resolver_lock` — concurrent callers can't race on scoped env restoration.
+- **TEST2-001:** mock-factory env vars set in conftest before backend import + in CI workflow Start-backend step. New sentinel-file assertion in test_new_run.py proves mock ran in CI.
+- **UX2-001:** added `<Icon name="open" />` definition. Mac smoke recovery button no longer has phantom gap.
+- **UX-004:** Live Run no longer fakes a token counter (was `setTokens(t => t + 18)` per stage_update). Cost line is "Local — no cloud cost".
+- **UX-005:** Run-failed dead-end replaced with Retry / Open Settings / Diagnostic / Back. Retry uses the new state-guarded endpoint.
+- **DOC2-001:** docs/user-manual.md tier→model table was wrong (`gemma2:2b` / `llama3.1:8b`); aligned to canonical map (`gemma4:e2b` / `gemma4:e4b` / `gemma4:26b-moe`).
+- **DOC2-003 / DOC2-004:** README architecture section updated — `main.py` no longer described as 2000-line monolith; installer screens reflect 6-screen active flow.
+- **CLI exposure removed from user-manual.md:** "pull custom models from the terminal" rewritten — regression from round-1 doc rewrite.
+
+### Added
+
+- Sidebar **Uninstall** nav entry (red treatment, scrolls Settings to Danger zone).
+- `_LAST_CLOUD_FALLBACK_REASON` snapshot in `execution.py`, surfaced via `/api/health` so cloud-key misconfiguration is no longer silent.
+- Sentinel-file mechanism in `tests/e2e/test_new_run.py` proving the mock factory was invoked in CI rather than silently falling back to real Ollama.
 
 ## [0.8.8] — 2026-05-05
 

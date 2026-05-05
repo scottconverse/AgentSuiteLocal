@@ -57,18 +57,42 @@ async def uninstall_phase3(body: UninstallPhase3Request):
     """A6 Phase 3: Optionally delete the Ollama model."""
     if body.delete_model and body.model_name:
         try:
+            # CREATE_NO_WINDOW so the brief Ollama CLI invocation doesn't
+            # flash a console window during uninstall (Windows --windowed
+            # bundle has no parent console).
+            _no_window = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             await asyncio.to_thread(
                 subprocess.run,
                 ["ollama", "rm", body.model_name],
                 capture_output=True,
                 timeout=30,
+                creationflags=_no_window,
             )
         except Exception:
             pass
     if sys.platform == "win32":
-        inno_uninst = Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "AgentSuiteLocal" / "unins000.exe"
-        if inno_uninst.exists():
-            subprocess.Popen([str(inno_uninst), "/VERYSILENT", "/SUPPRESSMSGBOXES"])
+        # Hardened path discovery — round-1 audit hit users whose Inno install
+        # landed in (x86), per-user AppData, or a custom dir. Try several known
+        # locations before giving up.
+        candidates = [
+            Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "AgentSuiteLocal" / "unins000.exe",
+            Path(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")) / "AgentSuiteLocal" / "unins000.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "AgentSuiteLocal" / "unins000.exe",
+        ]
+        # Also check the dir of our running .exe — covers the case where the
+        # PyInstaller bundle was installed alongside unins000.exe by Inno.
+        try:
+            candidates.append(Path(sys.executable).parent / "unins000.exe")
+        except Exception:
+            pass
+        inno_uninst = next((p for p in candidates if p.exists()), None)
+        if inno_uninst is not None:
+            # CREATE_NO_WINDOW so the brief Inno bootstrap doesn't flicker a
+            # console window. /VERYSILENT and /SUPPRESSMSGBOXES are honored.
+            subprocess.Popen(
+                [str(inno_uninst), "/VERYSILENT", "/SUPPRESSMSGBOXES"],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
     return {"uninstall_complete": True}
 
 

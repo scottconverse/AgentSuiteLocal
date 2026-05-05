@@ -66,15 +66,23 @@ Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
+; QA-202 fix: graceful shutdown via POST FIRST (with backend running) — then
+; force-kill as fallback in case the POST is ignored or the backend is wedged.
+; The previous flow killed the process in InitializeUninstall before this hook
+; ran, so the POST always hit a dead socket and workspace cleanup never fired.
+;
 ; QA-001: Read the actually-bound port from launcher.port.json. Hardcoding 8765
-; left the uninstall hook silently broken whenever the launcher fell back to
-; a free port (8765 in use by another service / another instance / a dev
-; uvicorn). The PowerShell here parses the port file, defaults to 8765 if
-; missing, and POSTs to the live endpoint.
-Filename: "powershell.exe"; Parameters: "-NonInteractive -Command ""try {{ $f = Join-Path $env:USERPROFILE '.agentsuitelocal\launcher.port.json'; $port = 8765; if (Test-Path $f) {{ $port = (Get-Content $f -Raw | ConvertFrom-Json).port }}; Invoke-RestMethod -Method POST -Uri ('http://127.0.0.1:' + $port + '/api/uninstall') -TimeoutSec 5 }} catch {{ }}"" "; Flags: runhidden
+; was silently broken whenever the launcher fell back to a free port. The
+; PowerShell parses the port file (defaults to 8765 if missing) and POSTs to
+; the live endpoint, then waits up to 3s for the backend to exit on its own,
+; then force-kills as a fallback.
+Filename: "powershell.exe"; Parameters: "-NonInteractive -WindowStyle Hidden -Command ""try {{ $f = Join-Path $env:USERPROFILE '.agentsuitelocal\launcher.port.json'; $port = 8765; if (Test-Path $f) {{ $port = (Get-Content $f -Raw | ConvertFrom-Json).port }}; try {{ Invoke-RestMethod -Method POST -Uri ('http://127.0.0.1:' + $port + '/api/uninstall') -TimeoutSec 3 }} catch {{ }}; Start-Sleep -Seconds 3; Get-Process AgentSuiteLocal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }} catch {{ }}"" "; Flags: runhidden
 
 [Code]
-// A6: Check if AgentSuiteLocal is running and offer to close it before uninstall
+// A6 (QA-202 corrected): warn if AgentSuiteLocal is running, but DO NOT kill
+// it here — the [UninstallRun] hook needs the backend alive to POST a graceful
+// shutdown signal. The POST is followed by a 3-second wait and then a fallback
+// taskkill, all inside the hook itself.
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
@@ -82,10 +90,7 @@ begin
   Result := True;
   if Exec('tasklist', '/FI "IMAGENAME eq AgentSuiteLocal.exe" /NH', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
     if ResultCode = 0 then begin
-      if MsgBox('AgentSuiteLocal is currently running. Close it before uninstalling?', mbConfirmation, MB_YESNO) = IDYES then begin
-        Exec('taskkill', '/F /IM AgentSuiteLocal.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-        Sleep(1500);
-      end;
+      MsgBox('AgentSuiteLocal is running. The uninstaller will ask it to shut down gracefully and then proceed.', mbInformation, MB_OK);
     end;
   end;
 end;

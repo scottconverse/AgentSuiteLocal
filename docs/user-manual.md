@@ -16,7 +16,7 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 |------|--------|--------------|
 | 1 | Welcome | Intro screen. Click **Get started**. |
 | 2 | License & privacy | Read the license. Check the box. Click **I agree**. |
-| 3 | Hardware & model tier | The app probes your CPU, RAM, and disk and recommends a tier — Light (8 GB RAM, `gemma2:2b`), Balanced (16 GB RAM, `gemma4:e4b`, recommended), or Pro (24+ GB RAM, `llama3.1:8b`). Pick one. |
+| 3 | Hardware & model tier | The app probes your CPU, RAM, and disk and recommends a tier — Light (8 GB RAM, `gemma4:e2b`), Balanced (16 GB RAM, `gemma4:e4b`, recommended), or Pro (32 GB RAM, `gemma4:26b-moe`). Pick one. |
 | 4 | Ollama & model download | Confirms Ollama is running, then pulls the model for the tier you chose. Includes a 3-attempt retry loop with backoff. If Ollama isn't running yet, open the Ollama app and the screen unlocks automatically. |
 | 5 | Smoke test | Runs four sequential checks: Ollama reachable, model loaded, API healthy, real test inference. Each check shows a green tick or a fix card with a specific action. **Skip smoke test** is available with a confirmation if you need to bypass it (the app may not work after skipping). |
 | 6 | You're set up | Click **Launch AgentSuiteLocal** to open the main app. |
@@ -168,13 +168,13 @@ Open **Settings → Models** (or click **Models** in the sidebar) to manage your
 
 | Tier | Model | Disk | Min RAM |
 |------|-------|------|---------|
-| Light | `gemma2:2b` | 1.7 GB | 8 GB |
-| Balanced | `gemma4:e4b` | 4.1 GB | 16 GB |
-| Pro | `llama3.1:8b` | 4.7 GB | 24 GB |
+| Light    | `gemma4:e2b`     | ~2 GB | 8 GB  |
+| Balanced | `gemma4:e4b`     | ~5 GB | 16 GB |
+| Pro      | `gemma4:26b-moe` | ~16 GB | 32 GB |
 
 Click **Pull** next to any recommended model to download it. A live progress bar shows download progress streamed directly from Ollama.
 
-You can also pull custom models from the terminal (`ollama pull model-name`) and then click **Set as active** in the Models view — any model in your Ollama library works.
+Any model already in your Ollama library shows up in the Models view — click **Set as active** to switch. Power users can use Ollama directly to manage advanced model variants outside the app.
 
 ---
 

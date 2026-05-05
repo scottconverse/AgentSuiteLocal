@@ -179,6 +179,8 @@ export default function App() {
         runId={runId}
         onApprovalReady={() => setScene("gate")}
         onCancel={() => { setScene("main"); setView("home"); setRunId(null); }}
+        onRetry={(newRunId) => { setRunId(newRunId); /* stays on scene="live"; useSSE re-subscribes on new runId */ }}
+        onOpenSettings={() => { setScene("main"); setView("settings"); setRunId(null); }}
       />
     );
     if (scene === "gate") return (
@@ -198,8 +200,9 @@ export default function App() {
       case "pipeline": return <PipelineView />;
       case "projects": return <ProjectsView />;
       case "models":   return <ModelView onBack={() => navTo("settings")} />;
-      case "settings": return <SettingsView onGoToModels={() => navTo("models")} />;
-      case "manual":   return <ManualView />;
+      case "settings":  return <SettingsView onGoToModels={() => navTo("models")} />;
+      case "uninstall": return <SettingsView onGoToModels={() => navTo("models")} focusUninstall />;
+      case "manual":    return <ManualView />;
       default:         return <Dashboard onNew={() => startNewRun(null)} onOpen={openGate} />;
     }
   };

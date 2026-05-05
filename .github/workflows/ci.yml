@@ -186,13 +186,20 @@ jobs:
         run: ollama pull gemma2:2b
         timeout-minutes: 10
 
-      - name: Start backend + write launcher.log
+      - name: Start backend + write launcher.port.json
         run: |
           mkdir -p ~/.agentsuitelocal
-          echo "8765" > ~/.agentsuitelocal/launcher.log
+          # ENG-R2-002 / QA-001: write the structured port file (not the legacy
+          # plaintext launcher.log) so consumers find the port reliably.
+          echo '{"port": 8765, "ts": 0}' > ~/.agentsuitelocal/launcher.port.json
           uvicorn agentsuitelocal.api.main:app --port 8765 &
         env:
           AGENTSUITE_WORKSPACE: /tmp/agentsuite-test
+          # TEST2-001: env vars must reach the backend subprocess, not just the
+          # test-runner process. Set here so _resolve_llm honors them at the
+          # first run dispatch in tests/e2e/test_new_run.py.
+          AGENTSUITE_LLM_PROVIDER_FACTORY: tests.e2e.test_new_run:_mock_provider_factory
+          AGENTSUITE_ALLOW_MOCK_FACTORY: "1"
 
       - name: Wait for backend
         run: |

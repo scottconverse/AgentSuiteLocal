@@ -3,7 +3,7 @@ Playwright E2E fixtures.
 
 J3: Backend is started via subprocess (uvicorn in-process). The backend port is:
   1. Read from BASE_URL env var (set by CI).
-  2. Derived from ~/.agentsuitelocal/launcher.log (A5 protocol).
+  2. Derived from ~/.agentsuitelocal/launcher.port.json (post-QA-001).
   3. Defaults to 8766 for local dev (avoids conflicting with the Vite dev server on 8765).
 
 The conftest starts its own backend if nothing is already listening on the port.
@@ -18,6 +18,16 @@ import socket
 import threading
 import time
 
+# TEST2-001 fix: mock-factory env var must be set BEFORE the backend module
+# is imported, otherwise _resolve_llm closes over an unset value at import
+# time. Conftest is the earliest hook that runs before the test module body,
+# so set it here. Tests that don't need the mock just don't reference it.
+os.environ.setdefault(
+    "AGENTSUITE_LLM_PROVIDER_FACTORY",
+    "tests.e2e.test_new_run:_mock_provider_factory",
+)
+os.environ.setdefault("AGENTSUITE_ALLOW_MOCK_FACTORY", "1")
+
 import pytest
 import uvicorn
 
@@ -25,12 +35,18 @@ from agentsuitelocal.api.main import app
 
 
 def _read_launcher_port() -> int:
-    """A5: Read the bound port from launcher.log, falling back to 8766."""
-    log = pathlib.Path.home() / ".agentsuitelocal" / "launcher.log"
-    if log.exists():
+    """ENG-R2-002 fix: Read the bound port from launcher.port.json (the
+    structured port file written by launcher.py post-QA-001). The previous
+    implementation read launcher.log — a plaintext debug log — and parsed it
+    as int(text.strip()), which has been silently broken since launcher.log
+    became multi-line. Falls back to 8766 for local dev runs without an
+    installed launcher."""
+    import json
+    port_file = pathlib.Path.home() / ".agentsuitelocal" / "launcher.port.json"
+    if port_file.exists():
         try:
-            return int(log.read_text().strip())
-        except ValueError:
+            return int(json.loads(port_file.read_text()).get("port", 8766))
+        except (ValueError, json.JSONDecodeError, KeyError):
             pass
     return 8766
 

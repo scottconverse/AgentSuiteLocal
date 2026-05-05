@@ -115,7 +115,13 @@ Vite proxies `/api/*` to `:8766`. Open **http://localhost:5173** (or whichever p
 ```
 agentsuitelocal/
   api/
-    main.py         FastAPI app — REST + SSE, ~2000 lines, 48 routes
+    main.py         FastAPI app entrypoint — wires routers + middleware
+    config.py       Settings load/save, OS keychain (post-v0.7.1), tier→model map
+    execution.py    Run/pipeline orchestration, _resolve_llm, SSE state
+    routers/        Split per concern (post-v0.8.0): health, kernel, ollama,
+                    pipelines, projects, runs, settings, system, uninstall
+    schemas.py      Pydantic request/response models
+    workspace.py    Filesystem layout for runs + kernel artifacts
 
 web/
   src/
@@ -124,19 +130,17 @@ web/
     hooks/
       useSSE.js              SSE → React state bridge
     components/
-      installer/             6-screen setup wizard
-        InstallerShell.jsx   Chrome (header, nav, progress)
-        ScreenWelcome.jsx    Step 1 — splash
-        ScreenLicense.jsx    Step 2 — license gate
-        ScreenHardware.jsx   Step 3 — hardware probe
-        ScreenTier.jsx       Step 4 — model picker
-        ScreenOllama.jsx     Step 5 — Ollama runtime check
-        ScreenModelDownload.jsx  Step 6 — model pull
-        ScreenPython.jsx     Step 7 — Python env setup
-        ScreenAgents.jsx     Step 8 — agent selection
-        ScreenApiKey.jsx     Step 9 — cloud fallback
-        ScreenSmoke.jsx      Step 10 — smoke test
-        ScreenSuccess.jsx    Step 11 — launch
+      installer/             6-screen setup wizard (Welcome → License → HardwareTier → OllamaModel → Smoke → Success)
+        InstallerShell.jsx       Chrome (header, nav, progress)
+        ScreenWelcome.jsx        Step 1 — splash
+        ScreenLicense.jsx        Step 2 — license gate
+        ScreenHardwareTier.jsx   Step 3 — hardware probe + tier selection
+        ScreenOllamaModel.jsx    Step 4 — Ollama runtime + model download
+        ScreenSmoke.jsx          Step 5 — first-run smoke test
+        ScreenSuccess.jsx        Step 6 — launch
+        (legacy/unused: ScreenHardware, ScreenTier, ScreenOllama,
+         ScreenModelDownload, ScreenPython, ScreenAgents, ScreenApiKey,
+         ScreenUninstall — kept for direct reference)
       app/                   12 main app screens
         Dashboard.jsx        Overview + pending approvals
         AgentsView.jsx       Agent roster

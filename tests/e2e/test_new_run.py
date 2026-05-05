@@ -3,33 +3,37 @@ New Run → assert run starts. Until this test, the agent code path was
 exercised only by smoke (one inference call); a New Run dispatches the
 full orchestrator, which is the path users actually run.
 
-Uses the AGENTSUITE_LLM_PROVIDER_FACTORY env var to inject a deterministic
-mock provider so the test doesn't require Ollama or a real model."""
+The mock-factory env vars are set in tests/e2e/conftest.py BEFORE the
+backend imports — that order matters (TEST2-001 round-2 finding). The
+factory writes a sentinel file when invoked so this test can assert the
+mock was actually wired in (defends against silent fallback to real
+Ollama in CI)."""
 
 from __future__ import annotations
 
-import os
+import pathlib
+import tempfile
 
 import pytest
 from playwright.sync_api import Page, expect
 
-# Tell the agentsuite kernel to use our mock provider for any run started in
-# this test session. The env var is honored by agentsuite's CLI today; this
-# test doubles as a regression assertion that AgentSuiteLocal's _resolve_llm
-# also honors it.
-os.environ.setdefault(
-    "AGENTSUITE_LLM_PROVIDER_FACTORY",
-    "tests.e2e.test_new_run:_mock_provider_factory",
-)
-os.environ.setdefault("AGENTSUITE_ALLOW_MOCK_FACTORY", "1")
+# Sentinel path used to prove the mock factory ran. Cleaned up at module
+# load so each test session starts fresh. Tests assert it exists after
+# triggering a run.
+_MOCK_SENTINEL = pathlib.Path(tempfile.gettempdir()) / "agentsuite_mock_factory_called"
+if _MOCK_SENTINEL.exists():
+    _MOCK_SENTINEL.unlink()
 
 
 def _mock_provider_factory():
     """Returns a MockLLMProvider preloaded with substring-keyed responses
-    that satisfy the founder agent's stage prompts. agentsuite's mock
-    provider matches a prompt to its first response whose key is a substring
-    of the prompt, so we cover the keys we know agents emit."""
+    that satisfy the founder agent's stage prompts. Touches a sentinel file
+    on every invocation so the E2E test can verify the mock actually ran."""
     from agentsuite.llm.mock import MockLLMProvider
+    try:
+        _MOCK_SENTINEL.touch(exist_ok=True)
+    except Exception:
+        pass
     return MockLLMProvider(
         responses={
             "intake": "Test intake artifact",
@@ -96,4 +100,16 @@ def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str
         "Check that AGENTSUITE_LLM_PROVIDER_FACTORY is honored by "
         "agentsuitelocal/api/execution.py:_resolve_llm (TEST-003 "
         "implementation note in next-sprint-watchlist.md)."
+    )
+
+    # TEST2-001: assert the mock factory actually ran. Without this check, a
+    # CI job where the env var didn't propagate to the backend subprocess
+    # would silently pass against a real Ollama (or fail for the wrong
+    # reason). The sentinel file is touched by _mock_provider_factory above.
+    assert _MOCK_SENTINEL.exists(), (
+        f"Mock LLM factory was not invoked (sentinel '{_MOCK_SENTINEL}' missing). "
+        "Either AGENTSUITE_LLM_PROVIDER_FACTORY didn't reach the backend "
+        "process, or _resolve_llm fell through to real-Ollama resolution. "
+        "Check tests/e2e/conftest.py env-var ordering and the CI 'Start "
+        "backend' step."
     )

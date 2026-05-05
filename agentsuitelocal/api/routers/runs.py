@@ -67,13 +67,29 @@ async def start_run(req: RunRequest):
     return {"run_id": run_id}
 
 
+_RETRYABLE_STATES = {"error", "timeout", "cancelled", "failed"}
+
+
 @router.post("/api/run/{run_id}/retry")
 async def retry_run(run_id: str):
-    """UX-005: Re-submit a failed/timed-out run with the same parameters.
-    Returns a new run_id. The old run record is preserved for history."""
+    """UX-005 / ENG-R2-001: Re-submit a failed/timed-out/cancelled run with
+    the same parameters. The original run record is preserved for history.
+
+    State guard prevents retry-storms: only runs that have actually concluded
+    in a non-success terminal state are retryable. Calling retry on a running
+    or waiting run is rejected with 409 — otherwise double-clicks would spawn
+    duplicate concurrent runs sharing the same project workspace and FIFO-
+    evict legitimate run history at _MAX_RUNS=50.
+    """
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
     src = _runs[run_id]
+    status = src.get("status", "")
+    if status not in _RETRYABLE_STATES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Run is in state '{status}'; retry is only permitted from {sorted(_RETRYABLE_STATES)}.",
+        )
     req = RunRequest(
         agent_id=src.get("agent"),
         project=src.get("project"),

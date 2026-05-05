@@ -35,8 +35,17 @@ async def ollama_status():
         models = [m["name"] for m in tags.json().get("models", [])]
         loaded = [m["name"] for m in ps.json().get("models", [])]
         try:
+            # CRITICAL fix (round 2 user-report): on Windows, subprocess.run
+            # without CREATE_NO_WINDOW briefly flashes a console window for
+            # every call. Frontend polls /api/ollama/status every few seconds
+            # from Dashboard, Settings, and ScreenOllamaModel, so the user sees
+            # a continuous flicker of black terminals indistinguishable from
+            # malware. Same fix applied to every Windows subprocess call.
+            _no_window = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             ver_result = await asyncio.to_thread(
-                subprocess.run, ["ollama", "--version"], capture_output=True, text=True, timeout=3
+                subprocess.run, ["ollama", "--version"],
+                capture_output=True, text=True, timeout=3,
+                creationflags=_no_window,
             )
             ver = ver_result.stdout.strip().split()[-1] if ver_result.returncode == 0 else None
         except Exception:
@@ -409,6 +418,10 @@ async def smoke():
                 json={"model": model, "prompt": "Hi", "stream": False, "options": {"num_predict": 1}},
             )
         latency_ms = round((time.monotonic() - t0) * 1000)
+        # QA-203 fix: a 5xx with a JSON body would have marked both probe
+        # steps green even though Ollama failed — fresh fake-positive of the
+        # same family as the v0.8.7 bug. Raise on any non-2xx now.
+        gr.raise_for_status()
         eval_count = gr.json().get("eval_count", 1)
         steps.append({"label": "Pinging /api/generate", "ok": True})
         steps.append({"label": "Running 1-token reasoning probe", "ok": True})

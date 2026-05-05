@@ -4,13 +4,16 @@ import { TopBar } from "../shell/index.jsx";
 import { STAGES, AGENTS } from "../../data.js";
 import { useSSE } from "../../hooks/useSSE.js";
 
-export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
+export const LiveRunView = ({ runId, onApprovalReady, onCancel, onRetry, onOpenSettings }) => {
   const { events, status, error, reconnectAttempt } = useSSE(runId);
   const [stageIdx, setStageIdx] = useState(0);
   const [tokens, setTokens] = useState(0);
   const [streamLines, setStreamLines] = useState([]);
   const [runMeta, setRunMeta] = useState(null);
   const [artifacts, setArtifacts] = useState([]);
+  // UX-005: retry button in-flight state + error surface (QA-201 fix)
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState(null);
 
   // E2: elapsed time tracking
   const [elapsed, setElapsed] = useState(0);
@@ -161,21 +164,32 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel }) => {
               {error || "An unexpected error occurred."}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className="btn btn-sm btn-primary" onClick={() => {
-                // UX-005: server-side retry — same params, new run_id.
-                fetch(`/api/run/${runId}/retry`, { method: "POST" })
-                  .then(r => r.ok ? r.json() : Promise.reject())
-                  .then(d => {
-                    if (d.run_id) {
-                      window.location.hash = `#/runs/${d.run_id}`;
-                      window.location.reload();
-                    }
-                  })
-                  .catch(() => {});
+              <button className="btn btn-sm btn-primary" disabled={retrying} onClick={async () => {
+                // UX-005 / QA-201 / ENG-R2-001: server-side retry. Re-fetches
+                // run record under the existing view (no hash navigation —
+                // App.jsx doesn't route on hash). Retry button disables while
+                // in flight to prevent double-click duplicates.
+                if (retrying) return;
+                setRetrying(true);
+                try {
+                  const r = await fetch(`/api/run/${runId}/retry`, { method: "POST" });
+                  if (r.status === 409) {
+                    setRetryError("This run can't be retried in its current state.");
+                  } else if (!r.ok) {
+                    setRetryError(`Retry failed (HTTP ${r.status}). See diagnostic.`);
+                  } else {
+                    const d = await r.json();
+                    if (d.run_id && onRetry) onRetry(d.run_id);
+                  }
+                } catch (e) {
+                  setRetryError(`Retry failed: ${e.message || "network error"}`);
+                } finally {
+                  setRetrying(false);
+                }
               }}>
-                <Icon name="refresh" size={12} /> Retry run
+                <Icon name="refresh" size={12} /> {retrying ? "Retrying…" : "Retry run"}
               </button>
-              <button className="btn btn-sm" onClick={() => { window.location.hash = "#/settings"; }}>
+              <button className="btn btn-sm" onClick={() => onOpenSettings && onOpenSettings()}>
                 <Icon name="settings" size={12} /> Open Settings
               </button>
               <details style={{ marginLeft: "auto", fontSize: 11 }}>

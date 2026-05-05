@@ -124,7 +124,16 @@ const CLOUD_MODELS = [
   { id: "claude-opus-4",              label: "Claude Opus 4 (most powerful)" },
 ];
 
-export const SettingsView = ({ onGoToModels }) => {
+export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
+  // When the user navigates here via the "Uninstall" sidebar entry, scroll
+  // the Danger zone into view on mount so they don't have to scroll a 388-line
+  // settings page to find it.
+  const uninstallRef = React.useRef(null);
+  React.useEffect(() => {
+    if (focusUninstall && uninstallRef.current) {
+      uninstallRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [focusUninstall]);
   const [settings, setSettings] = useState(null);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -379,8 +388,10 @@ export const SettingsView = ({ onGoToModels }) => {
           )}
         </div>
 
-        {/* A6: Uninstall */}
-        <UninstallPanel />
+        {/* A6: Uninstall — anchored so the sidebar "Uninstall" entry can scroll here */}
+        <div ref={uninstallRef}>
+          <UninstallPanel />
+        </div>
 
       </div>
     </div>

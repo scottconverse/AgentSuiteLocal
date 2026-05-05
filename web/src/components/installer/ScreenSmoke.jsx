@@ -131,12 +131,28 @@ export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
                 CLI commands) have a path out. The backend's open-app endpoint
                 handles platform-specific launch. */}
             {failedSteps.some(s => s.label === "Starting Ollama daemon") && (
-              <button className="btn btn-sm" onClick={() => {
-                fetch("/api/system/open-app", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ app: "Ollama" }),
-                }).then(() => setTimeout(runSmoke, 2000));
+              <button className="btn btn-sm" onClick={async () => {
+                // QA-204: check response.ok — a 404 (Ollama not installed) was
+                // previously treated as success and the user got a silent 2s
+                // retry loop with the same error.
+                try {
+                  const r = await fetch("/api/system/open-app", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ app: "Ollama" }),
+                  });
+                  if (r.status === 404) {
+                    setErrorMsg("Ollama isn't installed. Go back and click Install Ollama.");
+                    return;
+                  }
+                  if (!r.ok) {
+                    setErrorMsg(`Couldn't launch Ollama (HTTP ${r.status}). Open it from your Start menu / Applications, then click Retry.`);
+                    return;
+                  }
+                  setTimeout(runSmoke, 2000);
+                } catch (e) {
+                  setErrorMsg(`Couldn't reach the launcher: ${e.message || "unknown error"}.`);
+                }
               }}>
                 <Icon name="open" size={12} /> Open Ollama
               </button>
