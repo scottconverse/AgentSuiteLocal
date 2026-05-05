@@ -1,5 +1,16 @@
 # AgentSuiteLocal
 
+> ### ⚠️ Looking for the installer? Don't use the green "Code" button.
+>
+> The **Code → Download ZIP** button at the top of this page gives you the **source code**, not the app. To install AgentSuiteLocal:
+>
+> **▶ [Download the installer from the Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest)**
+>
+> - **Windows:** `AgentSuiteLocal-0.8.7-setup.exe`
+> - **macOS:** `AgentSuiteLocal-v0.8.7.dmg`
+
+---
+
 **v0.8.7** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run. All seven agents are enabled by default; override via `AGENTSUITE_ENABLED_AGENTS`.
