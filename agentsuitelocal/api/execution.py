@@ -10,6 +10,7 @@ import os
 import re
 import threading
 import time
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -265,6 +266,40 @@ async def _execute_run(
         _send_notification("AgentSuiteLocal", f"{req.agent_id} run on {req.project} errored.")
 
 
+def _collect_step_artifacts(
+    run_id: str, output_root: Path
+) -> tuple[list[str], float | None, list[dict]]:
+    """Collect artifacts and QA scores for a completed agent run."""
+    artifacts: list[str] = []
+    qa_score: float | None = None
+    qa_dimensions: list[dict] = []
+    run_dir = output_root / "runs" / run_id
+    if run_dir.exists():
+        artifacts = [
+            str(f.relative_to(run_dir))
+            for f in run_dir.rglob("*")
+            if f.is_file() and not f.name.startswith("_")
+        ]
+        qa_file = run_dir / "qa_scores.json"
+        if qa_file.exists():
+            try:
+                qa_data = json.loads(qa_file.read_text())
+                qa_score = (
+                    qa_data.get("weighted_score")
+                    or qa_data.get("overall_score")
+                    or qa_data.get("score")
+                    or qa_data.get("overall")
+                )
+                dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
+                if isinstance(dims, dict):
+                    qa_dimensions = _sanitize_qa_dimensions(dims)
+                elif isinstance(dims, list):
+                    qa_dimensions = dims
+            except Exception:
+                pass
+    return artifacts, qa_score, qa_dimensions
+
+
 async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
     pipeline = _pipelines[pipeline_id]
     if step_idx >= len(pipeline["steps"]):
@@ -273,20 +308,126 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
         _emit_pipeline(pipeline_id, "pipeline_error", error="step index out of range", step=step_idx)
         _save_state()
         return
-    step = pipeline["steps"][step_idx]
-    agent_id = step["agent"]
 
     pipeline["status"] = "running"
     pipeline["updated_at"] = time.time()
+
+    if step_idx > 0:
+        # Resume path (error recovery): direct agent.run(), no orchestrator state needed.
+        # K1 cross-stage context is not available on resume — acceptable for recovery.
+        await _execute_pipeline_step_direct(pipeline_id, step_idx)
+        return
+
+    # Primary path (step 0): PipelineOrchestrator provides K1 cross-stage context.
+    try:
+        settings = _load_settings()
+        llm = _resolve_llm(settings)
+        output_root = _workspace() / ".agentsuite"
+        loop = asyncio.get_running_loop()
+        current_step_ref = [0]
+
+        def on_progress(event_type: str, step: Any, state: Any) -> None:
+            i = state.current_step_index
+            if event_type == "agent_start":
+                current_step_ref[0] = i
+                loop.call_soon_threadsafe(
+                    lambda a=step.agent, idx=i: _emit_pipeline(pipeline_id, "agent_start", agent=a, step=idx)
+                )
+            elif event_type == "agent_done":
+                # Fires only when auto_approve=True; collect artifacts in executor thread.
+                run_id = step.run_id
+                agent_name = step.agent
+                arts, qa_score, qa_dims = _collect_step_artifacts(run_id, output_root)
+                try:
+                    _push_to_kernel_by_run_id(run_id, pipeline["project"], agent_name)
+                except Exception:
+                    pass
+
+                def _apply_done(i=i, a=agent_name, r=run_id, arts=arts, qs=qa_score, qd=qa_dims):
+                    p = _pipelines.get(pipeline_id)
+                    if p and i < len(p["steps"]):
+                        p["steps"][i].update(run_id=r, artifacts=arts, qa_score=qs, qa_dimensions=qd, status="done")
+                        p["current_step"] = i + 1
+                        p["updated_at"] = time.time()
+                    _emit_pipeline(pipeline_id, "agent_done", agent=a, step=i, qa_score=qs)
+
+                loop.call_soon_threadsafe(_apply_done)
+
+        def kernel_progress_callback(event: dict) -> None:
+            evt = dict(event)
+            i = current_step_ref[0]
+            loop.call_soon_threadsafe(
+                lambda e=evt, idx=i: _emit_pipeline(
+                    pipeline_id, "stage_update", step=idx,
+                    **{k: v for k, v in e.items() if k not in ("type", "step")},
+                )
+            )
+
+        def _run_sync():
+            from agentsuite.pipeline.orchestrator import PipelineOrchestrator
+            orch = PipelineOrchestrator(output_root=output_root)
+            inputs_dir = Path(pipeline["inputs_dir"]) if pipeline.get("inputs_dir") else None
+            return orch.run(
+                agents=[s["agent"] for s in pipeline["steps"]],
+                project_slug=pipeline["project"],
+                business_goal=pipeline["goal"],
+                pipeline_id=pipeline_id,
+                inputs_dir=inputs_dir,
+                auto_approve=pipeline["auto_approve"],
+                llm=llm,
+                on_progress=on_progress,
+                kernel_progress_callback=kernel_progress_callback,
+            )
+
+        orch_state = await loop.run_in_executor(None, _run_sync)
+        pipeline["updated_at"] = time.time()
+
+        if orch_state.status == "awaiting_approval":
+            i = orch_state.current_step_index
+            run_id = orch_state.steps[i].run_id
+            arts, qa_score, qa_dims = _collect_step_artifacts(run_id, output_root)
+            pipeline["steps"][i].update(
+                run_id=run_id,
+                artifacts=arts,
+                qa_score=qa_score,
+                qa_dimensions=qa_dims,
+                status="awaiting_approval",
+            )
+            pipeline["status"] = "awaiting_approval"
+            pipeline["current_step"] = i
+            _emit_pipeline(pipeline_id, "agent_waiting",
+                           agent=pipeline["steps"][i]["agent"], step=i, qa_score=qa_score)
+            _save_state()
+
+        elif orch_state.status == "done":
+            # on_progress("agent_done") callbacks already updated individual steps.
+            pipeline["status"] = "done"
+            pipeline["current_step"] = len(pipeline["steps"])
+            _emit_pipeline(pipeline_id, "pipeline_done")
+            _save_state()
+
+    except Exception as exc:
+        pipeline["status"] = "error"
+        pipeline["updated_at"] = time.time()
+        pipeline["error_message"] = str(exc)
+        _emit_pipeline(pipeline_id, "pipeline_error", error=str(exc), step=step_idx)
+        _save_state()
+
+
+async def _execute_pipeline_step_direct(pipeline_id: str, step_idx: int) -> None:
+    """Legacy direct-agent path. Used for resume (step_idx > 0) without orchestrator."""
+    pipeline = _pipelines[pipeline_id]
+    step = pipeline["steps"][step_idx]
+    agent_id = step["agent"]
+
     _emit_pipeline(pipeline_id, "agent_start", agent=agent_id, step=step_idx)
 
     try:
         settings = _load_settings()
         llm = _resolve_llm(settings)
-
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
-        step_orch_id = f"{pipeline_id}-step{step_idx}"
+        step_run_id = f"{pipeline_id}-step{step_idx}"
 
         def _run_sync():
             from agentsuite.agents.registry import default_registry
@@ -310,48 +451,24 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
                 user_request=pipeline["goal"],
                 business_goal=pipeline["goal"],
             )
-            return agent.run(request=request, run_id=step_orch_id, progress_callback=progress_callback)
+            return agent.run(request=request, run_id=step_run_id, progress_callback=progress_callback)
 
         result = await loop.run_in_executor(None, _run_sync)
-
-        step["run_id"] = result.run_id if (result and result.run_id) else None
-
-        if result and result.run_id:
-            run_dir = output_root / "runs" / result.run_id
-            if run_dir.exists():
-                step["artifacts"] = [
-                    str(f.relative_to(run_dir))
-                    for f in run_dir.rglob("*")
-                    if f.is_file() and not f.name.startswith("_")
-                ]
-                qa_file = run_dir / "qa_scores.json"
-                if qa_file.exists():
-                    try:
-                        qa_data = json.loads(qa_file.read_text())
-                        step["qa_score"] = (
-                            qa_data.get("weighted_score")
-                            or qa_data.get("overall_score")
-                            or qa_data.get("score")
-                            or qa_data.get("overall")
-                        )
-                        dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
-                        if isinstance(dims, dict):
-                            step["qa_dimensions"] = _sanitize_qa_dimensions(dims)
-                        elif isinstance(dims, list):
-                            step["qa_dimensions"] = dims
-                    except Exception:
-                        pass
+        run_id = result.run_id if (result and result.run_id) else None
+        step["run_id"] = run_id
+        arts, qa_score, qa_dims = _collect_step_artifacts(run_id, output_root) if run_id else ([], None, [])
+        step.update(artifacts=arts, qa_score=qa_score, qa_dimensions=qa_dims)
 
         if pipeline["auto_approve"]:
-            if step["run_id"]:
-                _push_to_kernel_by_run_id(step["run_id"], pipeline["project"], agent_id)
+            if run_id:
+                _push_to_kernel_by_run_id(run_id, pipeline["project"], agent_id)
             step["status"] = "done"
             await _advance_pipeline(pipeline_id, step_idx)
         else:
             step["status"] = "awaiting_approval"
             pipeline["status"] = "awaiting_approval"
             pipeline["updated_at"] = time.time()
-            _emit_pipeline(pipeline_id, "agent_waiting", agent=agent_id, step=step_idx, qa_score=step["qa_score"])
+            _emit_pipeline(pipeline_id, "agent_waiting", agent=agent_id, step=step_idx, qa_score=qa_score)
             _save_state()
 
     except Exception as exc:
@@ -371,8 +488,9 @@ async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
         _emit_pipeline(pipeline_id, "pipeline_error", error="approved step index out of range", step=approved_step_idx)
         _save_state()
         return
+
     step = pipeline["steps"][approved_step_idx]
-    step["status"] = "done"
+    # Router already set step["status"] = "done" and called _push_to_kernel_by_run_id.
     _emit_pipeline(pipeline_id, "agent_done", agent=step["agent"], step=approved_step_idx, qa_score=step["qa_score"])
 
     next_idx = approved_step_idx + 1
@@ -385,8 +503,83 @@ async def _advance_pipeline(pipeline_id: str, approved_step_idx: int) -> None:
         _save_state()
         return
 
-    pipeline["steps"][next_idx]["status"] = "running"
     pipeline["status"] = "running"
     pipeline["updated_at"] = time.time()
     _save_state()
-    asyncio.create_task(_execute_pipeline_step(pipeline_id, next_idx))
+
+    try:
+        settings = _load_settings()
+        llm = _resolve_llm(settings)
+        output_root = _workspace() / ".agentsuite"
+        loop = asyncio.get_running_loop()
+        current_step_ref = [next_idx]
+
+        def on_progress(event_type: str, step: Any, state: Any) -> None:
+            i = state.current_step_index
+            if event_type == "agent_start":
+                current_step_ref[0] = i
+                loop.call_soon_threadsafe(
+                    lambda a=step.agent, idx=i: _emit_pipeline(pipeline_id, "agent_start", agent=a, step=idx)
+                )
+
+        def kernel_progress_callback(event: dict) -> None:
+            evt = dict(event)
+            i = current_step_ref[0]
+            loop.call_soon_threadsafe(
+                lambda e=evt, idx=i: _emit_pipeline(
+                    pipeline_id, "stage_update", step=idx,
+                    **{k: v for k, v in e.items() if k not in ("type", "step")},
+                )
+            )
+
+        def _run_sync():
+            from agentsuite.pipeline.orchestrator import PipelineOrchestrator
+            orch = PipelineOrchestrator(output_root=output_root)
+            return orch.approve(
+                pipeline_id=pipeline_id,
+                approver="user",
+                llm=llm,
+                on_progress=on_progress,
+                kernel_progress_callback=kernel_progress_callback,
+            )
+
+        try:
+            orch_state = await loop.run_in_executor(None, _run_sync)
+        except Exception:
+            # No orchestrator state on disk (resume/error recovery path). Fall back to direct.
+            pipeline["steps"][next_idx]["status"] = "running"
+            pipeline["updated_at"] = time.time()
+            asyncio.create_task(_execute_pipeline_step_direct(pipeline_id, next_idx))
+            return
+
+        pipeline["updated_at"] = time.time()
+
+        if orch_state.status == "awaiting_approval":
+            i = orch_state.current_step_index
+            run_id = orch_state.steps[i].run_id
+            arts, qa_score, qa_dims = _collect_step_artifacts(run_id, output_root)
+            pipeline["steps"][i].update(
+                run_id=run_id,
+                artifacts=arts,
+                qa_score=qa_score,
+                qa_dimensions=qa_dims,
+                status="awaiting_approval",
+            )
+            pipeline["status"] = "awaiting_approval"
+            pipeline["current_step"] = i
+            _emit_pipeline(pipeline_id, "agent_waiting",
+                           agent=pipeline["steps"][i]["agent"], step=i, qa_score=qa_score)
+            _save_state()
+
+        elif orch_state.status == "done":
+            pipeline["status"] = "done"
+            pipeline["current_step"] = len(pipeline["steps"])
+            _emit_pipeline(pipeline_id, "pipeline_done")
+            _save_state()
+
+    except Exception as exc:
+        pipeline["status"] = "error"
+        pipeline["updated_at"] = time.time()
+        pipeline["error_message"] = str(exc)
+        _emit_pipeline(pipeline_id, "pipeline_error", error=str(exc), step=next_idx)
+        _save_state()
