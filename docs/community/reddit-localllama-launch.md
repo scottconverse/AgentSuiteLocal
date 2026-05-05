@@ -1,10 +1,10 @@
-# r/LocalLLaMA — Launch post
+# r/LocalLLaMA — Intro post
 
-**AgentSuiteLocal v0.7.0 — seven AI agents that run entirely on your machine, with a proper installer and approval workflow**
+**AgentSuiteLocal — seven AI agents that run entirely on your machine, with a proper installer and approval workflow** (current release: v0.8.8)
 
 ---
 
-I've been building a desktop app for the past few months that wraps local LLMs in a structured multi-agent workflow. It shipped v0.7.0 yesterday and I wanted to share it here since this community is exactly the audience.
+I've been building a desktop app that wraps local LLMs in a structured multi-agent workflow. The v0.7.0 line was the first feature-complete release; the v0.8.x line (currently v0.8.8) has been hardening reliability, supply-chain posture, and the pipeline orchestrator. Sharing it here since this community is exactly the audience.
 
 **What it is**
 
@@ -37,7 +37,7 @@ Models are managed through Ollama. The installer walks you through pulling a mod
 
 **Installation**
 
-Windows: download `AgentSuiteLocal-v0.7.0-Setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
+Windows: download `AgentSuiteLocal-0.8.8-setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
 
 macOS: download the `.app`, right-click and open to bypass Gatekeeper on first launch.
 

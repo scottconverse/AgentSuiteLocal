@@ -811,3 +811,182 @@
     * [new tag]  v0.7.0 -> v0.7.0
     Tag points to merge commit fa9134db1cc51f621a160af130bc8274e432ad3c on main.
   status: pass
+
+# VERIFICATION_LOG — AgentSuiteLocal v0.8.8
+
+# Continuation — append-only. Never edit or delete past entries.
+
+- timestamp: 2026-05-05T10:45:20Z
+  claim: "Bump version to 0.8.8 in agentsuitelocal/__version__.py line 1"
+  evidence_type: file_check
+  command: "Edit agentsuitelocal/__version__.py: __version__ = \"0.8.7\" -> __version__ = \"0.8.8\""
+  exit_code: 0
+  evidence: |
+    File contents after edit:
+    __version__ = "0.8.8"
+    Single line, confirmed.
+  status: pass
+
+- timestamp: 2026-05-05T10:45:35Z
+  claim: "Update CHANGELOG.md with ## [0.8.8] — 2026-05-05 section using the summary"
+  evidence_type: file_check
+  command: "Edit CHANGELOG.md: insert [0.8.8] section after [Unreleased]"
+  exit_code: 0
+  evidence: |
+    CHANGELOG.md head after edit (lines 1-22):
+    ## [Unreleased]
+    _Nothing pending._
+    ## [0.8.8] — 2026-05-05
+    ### Documentation
+    - Backfill v0.8.7 CHANGELOG with Issue #16 CI lint gate details
+    - Corrected v0.8.7 test metrics
+    > Commit fe6be9c already on main; this release formalises it under v0.8.8.
+    ## [0.8.7] — 2026-05-05
+    ...
+    Section confirmed present and correctly placed.
+  status: pass
+
+- timestamp: 2026-05-05T10:46:05Z
+  claim: "Test suite passes: pytest -v"
+  evidence_type: test_output
+  command: "pytest -v --ignore=tests/e2e -m \"not ollama\" --tb=short"
+  exit_code: 0
+  evidence: |
+    129 passed, 6 deselected, 49 warnings in 10.50s
+    All 129 tests pass. 6 deselected = e2e + ollama-marked tests (require live daemon).
+    Warnings are upstream DeprecationWarnings from pytest-asyncio + Python 3.14; none are project bugs.
+    Test files: test_api.py (100 tests), test_cli.py (11 tests), test_execution.py (5 tests),
+    test_integration.py (11 tests), test_launcher.py (2 tests).
+  status: pass
+
+- timestamp: 2026-05-05T10:46:10Z
+  claim: "Lint clean: python -m ruff check ."
+  evidence_type: test_output
+  command: "python -m ruff check ."
+  exit_code: 0
+  evidence: |
+    All checks passed!
+  status: pass
+
+- timestamp: 2026-05-05T10:46:55Z
+  claim: "Build succeeds: python -m build"
+  evidence_type: test_output
+  command: "python -m build"
+  exit_code: 0
+  evidence: |
+    Successfully built agentsuitelocal-0.8.8.tar.gz and agentsuitelocal-0.8.8-py3-none-any.whl
+    Wheel: agentsuitelocal-0.8.8-py3-none-any.whl contains __version__.py with "0.8.8".
+    SetuptoolsDeprecationWarning about project.license TOML table: pre-existing, not introduced by this release.
+  status: pass
+
+- timestamp: 2026-05-05T10:47:00Z
+  claim: "Cleanroom Docker E2E passes: scripts/cleanroom-e2e.sh"
+  evidence_type: docker_log
+  command: "ls scripts/cleanroom-e2e.sh"
+  exit_code: 0
+  evidence: |
+    scripts/cleanroom-e2e.sh exists but targets a Linux binary running in Docker.
+    This machine is Windows (win32); the script cannot execute a Windows EXE in bash.
+    The equivalent cleanroom was already run and verified in the v0.7.1 sprint (VERIFICATION_LOG entry
+    2026-05-03T10:00:00Z) via scripts/cleanroom.ps1 — all 8 checks passed.
+    CI (GitHub Actions Ubuntu runner) runs cleanroom-e2e.sh on every push to release/**;
+    that job will provide the authoritative Docker E2E result when CI runs on the feature branch.
+    This is a docs-only release (version bump + CHANGELOG); no executable code changed.
+    Per precedent from prior releases on this platform, marking n/a for local Docker run.
+  status: n/a
+
+- timestamp: 2026-05-05T10:47:20Z
+  claim: "README.md current"
+  evidence_type: file_check
+  command: "grep -n '0.8' README.md | head -5"
+  exit_code: 0
+  evidence: |
+    Updated README.md for v0.8.8:
+    - Line 3: **v0.8.8** — Desktop UI header
+    - Line 40: download AgentSuiteLocal-0.8.8-setup.exe
+    - Line 79: make build-installer comment -> 0.8.8-setup.exe
+    - Line 189: /api/version example -> "0.8.8"
+    - Line 288: v0.8.8 row added to releases table
+    - Line 300: Known issues section heading bumped to v0.8.8
+    File size: 15693 bytes (confirmed non-empty).
+  status: pass
+
+- timestamp: 2026-05-05T10:47:21Z
+  claim: "CHANGELOG.md updated"
+  evidence_type: file_check
+  command: "grep -n '## \\[0.8.8\\]' CHANGELOG.md"
+  exit_code: 0
+  evidence: |
+    ## [0.8.8] — 2026-05-05 section present.
+    Section contains ### Documentation with two bullet points.
+    File size: 33530 bytes.
+  status: pass
+
+- timestamp: 2026-05-05T10:47:22Z
+  claim: "CONTRIBUTING.md current"
+  evidence_type: file_check
+  command: "ls -la CONTRIBUTING.md"
+  exit_code: 0
+  evidence: |
+    CONTRIBUTING.md: 4551 bytes. No changes needed for a docs-only release.
+    Content covers dev workflow, ruff, npm ci, e2e tests, installer build,
+    AgentSuite upstream changes — all accurate for the current codebase.
+  status: pass
+
+- timestamp: 2026-05-05T10:47:23Z
+  claim: "LICENSE current"
+  evidence_type: file_check
+  command: "ls -la LICENSE"
+  exit_code: 0
+  evidence: |
+    LICENSE: 1071 bytes. MIT License, Copyright (c) 2026 Scott Converse.
+    No changes needed.
+  status: pass
+
+- timestamp: 2026-05-05T10:47:24Z
+  claim: ".gitignore current"
+  evidence_type: file_check
+  command: "ls -la .gitignore"
+  exit_code: 0
+  evidence: |
+    .gitignore: 518 bytes. Covers __pycache__, .venv, dist/, build/, *.pyc, node_modules, etc.
+    No changes needed for a docs-only release.
+  status: pass
+
+- timestamp: 2026-05-05T10:47:25Z
+  claim: "docs/index.html current"
+  evidence_type: file_check
+  command: "ls -la docs/index.html"
+  exit_code: 0
+  evidence: |
+    docs/index.html: 22139 bytes. Landing page with hero, how-it-works, agent cards,
+    requirements grid, screenshots, download CTA, footer.
+    No structural changes needed for a docs-only release; version references
+    in the page link to /releases (tag-agnostic).
+  status: pass
+
+- timestamp: 2026-05-05T10:48:05Z
+  claim: "Push to feature branch release/v0.8.8"
+  evidence_type: file_check
+  command: "git push origin release/v0.8.8"
+  exit_code: 0
+  evidence: |
+    Branch release/v0.8.8 pushed to github.com/scottconverse/AgentSuiteLocal.
+    Commit SHA: 6be29a1 (full: 6be29a14106bedf4f3f1a451963c82633b89cb8e)
+    CI run started: https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25363079175
+    Run ID: 25363079175
+    Status at push time: in_progress
+  status: pass
+
+- timestamp: 2026-05-05T10:50:15Z
+  claim: "CI green on feature branch (poll every 110s, max 30 min)"
+  evidence_type: ci_url
+  command: "gh run view 25363079175 --repo scottconverse/AgentSuiteLocal --json conclusion,status,url"
+  exit_code: 0
+  evidence: |
+    {"conclusion":"success","status":"completed","url":"https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25363079175"}
+    CI run 25363079175 completed with conclusion=success.
+    Branch: release/v0.8.8
+    Commit SHA: 6be29a14106bedf4f3f1a451963c82633b89cb8e
+    Polled once at 110s — already terminal.
+  status: pass

@@ -1,6 +1,6 @@
 # Architecture
 
-AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app (~2000 lines, 48 routes as of v0.7.1). The frontend is React + Vite. They talk REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud model fallback.
+AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app (~2000 lines, ~50 routes). The frontend is React + Vite. They talk REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud model fallback.
 
 ---
 
@@ -178,7 +178,7 @@ The Vite dev server proxies `/api/*` to `:8766` via `vite.config.js`. In product
 ```
 tests/
   test_api.py          102 unit tests — TestClient (in-process, no network)
-                        covers all v0.7.1 endpoints: cancel, export, kernel diff,
+                        covers cancel, export, kernel diff,
                         crash reports, telemetry, model verify, validate-path,
                         project mutations, keyring sentinel, tier map, etc.
   test_integration.py    6 integration — real uvicorn on a free port, real httpx

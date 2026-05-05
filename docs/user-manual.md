@@ -1,4 +1,4 @@
-# User Manual — AgentSuiteLocal v0.7.0
+# User Manual — AgentSuiteLocal v0.8.8
 
 AgentSuiteLocal runs seven specialist AI agents on your machine. Each agent takes a one-sentence business goal, walks a five-stage pipeline, and writes a folder of structured markdown artifacts to your disk. You review them, approve what's good, and the approved output feeds every future run on that project.
 
@@ -286,7 +286,7 @@ A: In order: (1) sharpen the goal — specific goals produce better output, (2) 
 A: Nine dimensions scored 0–10 by the model itself, after the main pipeline completes. The model applies a rubric and scores each dimension. The composite is a weighted average. Scores above 8.0 are consistently good. 7.0–8.0 is serviceable. Below 7.0 usually signals that the output missed something important.
 
 **Q: Can I edit artifacts before approving?**  
-A: Not through the UI in v0.7.0. The artifacts are plain markdown files — open them in any text editor from your file manager, edit them, save, then approve from the Approval Gate. The app reads the files from disk on approval.
+A: Not through the UI. The artifacts are plain markdown files — open them in any text editor from your file manager, edit them, save, then approve from the Approval Gate. The app reads the files from disk on approval.
 
 **Q: How do I update AgentSuiteLocal?**  
 A: When a new version is available, a non-blocking banner appears at the top of the Dashboard: "vX.Y.Z is available — [Download] [Dismiss]". Click Download to open the GitHub releases page in your browser. Download the new installer and run it — it replaces the existing installation.
