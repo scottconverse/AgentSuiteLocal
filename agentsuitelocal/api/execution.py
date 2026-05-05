@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import json
+import logging
 import math
 import os
 import re
@@ -15,6 +16,18 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
+
+logger = logging.getLogger(__name__)
+
+# Module-level snapshot of the last _resolve_llm failure, if any. Surfaced via
+# /api/health and /api/runtime/verify so users (and the smoke screen) can see
+# WHY local LLM resolution failed instead of getting a silent None.
+_LAST_RESOLVER_ERROR: str | None = None
+
+
+def get_last_resolver_error() -> str | None:
+    """Return the last _resolve_llm failure message, or None if last call was OK."""
+    return _LAST_RESOLVER_ERROR
 
 from agentsuitelocal.api.config import (
     _TIER_MODEL_MAP,
@@ -104,18 +117,35 @@ def _resolve_llm(settings: dict) -> Any:
 
     is_anthropic_model = model_name.startswith("claude-")
 
+    global _LAST_RESOLVER_ERROR
+
     if api_key and is_anthropic_model:
         os.environ["ANTHROPIC_API_KEY"] = api_key
         try:
             from agentsuite.llm.resolver import resolve_provider
-            return resolve_provider(name=model_name)
-        except Exception:
-            pass
+            provider = resolve_provider(name=model_name)
+            _LAST_RESOLVER_ERROR = None
+            return provider
+        except Exception as exc:
+            # Cloud-fallback resolver failed — log but continue to local Ollama.
+            # Don't set _LAST_RESOLVER_ERROR here; the local path is the next
+            # attempt and the user cares about whichever path ultimately fails.
+            logger.warning("Cloud provider resolution failed (%s); falling back to local Ollama", exc)
 
     try:
         from agentsuite.llm.ollama import OllamaProvider
-        return OllamaProvider(default_model=model_name)
-    except Exception:
+        provider = OllamaProvider(default_model=model_name)
+        _LAST_RESOLVER_ERROR = None
+        return provider
+    except Exception as exc:
+        # Don't bury the real reason. The previous `except Exception: return None`
+        # hid both the v0.8.7 missing-ollama-SDK bug AND the
+        # OllamaProvider(model=...) kwarg mismatch. Surface the message via
+        # the module-level snapshot so the smoke screen and /api/health can
+        # show WHY resolution failed, not just 'no provider available.'
+        msg = f"{exc.__class__.__name__}: {exc}"
+        _LAST_RESOLVER_ERROR = msg
+        logger.error("Local LLM provider resolution failed: %s", msg, exc_info=True)
         return None
 
 

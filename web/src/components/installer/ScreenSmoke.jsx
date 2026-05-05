@@ -2,13 +2,22 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 
-// A4: per-check fix messages and action buttons, plus a "Skip smoke test" escape hatch
+// Per-check fix messages and action buttons, plus a "Skip smoke test" escape hatch.
+// Keys MUST match the labels emitted by /api/smoke in routers/ollama.py — drift
+// here means failed users see 'X failed' with no actionable fix guidance.
 const STEP_FIX_MAP = {
-  "Ollama running":     { msg: "Ollama is not running. Go back and install or start it.",     action: "Go back", goBack: true },
-  "Model loaded":       { msg: "No model is loaded. Go back and complete model download.",    action: "Go back", goBack: true },
-  "Backend healthy":    { msg: "Backend is not responding. Try restarting AgentSuiteLocal.", action: null       },
-  "Inference test":     { msg: "Model inference failed. The model may be corrupted — try re-downloading.", action: null },
-  "Workspace writable": { msg: "Cannot write to workspace directory. Check folder permissions.", action: null   },
+  "Starting Ollama daemon":
+    { msg: "Ollama is not running. Go back and install or start it, then retry.", action: "Go back", goBack: true },
+  "Loading model into memory":
+    { msg: "No model is loaded. Go back and complete model download.", action: "Go back", goBack: true },
+  "Pinging /api/generate":
+    { msg: "Ollama daemon refused the inference request. Try restarting Ollama.", action: null },
+  "Running 1-token reasoning probe":
+    { msg: "Model inference failed. The model may be corrupted — try re-downloading from Model Management.", action: null },
+  "Verifying Python kernel → OllamaProvider → import ollama":
+    { msg: "AgentSuiteLocal's Python bundle is missing the Ollama SDK. This is a build defect — please reinstall from a fresh release. Skipping is not safe; New Run will fail.", action: null },
+  "Verifying agent kernel write access":
+    { msg: "Cannot write to ~/.agentsuite. Check folder permissions and disk space.", action: null },
 };
 
 export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
@@ -56,8 +65,8 @@ export const ScreenSmoke = ({ onBack, onNext, totalSteps }) => {
   };
 
   return (
-    <InstallerShell step={10} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={status !== "done" && !skipped}>
-      <SectionHeader eyebrow="Step 10" title="First-run smoke test"
+    <InstallerShell step={5} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextDisabled={status !== "done" && !skipped}>
+      <SectionHeader eyebrow="Step 05" title="First-run smoke test"
         sub="Quick end-to-end check that everything talks to everything." />
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>

@@ -146,16 +146,36 @@ def test_resolve_llm_returns_provider_for_default_settings() -> None:
     `ollama` dep AND a constructor kwarg mismatch. This test catches
     either by demanding a real provider object back.
     """
-    from agentsuitelocal.api.execution import _resolve_llm
+    from agentsuitelocal.api.execution import _resolve_llm, get_last_resolver_error
 
     provider = _resolve_llm({"model_tier": "balanced"})
     assert provider is not None, (
-        "_resolve_llm returned None for a default Ollama config. The "
-        "broad `except Exception: return None` in _resolve_llm is "
-        "masking a real failure. Likely causes: (a) `ollama` Python SDK "
-        "not installed, (b) OllamaProvider constructor signature changed "
-        "and the call site wasn't updated, (c) agentsuite.llm.ollama "
-        "import error. Re-run with the except removed to see the real "
-        "exception."
+        f"_resolve_llm returned None for a default Ollama config. "
+        f"Recorded error: {get_last_resolver_error()}\n"
+        "Likely causes: (a) `ollama` Python SDK not installed, "
+        "(b) OllamaProvider constructor signature changed and the call "
+        "site wasn't updated, (c) agentsuite.llm.ollama import error."
     )
     assert provider.__class__.__name__ == "OllamaProvider"
+    # On success, the error snapshot must be cleared so /api/runtime/verify
+    # doesn't keep reporting a stale failure.
+    assert get_last_resolver_error() is None
+
+
+def test_resolve_llm_records_error_on_failure() -> None:
+    """When _resolve_llm fails, the error must be retrievable via
+    get_last_resolver_error() so the smoke screen and /api/runtime/verify
+    can surface WHY local LLM resolution failed instead of returning a
+    silent None."""
+    from unittest.mock import patch
+
+    from agentsuitelocal.api.execution import _resolve_llm, get_last_resolver_error
+
+    # Force the OllamaProvider import to raise a deterministic error.
+    sentinel = ImportError("ollama: simulated missing SDK for test")
+    with patch("agentsuite.llm.ollama.OllamaProvider", side_effect=sentinel):
+        provider = _resolve_llm({"model_tier": "balanced"})
+    assert provider is None
+    err = get_last_resolver_error()
+    assert err is not None
+    assert "simulated missing SDK" in err

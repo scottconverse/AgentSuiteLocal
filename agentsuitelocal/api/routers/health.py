@@ -79,7 +79,19 @@ async def get_version():
 
 @router.get("/api/update/check")
 async def check_update():
-    """Check latest GitHub release. Returns {latest, current, has_update}."""
+    """Check latest GitHub release. Returns {current, latest, has_update, status, error}.
+
+    Status values:
+      - "ok"          — query succeeded; has_update is meaningful
+      - "rate_limited"— GitHub returned 403/429 (anonymous quota exhausted)
+      - "unreachable" — network/DNS/timeout
+      - "error"       — anything else (malformed JSON, 5xx, etc.)
+
+    The previous implementation collapsed every failure into a silent
+    'has_update: False', so users with a stale install never knew the
+    update check itself was broken. Front end can now show 'Couldn't
+    check for updates: <reason>' and let the user retry.
+    """
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(
@@ -95,7 +107,33 @@ async def check_update():
                 "latest": latest,
                 "has_update": has_update,
                 "release_url": data.get("html_url", ""),
+                "status": "ok",
+                "error": None,
             }
-    except Exception:
-        pass
-    return {"current": __version__, "latest": __version__, "has_update": False, "release_url": ""}
+        if r.status_code in (403, 429):
+            return {
+                "current": __version__, "latest": __version__, "has_update": False,
+                "release_url": "",
+                "status": "rate_limited",
+                "error": f"GitHub returned {r.status_code} (rate limit). Try again later.",
+            }
+        return {
+            "current": __version__, "latest": __version__, "has_update": False,
+            "release_url": "",
+            "status": "error",
+            "error": f"GitHub returned HTTP {r.status_code}",
+        }
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+        return {
+            "current": __version__, "latest": __version__, "has_update": False,
+            "release_url": "",
+            "status": "unreachable",
+            "error": f"Could not reach GitHub: {exc}",
+        }
+    except Exception as exc:
+        return {
+            "current": __version__, "latest": __version__, "has_update": False,
+            "release_url": "",
+            "status": "error",
+            "error": f"{exc.__class__.__name__}: {exc}",
+        }

@@ -1,5 +1,5 @@
 /**
- * UX-1: ScreenOllamaModel — combined Ollama runtime check + model download (step 4 of 5).
+ * UX-1: ScreenOllamaModel — combined Ollama runtime check + model download (step 4 of 6).
  * Replaces ScreenOllama (step 5) + ScreenModelDownload (step 6).
  *
  * State machine:

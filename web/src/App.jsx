@@ -35,11 +35,15 @@ import { ProjectsView }     from "./components/app/ProjectsView.jsx";
 import { CrashBanner }      from "./components/app/CrashBanner.jsx";
 import { ErrorBoundary }    from "./components/app/ErrorBoundary.jsx";
 
-// UX-1: 5-screen installer (down from 11). Agent/API-key/Python setup is in Settings.
-const TOTAL_STEPS = 5;
+// UX-1: 6-screen installer. Smoke test re-inserted between model download and Ready
+// to exercise the full Python kernel path (resolve_llm → OllamaProvider →
+// import ollama → real inference) before declaring install successful.
+// Without this step, missing Python deps surface on the user's first New Run
+// instead of during install (v0.8.7 'Ollama SDK not installed' regression).
+const TOTAL_STEPS = 6;
 
 const STEP_LABELS = [
-  "", "Welcome", "License", "Hardware & model tier", "Ollama & model download", "Ready",
+  "", "Welcome", "License", "Hardware & model tier", "Ollama & model download", "Smoke test", "Ready",
 ];
 
 const SETUP_KEY = "agentsuite_setup_complete";
@@ -134,12 +138,12 @@ export default function App() {
   const installerStep = () => {
     const ts = TOTAL_STEPS;
     switch (step) {
-      // UX-1: 5-screen installer
       case 1: return <ScreenWelcome onNext={goNext} totalSteps={ts} />;
       case 2: return <ScreenLicense onBack={goBack} onNext={goNext} totalSteps={ts} />;
       case 3: return <ScreenHardwareTier onBack={goBack} onNext={goNext} tier={tier} setTier={setTier} totalSteps={ts} />;
       case 4: return <ScreenOllamaModel  onBack={goBack} onNext={goNext} tier={tier} totalSteps={ts} />;
-      case 5: return <ScreenSuccess onBack={goBack} onNext={enterApp} totalSteps={ts} />;
+      case 5: return <ScreenSmoke onBack={goBack} onNext={goNext} totalSteps={ts} />;
+      case 6: return <ScreenSuccess onBack={goBack} onNext={enterApp} totalSteps={ts} />;
       default: return null;
     }
   };

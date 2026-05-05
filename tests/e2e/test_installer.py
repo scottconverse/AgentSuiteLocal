@@ -17,14 +17,18 @@ def test_installer_welcome_renders(page: Page, base_url: str):
 
 @pytest.mark.e2e
 def test_installer_full_flow(page: Page, base_url: str):
-    """Walk all 5 installer steps from Welcome through to the main app.
+    """Walk all 6 installer steps from Welcome through to the main app.
 
-    UX-1 combined the original 11 steps into 5:
+    UX-1 (post-v0.8.7): smoke test re-inserted between model download and
+    Ready so the install never reports success without exercising the
+    real Python kernel → OllamaProvider → import ollama path.
+
       1. Welcome
       2. License & privacy
-      3. Hardware & model  (was: Checking your hardware + Tier selection)
-      4. Ollama & model    (was: Ollama runtime + Model download + Python + Agents + API keys + Smoke)
-      5. Ready (You're set up.)
+      3. Hardware & model tier
+      4. Ollama & model download
+      5. Smoke test (real LLM round-trip via the kernel)
+      6. Ready (You're set up.)
     """
     page.goto(base_url)
 
@@ -32,24 +36,28 @@ def test_installer_full_flow(page: Page, base_url: str):
     expect(page.get_by_role("button", name="Get started")).to_be_visible(timeout=8000)
     page.get_by_role("button", name="Get started").click()
 
-    # Step 2 — License & privacy (must check the checkbox before "I agree" enables)
+    # Step 2 — License & privacy
     expect(page.get_by_role("heading", name="License & privacy")).to_be_visible(timeout=5000)
     page.get_by_role("checkbox").check()
     page.get_by_role("button", name="I agree").click()
 
-    # Step 3 — Hardware & model (async probe; Continue disabled until scan completes)
-    # networkidle ensures /api/hardware has settled before asserting heading
+    # Step 3 — Hardware & model tier
     page.wait_for_load_state("networkidle")
     expect(page.get_by_role("heading", name="Hardware & model")).to_be_visible(timeout=15000)
     expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=15000)
     page.get_by_role("button", name="Continue").click()
 
-    # Step 4 — Ollama & model (disabled until Ollama running and model verified)
+    # Step 4 — Ollama & model
     expect(page.get_by_role("heading", name="Ollama & model")).to_be_visible(timeout=5000)
     expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=120000)
     page.get_by_role("button", name="Continue").click()
 
-    # Step 5 — Ready
+    # Step 5 — Smoke test (the gate that catches missing-bundle bugs)
+    expect(page.get_by_role("heading", name="First-run smoke test")).to_be_visible(timeout=5000)
+    expect(page.get_by_role("button", name="Continue")).to_be_enabled(timeout=60000)
+    page.get_by_role("button", name="Continue").click()
+
+    # Step 6 — Ready
     expect(page.get_by_text("You're set up.")).to_be_visible(timeout=5000)
     page.get_by_role("button", name="Launch AgentSuiteLocal").click()
 

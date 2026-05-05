@@ -290,15 +290,38 @@ async def export_run_pdf(run_id: str):
 
     html_content = f"<html><body style='font-family:sans-serif'>{''.join(md_parts)}</body></html>"
 
+    # PDF export depends on weasyprint + native GTK runtime (cairo/pango/gdk-pixbuf).
+    # The PyInstaller bundle does NOT ship those native libs — README known-issue.
+    # End users have no `pip` and shouldn't be told to run it. Fail with a clear,
+    # actionable message that points them at ZIP/Markdown export instead.
     try:
         import weasyprint
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "PDF export is not available in this build. "
+                "Use ZIP or Markdown export instead — both contain the same "
+                "artifacts in formats every machine can open."
+            ),
+        )
+    try:
         pdf_bytes = weasyprint.HTML(string=html_content).write_pdf()
         return StreamingResponse(
             iter([pdf_bytes]),
             media_type="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={run_id}-bundle.pdf"},
         )
-    except ImportError:
-        raise HTTPException(status_code=501, detail="weasyprint is not installed. Install it with: pip install weasyprint")
+    except OSError as exc:
+        # weasyprint imports but its native libs (cairo/pango) are missing —
+        # most common PyInstaller-on-Windows failure mode for PDF export.
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "PDF export requires the GTK runtime, which is not bundled. "
+                "Use ZIP or Markdown export instead. "
+                f"(Underlying error: {exc})"
+            ),
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

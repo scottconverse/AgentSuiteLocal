@@ -1,5 +1,5 @@
 /**
- * UX-1: ScreenHardwareTier — combined hardware scan + tier selection (step 3 of 5).
+ * UX-1: ScreenHardwareTier — combined hardware scan + tier selection (step 3 of 6).
  * Replaces the separate ScreenHardware (step 3) and ScreenTier (step 4).
  * Hardware scan auto-detects RAM and pre-selects the recommended tier.
  */

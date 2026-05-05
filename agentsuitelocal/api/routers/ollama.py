@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import platform
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -95,8 +94,14 @@ async def install_ollama():
         def evt(type_: str, message: str, pct: int = 0) -> str:
             return json.dumps({"type": type_, "message": message, "pct": pct})
 
-        if system not in ("Darwin", "Windows"):
-            yield {"data": evt("error", f"Auto-install not supported on {system}. Install Ollama manually from ollama.ai.")}
+        if system not in ("Windows", "Darwin"):
+            # Linux distros vary too widely (apt/dnf/pacman/snap/flatpak) for a
+            # single auto-install path; user installs Ollama via their package
+            # manager and we'll detect it.
+            yield {"data": evt("error",
+                f"Auto-install is not supported on {system}. "
+                "Install Ollama from https://ollama.ai, then click Retry."
+            )}
             return
 
         if system == "Darwin":
@@ -109,8 +114,7 @@ async def install_ollama():
                 tmp = Path(tmp_dir)
 
                 yield {"data": evt("step", "Downloading Ollama (~280 MB)…", pct=0)}
-                filename = "Ollama-darwin.zip" if system == "Darwin" else "OllamaSetup.exe"
-                dest = tmp / filename
+                dest = tmp / ("Ollama-darwin.zip" if system == "Darwin" else "OllamaSetup.exe")
 
                 async with httpx.AsyncClient(timeout=600.0, follow_redirects=True) as client:
                     async with client.stream("GET", url) as r:
@@ -138,28 +142,69 @@ async def install_ollama():
                                         msg += f" · {speed_mbs:.1f} MB/s"
                                     yield {"data": evt("progress", msg, pct=pct)}
 
+                flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
                 if system == "Darwin":
+                    # Extract Ollama.app from the downloaded .zip into temp.
                     yield {"data": evt("step", "Extracting…", pct=62)}
                     with zipfile.ZipFile(dest) as zf:
                         zf.extractall(tmp_dir)
-
-                    yield {"data": evt("step", "Installing to /Applications…", pct=70)}
                     src_app = tmp / "Ollama.app"
-                    dst_app = Path("/Applications/Ollama.app")
-                    if dst_app.exists():
-                        shutil.rmtree(dst_app)
-                    shutil.copytree(src_app, dst_app)
+                    if not src_app.exists():
+                        yield {"data": evt("error",
+                            "Ollama.app was not found in the downloaded archive. "
+                            "Click Retry to download again.")}
+                        return
+
+                    # Copy into /Applications via osascript with administrator
+                    # privileges. macOS shows a native authentication dialog
+                    # (password / Touch ID) — no terminal, no manual drag-drop.
+                    # Stripping the quarantine xattr lets the app launch without
+                    # the 'unidentified developer' Gatekeeper block.
+                    yield {"data": evt("step", "Installing to /Applications…", pct=70)}
+                    src = str(src_app).replace('"', '\\"')
+                    install_sh = (
+                        f'rm -rf "/Applications/Ollama.app" && '
+                        f'cp -R "{src}" "/Applications/Ollama.app" && '
+                        f'xattr -dr com.apple.quarantine "/Applications/Ollama.app" || true'
+                    )
+                    # Wrap for osascript: needs the inner script as a single
+                    # double-quoted string with embedded quotes escaped.
+                    osa_script = f'do shell script "{install_sh.replace(chr(34), chr(92) + chr(34))}" with administrator privileges'
+                    proc = await asyncio.get_running_loop().run_in_executor(
+                        None,
+                        lambda: subprocess.run(
+                            ["osascript", "-e", osa_script],
+                            capture_output=True,
+                            text=True,
+                            timeout=120,
+                        ),
+                    )
+                    if proc.returncode != 0:
+                        # User cancelled the auth dialog (-128) or another error.
+                        msg = (proc.stderr or "").strip() or "install failed"
+                        if "User canceled" in msg or "-128" in msg:
+                            yield {"data": evt("error",
+                                "Install cancelled at the password prompt. "
+                                "Click Retry and approve the dialog to continue.")}
+                        else:
+                            yield {"data": evt("error",
+                                f"Could not install Ollama to /Applications: {msg}")}
+                        return
 
                     yield {"data": evt("step", "Starting Ollama…", pct=80)}
+                    # `open -a Ollama` launches the app, which starts the API
+                    # daemon on port 11434 as part of its normal startup.
                     subprocess.Popen(
                         ["open", "-a", "Ollama"],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
+                    await asyncio.sleep(3)
 
                 else:
+                    # Windows silent install.
                     yield {"data": evt("step", "Running installer (silent)…", pct=65)}
-                    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                     proc = subprocess.Popen(
                         [str(dest), "/S"],
                         stdout=subprocess.DEVNULL,
@@ -169,10 +214,32 @@ async def install_ollama():
                     await asyncio.get_running_loop().run_in_executor(None, proc.wait)
 
                     yield {"data": evt("step", "Starting Ollama service…", pct=80)}
+                    # Modern Ollama installer auto-launches a desktop GUI but
+                    # does NOT reliably start the API daemon (port 11434).
+                    # Without an explicit serve, the wait loop can timeout even
+                    # though Ollama is 'installed.' Spawn the daemon ourselves.
+                    try:
+                        subprocess.Popen(
+                            ["ollama", "serve"],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            creationflags=flags,
+                        )
+                    except FileNotFoundError:
+                        # Installer didn't put `ollama` on PATH yet — fall
+                        # through to the wait loop; the daemon may still come
+                        # up via the system tray.
+                        pass
                     await asyncio.sleep(3)
 
+                # Wait up to 90s. The original 30s window was too tight on first
+                # boot — Windows AV scan + GPU detection + tray-app handshake can
+                # easily take >30s before /api/tags responds. Bumping to 90s with
+                # explicit polling avoids the false-failure that strands users on
+                # 'Daemon did not start' with the daemon actually starting at 31s.
+                _DAEMON_WAIT_SECONDS = 90
                 yield {"data": evt("step", "Waiting for daemon to start…", pct=85)}
-                for i in range(30):
+                for i in range(_DAEMON_WAIT_SECONDS):
                     await asyncio.sleep(1)
                     try:
                         async with httpx.AsyncClient(timeout=2.0) as c:
@@ -182,9 +249,15 @@ async def install_ollama():
                                 return
                     except Exception:
                         pass
-                    yield {"data": evt("progress", f"Waiting for daemon… {i+1}/30", pct=85 + i // 3)}
+                    if i % 3 == 0:  # one progress event every 3s — less noisy
+                        yield {"data": evt("progress", f"Waiting for daemon… {i+1}/{_DAEMON_WAIT_SECONDS}", pct=85 + i // 6)}
 
-                yield {"data": evt("error", "Daemon did not start within 30 seconds. Try launching Ollama manually.")}
+                if system == "Darwin":
+                    where = "Open Ollama from your Applications folder (or click the llama icon in the menu bar)"
+                else:
+                    where = "Open Ollama from the Start menu (or click the Ollama icon in your system tray)"
+                yield {"data": evt("error",
+                    f"Ollama daemon did not start within 90 seconds. {where}, then click Retry below.")}
 
         except Exception as exc:
             yield {"data": evt("error", str(exc))}
@@ -262,6 +335,18 @@ async def runtime_verify():
     except Exception:
         checks.append({"name": "Workspace writeable", "ok": False, "size": ""})
 
+    # Surface the last LLM resolver error if one is recorded — so the in-app
+    # integrity panel says WHY runs are failing, not just 'no provider.'
+    from agentsuitelocal.api.execution import get_last_resolver_error
+    resolver_err = get_last_resolver_error()
+    if resolver_err:
+        checks.append({
+            "name": "Local LLM provider resolution",
+            "ok": False,
+            "size": "",
+            "error": resolver_err,
+        })
+
     return {"checks": checks, "all_ok": all(c["ok"] for c in checks)}
 
 
@@ -310,6 +395,42 @@ async def smoke():
     except Exception as exc:
         steps.append({"label": "Running 1-token reasoning probe", "ok": False, "error": str(exc),
                        "fix": "Model failed to respond — try restarting Ollama"})
+        return {"ok": False, "steps": steps}
+
+    # CRITICAL: Exercise the real AgentSuiteLocal Python code path. Until v0.8.7
+    # this endpoint went straight to httpx → /api/generate, never touching
+    # `import ollama` or OllamaProvider. That's why a build missing the Ollama
+    # SDK shipped: the smoke check passed because Ollama itself was healthy,
+    # while the AgentSuiteLocal Python bundle was broken in a way that only
+    # surfaces when the user clicks New Run. This step closes that gap by
+    # constructing a real provider and running a 1-token completion through
+    # the same code path New Run uses.
+    try:
+        from agentsuite.llm.base import LLMRequest
+        from agentsuitelocal.api.execution import _resolve_llm
+
+        provider = _resolve_llm(settings)
+        if provider is None:
+            raise RuntimeError(
+                "AgentSuiteLocal could not construct an LLM provider. "
+                "Most likely cause: a Python dependency is missing from this "
+                "build (e.g. the `ollama` SDK). Open the in-app Verify "
+                "Integrity panel for the exact missing component."
+            )
+        # Round-trip via the real provider class — the same path New Run uses.
+        # Run sync provider.complete in a thread to avoid blocking the event loop.
+        req = LLMRequest(prompt="Hi", model=model, max_tokens=4)
+        await asyncio.get_running_loop().run_in_executor(None, provider.complete, req)
+        steps.append({"label": "Verifying Python kernel → OllamaProvider → import ollama", "ok": True})
+    except Exception as exc:
+        steps.append({
+            "label": "Verifying Python kernel → OllamaProvider → import ollama",
+            "ok": False,
+            "error": str(exc),
+            "fix": "AgentSuiteLocal's Python bundle is missing a dependency. "
+                   "This is a build defect — reinstall from a fresh release. "
+                   "Skipping smoke test is NOT safe: New Run will fail.",
+        })
         return {"ok": False, "steps": steps}
 
     try:
