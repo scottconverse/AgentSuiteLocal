@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Icon, ProgressBar } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
+import { parseSseStream } from "../../utils/sseStream.js";
 
 export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
   const [phase, setPhase] = useState("detecting"); // detecting | not-found | installing | done | error
@@ -44,34 +45,17 @@ export const ScreenOllama = ({ onBack, onNext, totalSteps }) => {
       body: JSON.stringify({}),
       signal: ctrl.signal,
     }).then(async (res) => {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop();
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const raw = line.startsWith("data: ") ? line.slice(6) : line;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.type === "error") {
-              setPhase("error");
-              setErrorMsg(evt.message);
-              return;
-            }
-            if (evt.message) setInstallMsg(evt.message);
-            if (evt.pct != null) setInstallPct(evt.pct);
-            if (evt.type === "done") {
-              setInstallPct(100);
-              setPhase("done");
-            }
-          } catch { /* skip */ }
+      for await (const evt of parseSseStream(res.body.getReader())) {
+        if (evt.type === "error") {
+          setPhase("error");
+          setErrorMsg(evt.message);
+          return;
+        }
+        if (evt.message) setInstallMsg(evt.message);
+        if (evt.pct != null) setInstallPct(evt.pct);
+        if (evt.type === "done") {
+          setInstallPct(100);
+          setPhase("done");
         }
       }
     }).catch(e => {

@@ -12,6 +12,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Icon, ProgressBar } from "../ui/index.jsx";
 import { InstallerShell, SectionHeader } from "./InstallerShell.jsx";
 import { MODELS } from "../../data.js";
+import { parseSseStream } from "../../utils/sseStream.js";
 
 const MAX_RETRIES = 3;
 
@@ -70,25 +71,11 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
     ollamaCtrlRef.current = ctrl;
     fetch("/api/install/ollama", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}), signal: ctrl.signal })
       .then(async res => {
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n"); buf = lines.pop();
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const raw = line.startsWith("data: ") ? line.slice(6) : line;
-            try {
-              const evt = JSON.parse(raw);
-              if (evt.type === "error") { setOllamaError(evt.message); setOllamaPhase("error"); return; }
-              if (evt.message) setOllamaInstallMsg(evt.message);
-              if (evt.pct != null) setOllamaInstallPct(evt.pct);
-              if (evt.type === "done") { setOllamaInstallPct(100); setOllamaPhase("ready"); checkModel({}); }
-            } catch { /* skip */ }
-          }
+        for await (const evt of parseSseStream(res.body.getReader())) {
+          if (evt.type === "error") { setOllamaError(evt.message); setOllamaPhase("error"); return; }
+          if (evt.message) setOllamaInstallMsg(evt.message);
+          if (evt.pct != null) setOllamaInstallPct(evt.pct);
+          if (evt.type === "done") { setOllamaInstallPct(100); setOllamaPhase("ready"); checkModel({}); }
         }
       })
       .catch(e => { if (e.name !== "AbortError") { setOllamaError(e.message); setOllamaPhase("error"); } });
@@ -151,43 +138,30 @@ export const ScreenOllamaModel = ({ onBack, onNext, tier, totalSteps }) => {
       body: JSON.stringify({ model: model.model }),
       signal: ctrl.signal,
     }).then(async res => {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n"); buf = lines.pop();
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const raw = line.startsWith("data: ") ? line.slice(6) : line;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.type === "error") throw new Error(evt.message);
-            if (evt.status) setModelStatusLine(evt.status);
-            if (evt.total && evt.completed != null) {
-              const totalB = evt.total, doneB = evt.completed;
-              setModelTotalMB(Math.round(totalB / 1024 / 1024));
-              setModelDownloadedMB(Math.round(doneB / 1024 / 1024));
-              const now = Date.now(), dtSec = (now - lastTimeRef.current) / 1000;
-              if (dtSec > 0.5) {
-                setModelSpeedMBs(Math.round(((doneB - lastBytesRef.current) / 1024 / 1024) / dtSec * 10) / 10);
-                lastBytesRef.current = doneB;
-                lastTimeRef.current  = now;
-              }
-              setModelPct(Math.round((doneB / totalB) * 100));
+      try {
+        for await (const evt of parseSseStream(res.body.getReader())) {
+          if (evt.type === "error") throw new Error(evt.message);
+          if (evt.status) setModelStatusLine(evt.status);
+          if (evt.total && evt.completed != null) {
+            const totalB = evt.total, doneB = evt.completed;
+            setModelTotalMB(Math.round(totalB / 1024 / 1024));
+            setModelDownloadedMB(Math.round(doneB / 1024 / 1024));
+            const now = Date.now(), dtSec = (now - lastTimeRef.current) / 1000;
+            if (dtSec > 0.5) {
+              setModelSpeedMBs(Math.round(((doneB - lastBytesRef.current) / 1024 / 1024) / dtSec * 10) / 10);
+              lastBytesRef.current = doneB;
+              lastTimeRef.current  = now;
             }
-            if (evt.status === "success") { await verifyModel(); return; }
-          } catch (innerErr) {
-            if (innerErr.name === "AbortError") return;
-            if (attemptNum < MAX_RETRIES) { scheduleRetry(attemptNum, innerErr.message); }
-            else { setModelPhase("error"); setModelError(`Failed after ${MAX_RETRIES} attempts: ${innerErr.message}`); }
-            return;
+            setModelPct(Math.round((doneB / totalB) * 100));
           }
+          if (evt.status === "success") { await verifyModel(); return; }
         }
+        await verifyModel();
+      } catch (innerErr) {
+        if (innerErr.name === "AbortError") return;
+        if (attemptNum < MAX_RETRIES) { scheduleRetry(attemptNum, innerErr.message); }
+        else { setModelPhase("error"); setModelError(`Failed after ${MAX_RETRIES} attempts: ${innerErr.message}`); }
       }
-      await verifyModel();
     }).catch(e => {
       if (e.name === "AbortError") return;
       if (attemptNum < MAX_RETRIES) scheduleRetry(attemptNum, e.message);

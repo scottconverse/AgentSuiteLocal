@@ -11,6 +11,15 @@ _Nothing pending._
 
 ## [0.8.8] — 2026-05-05
 
+### Fixed
+
+- **SSE keepalive comments no longer break installer fetch-stream parsers** (`b5fc36b`): four installer screens (`ScreenModelDownload`, `ScreenOllama`, two paths in `ScreenOllamaModel`) consume server-sent-event streams via `fetch` + `ReadableStream`. `sse-starlette` periodically emits `: ping - N` keepalive comments, which the hand-rolled parsers were treating as malformed event data. Fixed by skipping any line beginning with `:` (per the SSE spec for comments).
+
+### Changed
+
+- **Shared SSE parser helper** (`be967de`): the four duplicated fetch-stream parsers above were extracted into `web/src/utils/sseStream.js` (an async generator that consumes a `ReadableStream` reader and yields parsed event objects, skipping comments, non-`data:` control frames, and unparseable payloads). New regression test `web/src/utils/sseStream.test.js` exercises the keepalive-ping case directly — a path neither cleanroom nor CI hits naturally because cached Ollama pulls finish before `sse-starlette`'s first ping. Net −68 lines across the four installer screens.
+- **Top-of-README installer banner** (`b6df837`): redirects users away from the green "Code → Download ZIP" button toward the Releases page, with the current `.exe` and `.dmg` filenames called out.
+
 ### Documentation
 
 - **Backfill v0.8.7 CHANGELOG with Issue #16 CI lint gate details**: the v0.8.7 entry now documents `scripts/check_action_node_versions.py`, the CI lint step that invokes it, and the exact SHA-pin checking logic that closes Issue #16.
