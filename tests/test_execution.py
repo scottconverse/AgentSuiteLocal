@@ -11,6 +11,7 @@ with a direct BaseAgent.run() call, the test should pass with the mocked LLM.
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from pathlib import Path
@@ -176,5 +177,105 @@ async def test_execute_pipeline_step_dispatches_non_founder_agent(_all_agents_en
     step = _pipelines[pipeline_id]["steps"][0]
     assert step["run_id"] == "agentsuite-pipeline-design-run-id"
     assert step["status"] == "awaiting_approval"
+
+    del _pipelines[pipeline_id]
+
+
+async def test_execute_run_emits_progress_events():
+    """Removing progress_callback= from agent.run() at execution.py L187 must fail this test.
+
+    The side_effect invokes the passed progress_callback synchronously (inside the
+    thread-pool executor). The callback uses loop.call_soon_threadsafe to schedule
+    emit() on the asyncio event loop. After sleep(0) flushes the queue, the resulting
+    stage_update events must appear in run["events"].
+    """
+    run_id = "run-progress-test-001"
+    req = RunRequest(agent_id="founder", goal="Progress test goal", project="progress-test")
+    _make_run(run_id)
+
+    fake_state = _fake_run_state()
+    mock_llm = MagicMock()
+
+    def fake_agent_run(*, request, run_id, progress_callback=None):  # noqa: ARG001
+        if progress_callback is not None:
+            progress_callback({"type": "stage_progress", "stage": "intake", "step": 1, "total": 5, "message": "Starting Intake"})
+            progress_callback({"type": "stage_progress", "stage": "intake", "step": 1, "total": 5, "message": "Intake complete"})
+        return fake_state
+
+    with (
+        patch("agentsuitelocal.api.execution._load_settings", return_value={"api_key": "mock-key", "run_timeout_seconds": 30}),
+        patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
+        patch("agentsuite.agents.founder.agent.FounderAgent.run", side_effect=fake_agent_run),
+        patch("agentsuitelocal.api.execution._save_state"),
+        patch("agentsuitelocal.api.execution._log_telemetry"),
+        patch("agentsuitelocal.api.execution._send_notification"),
+        patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
+    ):
+        await _execute_run(run_id, req, cancel_token=threading.Event())
+
+    await asyncio.sleep(0)  # flush call_soon_threadsafe callbacks scheduled from executor thread
+
+    run = _runs[run_id]
+    stage_update_events = [e for e in run["events"] if e.get("type") == "stage_update"]
+    assert len(stage_update_events) >= 2, (
+        f"Expected ≥2 stage_update events but got {len(stage_update_events)}. "
+        f"All event types: {[e['type'] for e in run['events']]}. "
+        "Likely cause: progress_callback=progress_callback was removed from agent.run() at execution.py L187."
+    )
+    assert stage_update_events[0].get("stage") == "intake"
+
+
+async def test_execute_pipeline_step_emits_progress_events(_all_agents_enabled):
+    """Removing progress_callback= from agent.run() at execution.py L313 must fail this test.
+
+    Same mechanism as test_execute_run_emits_progress_events but for the pipeline
+    step path. Events are appended to pipeline["events"] via _emit_pipeline().
+    """
+    from agentsuitelocal.api.execution import _execute_pipeline_step
+    from agentsuitelocal.api.state import _pipelines
+
+    pipeline_id = "pipe-progress-test-001"
+    _pipelines[pipeline_id] = {
+        "id": pipeline_id,
+        "project": "progress-test",
+        "goal": "Pipeline progress test",
+        "inputs_dir": None,
+        "auto_approve": False,
+        "status": "running",
+        "current_step": 0,
+        "steps": [{"agent": "design", "status": "running", "run_id": None, "artifacts": [], "qa_score": None, "qa_dimensions": []}],
+        "events": [],
+        "updated_at": time.time(),
+        "error_message": None,
+    }
+
+    fake_state = _fake_run_state("agentsuite-pipeline-progress-run-id")
+    mock_llm = MagicMock()
+
+    def fake_agent_run(*, request, run_id, progress_callback=None):  # noqa: ARG001
+        if progress_callback is not None:
+            progress_callback({"type": "stage_progress", "stage": "extract", "step": 2, "total": 5, "message": "Starting Extraction"})
+        return fake_state
+
+    with (
+        patch("agentsuitelocal.api.execution._load_settings", return_value={"api_key": "mock-key", "run_timeout_seconds": 30}),
+        patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
+        patch("agentsuite.agents.design.agent.DesignAgent.run", side_effect=fake_agent_run),
+        patch("agentsuitelocal.api.execution._save_state"),
+        patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
+    ):
+        await _execute_pipeline_step(pipeline_id, 0)
+
+    await asyncio.sleep(0)  # flush call_soon_threadsafe callbacks
+
+    pipeline = _pipelines[pipeline_id]
+    stage_update_events = [e for e in pipeline["events"] if e.get("type") == "stage_update"]
+    assert len(stage_update_events) >= 1, (
+        f"Expected ≥1 stage_update event but got {len(stage_update_events)}. "
+        f"All event types: {[e['type'] for e in pipeline['events']]}. "
+        "Likely cause: progress_callback=progress_callback was removed from agent.run() at execution.py L313."
+    )
+    assert stage_update_events[0].get("stage") == "extract"
+    assert stage_update_events[0].get("step") == 0  # pipeline step index, not stage step
 
     del _pipelines[pipeline_id]

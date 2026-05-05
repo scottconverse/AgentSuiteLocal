@@ -298,7 +298,7 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
                     lambda e=evt: _emit_pipeline(
                         pipeline_id, "stage_update",
                         step=step_idx,
-                        **{k: v for k, v in e.items() if k != "type"},
+                        **{k: v for k, v in e.items() if k not in ("type", "step")},
                     )
                 )
 

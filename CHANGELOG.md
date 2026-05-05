@@ -9,6 +9,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
+## [0.8.6] — 2026-05-04
+
+Sprint 2 close-out — regression-guard tests for `progress_callback` wire-up; fix `step` key collision in pipeline SSE events.
+
+### Added
+- **`test_execute_run_emits_progress_events`**: regression guard that turns red if `progress_callback=progress_callback` is removed from `agent.run()` in `_execute_run`. Uses `side_effect` to invoke the callback synchronously from the executor thread; `await asyncio.sleep(0)` flushes the `call_soon_threadsafe` queue before asserting on `run["events"]`.
+- **`test_execute_pipeline_step_emits_progress_events`**: same guard for the `_execute_pipeline_step` path. Asserts ≥1 `stage_update` event in `pipeline["events"]` and that `step` carries the pipeline step index (not the AgentSuite internal stage step).
+- **Issue [#19](https://github.com/scottconverse/AgentSuiteLocal/issues/19)** filed: migrate `_execute_pipeline_step` to `PipelineOrchestrator` to enable K1 cross-stage context accumulation (currently bypassed; each pipeline step runs as an isolated single-agent call).
+
+### Fixed
+- **`step` key collision in pipeline `progress_callback`**: `stage_progress` events emitted by `BaseAgent.run()` include a `"step"` field (intra-stage step counter). Forwarding the full dict while also passing `step=step_idx` to `_emit_pipeline` caused `TypeError: got multiple values for keyword argument 'step'` at runtime, silently swallowing all pipeline `stage_update` events. Now strips `"step"` from the forwarded payload; `step=step_idx` (pipeline step index) is authoritative.
+
+### Test metrics (v0.8.6)
+- Backend tests: **135 passing** (was 127 in v0.8.5; +8 net including 2 new progress-event guards)
+- `execution.py` coverage: **72%** (was 70% against v0.8.5 tests; +2pp, covers `progress_callback` closure bodies)
+- Repo-wide coverage: **67%** (floor 60%)
+
 ## [0.8.5] — 2026-05-04
 
 Sprint 2 — wire AgentSuite v1.1.0 intra-stage progress events to SSE stream.
