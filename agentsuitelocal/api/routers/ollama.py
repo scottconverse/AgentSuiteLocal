@@ -228,11 +228,22 @@ async def runtime_verify():
         "size": "bundled",
     })
 
+    # Every package below is imported somewhere in the runtime hot path.
+    # If a build leaves any of these unbundled, first run crashes with
+    # 'X SDK not installed' — error the end user can't act on. This list
+    # must stay in sync with [project.dependencies] in pyproject.toml.
     for pkg, label, size in [
         ("agentsuite",    "agentsuite (core kernel)",        "9.4 MB"),
         ("fastapi",       "FastAPI + uvicorn (local server)", "6.8 MB"),
         ("pydantic",      "pydantic + httpx",                 "11 MB"),
         ("sse_starlette", "SSE adapter",                      "0.3 MB"),
+        ("ollama",        "Ollama Python SDK",                "0.2 MB"),
+        ("anthropic",     "Anthropic SDK (cloud fallback)",   "0.5 MB"),
+        ("openai",        "OpenAI SDK (cloud fallback)",      "0.7 MB"),
+        ("mcp",           "MCP client",                       "0.3 MB"),
+        ("keyring",       "OS credential store",              "0.2 MB"),
+        ("httpx",         "HTTP client",                      "0.8 MB"),
+        ("psutil",        "Hardware probe",                   "0.4 MB"),
     ]:
         try:
             __import__(pkg)

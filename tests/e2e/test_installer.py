@@ -2,6 +2,9 @@
 E2E: Installer flow — walks all 5 steps (UX-1 combined screens) and enters the app.
 """
 
+import json
+
+import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -52,3 +55,48 @@ def test_installer_full_flow(page: Page, base_url: str):
 
     # Main app
     expect(page.get_by_role("heading", name="Dashboard")).to_be_visible(timeout=8000)
+
+
+@pytest.mark.e2e
+def test_runtime_verify_reports_all_dependencies_present(base_url: str):
+    """Hard gate: after install, /api/runtime/verify must report all_ok.
+
+    This is the test that would have caught the v0.8.7 'Ollama SDK not
+    installed' bug at CI time. The endpoint exercises real `import` of
+    every dependency the runtime needs on the hot path. If the build is
+    missing one (because pyproject.toml didn't declare it, because the
+    PyInstaller spec didn't bundle it, or for any other reason), this
+    fails with a precise list of what's missing — not a vague 'try
+    again' an end user can't act on.
+
+    Specifically asserts ollama is checked + present, since that was the
+    exact regression. Add new entries here when adding new runtime deps.
+    """
+    r = httpx.get(f"{base_url}/api/runtime/verify", timeout=10)
+    r.raise_for_status()
+    body = r.json()
+    failing = [c for c in body["checks"] if not c["ok"]]
+    assert body["all_ok"], (
+        "Runtime integrity check reports missing components:\n"
+        + json.dumps(failing, indent=2)
+        + "\n\nMost likely cause: a package is declared as a hiddenimport "
+        "in AgentSuiteLocal.spec but is not in [project.dependencies] of "
+        "pyproject.toml, so pip never installed it and PyInstaller never "
+        "bundled it. Add the missing package to pyproject.toml."
+    )
+
+    checked = {c["name"] for c in body["checks"]}
+    must_be_checked = {
+        "Ollama Python SDK",
+        "Anthropic SDK (cloud fallback)",
+        "OpenAI SDK (cloud fallback)",
+        "MCP client",
+        "OS credential store",
+    }
+    not_checked = must_be_checked - checked
+    assert not not_checked, (
+        f"runtime_verify endpoint is not checking these critical deps: "
+        f"{sorted(not_checked)}. They must be added to the loop in "
+        f"agentsuitelocal/api/routers/ollama.py so missing-bundle bugs "
+        f"surface in the in-app integrity check."
+    )

@@ -114,7 +114,7 @@ def _resolve_llm(settings: dict) -> Any:
 
     try:
         from agentsuite.llm.ollama import OllamaProvider
-        return OllamaProvider(model=model_name)
+        return OllamaProvider(default_model=model_name)
     except Exception:
         return None
 
