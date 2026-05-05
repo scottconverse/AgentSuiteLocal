@@ -27,6 +27,7 @@ dependencies = [
     "anthropic>=0.28",
     "openai>=1.30",
     "mcp>=1.0",
+    "ollama>=0.4,<1",
     # S-2: OS keychain for API key storage (Windows Credential Manager / macOS Keychain / Secret Service)
     "keyring>=25.0",
 ]
