@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import platform
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -169,7 +170,6 @@ async def install_ollama():
                     # interpolation directly into a shell string is fragile —
                     # any future change that flows untrusted input here would
                     # be a command-injection bug.
-                    import shlex
                     src_quoted = shlex.quote(str(src_app))
                     install_sh = (
                         f"rm -rf /Applications/Ollama.app && "

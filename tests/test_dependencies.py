@@ -24,14 +24,10 @@ from __future__ import annotations
 
 import importlib
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
 
 # Map distribution name (what's in pyproject.toml) → import name.
 # Most are identical; these are the ones that diverge.
@@ -108,7 +104,6 @@ def test_runtime_verify_endpoint_lists_every_declared_dep() -> None:
     from agentsuitelocal.api.routers import ollama as ollama_router
 
     src = Path(ollama_router.__file__).read_text()
-    declared = set(_declared_deps())
     # The endpoint reports a curated subset; require at minimum that the
     # ones most likely to break first runs are checked.
     must_check = {"agentsuite", "ollama", "anthropic", "openai", "mcp", "keyring"}

@@ -17,6 +17,23 @@ from uuid import uuid4
 
 import httpx
 
+from agentsuitelocal.api.config import (
+    _TIER_MODEL_MAP,
+    _load_settings,
+    _log_telemetry,
+    _read_launcher_port,
+    _send_notification,
+)
+from agentsuitelocal.api.schemas import RunRequest
+from agentsuitelocal.api.state import (
+    _SSE_BUFFER_SIZE,
+    _pipelines,
+    _run_event_buffers,
+    _runs,
+    _save_state,
+)
+from agentsuitelocal.api.workspace import _push_to_kernel_by_run_id, _workspace
+
 logger = logging.getLogger(__name__)
 
 # Module-level snapshot of the last _resolve_llm failure, if any. Surfaced via
@@ -41,22 +58,6 @@ def get_last_cloud_fallback_reason() -> str | None:
     fell back to local Ollama, or None if no fallback occurred / no key set."""
     return _LAST_CLOUD_FALLBACK_REASON
 
-from agentsuitelocal.api.config import (
-    _TIER_MODEL_MAP,
-    _load_settings,
-    _log_telemetry,
-    _read_launcher_port,
-    _send_notification,
-)
-from agentsuitelocal.api.schemas import RunRequest
-from agentsuitelocal.api.state import (
-    _SSE_BUFFER_SIZE,
-    _pipelines,
-    _run_event_buffers,
-    _runs,
-    _save_state,
-)
-from agentsuitelocal.api.workspace import _push_to_kernel_by_run_id, _workspace
 
 _QA_KEY_RE = re.compile(r"[./]")
 
