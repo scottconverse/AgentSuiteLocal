@@ -9,27 +9,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 _Nothing pending._
 
-## [0.8.7] — 2026-05-04
+## [0.8.7] — 2026-05-05
 
-Issue #19 — migrate `_execute_pipeline_step` to `PipelineOrchestrator` for K1 cross-stage context accumulation.
+Two changes shipped in this tag: Issue #16 (CI lint gate, chore-only, PR #21 / merge `71c9474`) and Issue #19 (PipelineOrchestrator migration, PR #22 / merge `6db68c9`). Both are documented below.
 
-### Changed
+### Added (Issue #16 — CI lint gate for node20 SHA-pinned actions, PR #21)
+
+- **`scripts/check_action_node_versions.py`**: Python script run in the CI lint job. Walks `.github/workflows/*.yml`, extracts every `uses: owner/repo@<40-char-sha>` pin, fetches the corresponding `action.yml` via `gh api` at that exact SHA, and checks `runs.using` for `node16` or `node20`. Exits 1 if any match is found; exits 0 if all pins are `node24+`. Catches the class of supply-chain drift where an action is re-pinned to a newer SHA that silently downgrades its Node.js runtime.
+- **CI step added to lint job** (`ci.yml`): runs `python scripts/check_action_node_versions.py` after ruff, with `GH_TOKEN: ${{ github.token }}` injected so the GitHub API calls succeed. Any future PR that introduces a node20-or-older SHA-pinned action will fail at lint before merging.
+- **Closes [Issue #16](https://github.com/scottconverse/AgentSuiteLocal/issues/16).**
+- Merge SHA: `71c9474`. No version bump; CI-infrastructure change only.
+
+### Changed (Issue #19 — PipelineOrchestrator migration, PR #22)
+
 - **`_execute_pipeline_step` (step 0) now routes through `PipelineOrchestrator.run()`**: each agent receives `StageContext.cross_stage_context` from all preceding stages. The old direct `BaseAgent.run()` path is preserved as a fallback for the resume-from-error flow (`step_idx > 0`).
 - **`_advance_pipeline` now routes through `PipelineOrchestrator.approve()`**: approval promotes artifacts at the kernel level and drives the next step with accumulated context. Falls back to direct execution if no orchestrator state is found on disk (resume/recovery path).
 - **Extracted `_collect_step_artifacts(run_id, output_root)`**: eliminates duplicated artifact + QA-score collection that was copy-pasted in `_execute_run`, `_execute_pipeline_step`, and `_advance_pipeline`.
 - **`on_progress` / `kernel_progress_callback` forwarded**: `agent_start`, `agent_done`, and `stage_update` SSE events are emitted through the orchestrator's callback hooks, preserving real-time stream behavior.
 - **Closes [Issue #19](https://github.com/scottconverse/AgentSuiteLocal/issues/19).**
 
-### Added
+### Added (Issue #19)
+
 - **`_execute_pipeline_step_direct`**: extracted legacy direct-agent path for resume; keeps the recovery flow working without requiring orchestrator state on disk.
 
-### Test changes
+### Test changes (Issue #19)
+
 - `test_execute_pipeline_step_dispatches_non_founder_agent`: updated to mock `PipelineOrchestrator.run` instead of `DesignAgent.run`. Verifies `step["run_id"]` and `step["status"] == "awaiting_approval"` via the orchestrator code path.
 - `test_execute_pipeline_step_emits_progress_events`: updated to verify `kernel_progress_callback` is wired through `orch.run()`, not `agent.run()` directly.
 
 ### Test metrics (v0.8.7)
-- Backend tests: **129 passing** (same test count as v0.8.6; 6 ollama tests deselected in non-E2E run)
-- `execution.py` coverage: **62%**
+
+- **Full suite** (`tests/`, no filter): **135 passing**, 49 warnings
+- **CI filter** (`--ignore=tests/e2e -m "not ollama"`): **129 passing**, 6 deselected (the 6 deselected tests require a live Ollama daemon and are covered by the E2E job)
+- The "135 → 129" apparent decrease vs v0.8.6's "135 passing" is a filter difference, not test removal. v0.8.6 reported the filtered count under the same CI flags but labelled it as "135 passing" — that was a reporting error in the v0.8.6 entry. The actual suite size is unchanged at 135.
+- `execution.py` coverage: **62%** (was 72% in v0.8.6; −10pp. The new orchestrator primary path, `_execute_pipeline_step_direct` legacy path, and `_advance_pipeline` orchestrator/fallback branches add ~120 statements that are not exercised by the unit test suite — they require a live orchestrator. The regression-guard tests from v0.8.6 still pass.)
 - Repo-wide coverage: **65%** (floor 58%)
 
 ## [0.8.6] — 2026-05-04
