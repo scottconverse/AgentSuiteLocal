@@ -58,13 +58,17 @@ def _isolate_state(monkeypatch, tmp_path: Path):
     does NOT set AGENTSUITE_LLM_PROVIDER_FACTORY — that's the whole point.
     The resolver must build a real OllamaProvider against the real daemon.
 
-    Settings override pins the test to gemma4:e2b (Light tier) with a
-    30-min timeout. Production default is gemma4:e4b at 15 min, but free-
-    tier ubuntu-latest CPU is too slow for e4b's spec stage to fit in
-    15 min (verified empirically in the b9d0e96 real-e2e CI run — Founder
-    timed out on stage 3). e2b is ~3× faster on CPU and exercises the
-    same agent code path; the test verifies the path, not the production
-    model choice.
+    Settings override extends run_timeout_seconds from the 900s production
+    default to 1800s (30 min). Empirical findings:
+    - e4b at 15-min timeout (b9d0e96): timed out on spec stage. CPU CI is
+      too slow for the production 15-min window.
+    - e2b at 30-min timeout (9c4b283): completed without timeout, but
+      qa_score came back None — e2b's output too rough for the QA stage's
+      JSON parse. README's Light-tier warning was right.
+    - e4b at 30-min timeout (this iteration): trying. If still timing out,
+      next iteration extends to 45 min.
+    Production audience is solo founders on lower-end hardware who tolerate
+    longer waits; a longer real-e2e cycle is consistent with that experience.
     """
     monkeypatch.setenv("AGENTSUITE_WORKSPACE", str(tmp_path))
     monkeypatch.setenv(
@@ -78,8 +82,8 @@ def _isolate_state(monkeypatch, tmp_path: Path):
     # timeout without touching the user's home dir.
     test_settings = tmp_path / "settings.json"
     test_settings.write_text(json.dumps({
-        "model_name": "gemma4:e2b",
-        "model_tier": "light",
+        "model_name": "gemma4:e4b",
+        "model_tier": "balanced",
         "run_timeout_seconds": 1800,
         "enabled_agents": ["founder", "design", "product", "engineering",
                             "marketing", "trust_risk", "cio"],

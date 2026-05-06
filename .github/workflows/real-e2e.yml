@@ -67,13 +67,19 @@ jobs:
             sleep 0.5
           done
 
-      - name: Pull gemma4:e2b (smaller model, faster on CPU CI runners)
-        # Production default is gemma4:e4b, but free-tier ubuntu-latest
-        # doesn't have a GPU; e4b takes >15 min on the spec stage alone
-        # (verified empirically in the first real-e2e run). gemma4:e2b
-        # is ~3× faster on CPU and exercises the same agent code path.
-        # The test fixture overrides settings.model_name to match.
-        run: ollama pull gemma4:e2b
+      - name: Pull gemma4:e4b (matches production default + reliable JSON output)
+        # Empirical findings from earlier iterations:
+        # - gemma4:e4b at 15-min run_timeout (b9d0e96): timed out on spec
+        #   stage. Free-tier CPU is too slow for the default 15-min window.
+        # - gemma4:e2b at 30-min run_timeout (9c4b283): completed without
+        #   timeout, but qa_score came back None — e2b's output is too
+        #   rough for the QA stage's JSON parse. README confirms this:
+        #   "Light tier — quality is rough, best for first drafts."
+        # Conclusion: stick with e4b (production default) and extend the
+        # window. Production target audience is solo founders on lower-
+        # end machines who tolerate longer waits, so a longer real-e2e
+        # cycle in CI is consistent with the actual user experience.
+        run: ollama pull gemma4:e4b
         timeout-minutes: 10
 
       - name: Run real-model E2E
