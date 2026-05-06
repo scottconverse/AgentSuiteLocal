@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import html
 import json
 import os
 import tempfile
@@ -321,6 +322,34 @@ async def export_run_markdown(run_id: str):
     )
 
 
+def _build_pdf_html(run_id: str, outputs_dir) -> str:
+    """Build the HTML document used by ``export_run_pdf``.
+
+    Extracted so the HTML-escape contract (ENG-088-001) is unit-testable
+    without weasyprint or the FastAPI test client. Every interpolated
+    value (run_id, file path, file contents) is HTML-escaped — LLM-
+    produced artifacts routinely contain `<`, `>`, `&`, or literal
+    `</pre>` sequences (markdown-with-embedded-HTML, code blocks).
+    Without escaping, weasyprint parses them as live HTML and the PDF
+    renders incorrectly — or, with a malicious artifact, executes
+    injected `<style>` / `<a href="javascript:">`.
+    """
+    md_parts = [f"<h1>{html.escape(run_id)} — Artifact Bundle</h1>"]
+    if outputs_dir.exists():
+        for f in sorted(outputs_dir.rglob("*")):
+            if f.is_file():
+                rel = f.relative_to(outputs_dir)
+                try:
+                    content = f.read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    content = "(binary file)"
+                md_parts.append(
+                    f"<hr><h2>{html.escape(str(rel))}</h2>"
+                    f"<pre>{html.escape(content)}</pre>"
+                )
+    return f"<html><body style='font-family:sans-serif'>{''.join(md_parts)}</body></html>"
+
+
 @router.get("/api/run/{run_id}/export/pdf")
 async def export_run_pdf(run_id: str):
     """D4: Export all artifacts as a PDF via weasyprint."""
@@ -330,18 +359,7 @@ async def export_run_pdf(run_id: str):
     as_run_id = run.get("agentsuite_run_id") or run["id"]
     outputs_dir = _workspace() / ".agentsuite" / "runs" / as_run_id
 
-    md_parts = [f"<h1>{run_id} — Artifact Bundle</h1>"]
-    if outputs_dir.exists():
-        for f in sorted(outputs_dir.rglob("*")):
-            if f.is_file():
-                rel = f.relative_to(outputs_dir)
-                try:
-                    content = f.read_text(encoding="utf-8", errors="replace")
-                except Exception:
-                    content = "(binary file)"
-                md_parts.append(f"<hr><h2>{rel}</h2><pre>{content}</pre>")
-
-    html_content = f"<html><body style='font-family:sans-serif'>{''.join(md_parts)}</body></html>"
+    html_content = _build_pdf_html(run_id, outputs_dir)
 
     # PDF export depends on weasyprint + native GTK runtime (cairo/pango/gdk-pixbuf).
     # The PyInstaller bundle does NOT ship those native libs — README known-issue.
