@@ -60,7 +60,7 @@ export const MODELS = [
     speed: "Medium (~18 tok/s)",
   },
   {
-    id: "pro", tier: "Pro", model: "gemma3:27b",
+    id: "pro", tier: "Pro", model: "gemma4:26b",
     size: "17 GB", ram: "32 GB", quality: 5,
     blurb: "Workstation-class. Highest fidelity. Slower but closest to frontier-API quality.",
     consequence: "Highest fidelity output. Takes 2–3× longer per run.",

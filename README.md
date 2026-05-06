@@ -19,7 +19,13 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 
 **Patched in v0.7.1:** 30+ bug fixes including project mutation endpoints (rename/archive/delete were 404), ModelView pull (was GET not POST), tier model map, update banner field names, optimistic approve/reject UI, installer compressed to five screens, KernelView artifact preview, skeleton loading states, OS keychain for API key, supply-chain hardening (SHA-pinned CI actions, pinned PyInstaller, release CI gate), and blocking subprocess.run → asyncio.to_thread.
 
-**Updated in v0.8.0–v0.8.2:** All seven agents enabled by default (was founder-only); `PipelineOrchestrator` replaced with direct `BaseAgent.run()` invocation (Sprint 1 shim); wheel metadata version corrected; dynamic `pyproject.toml` version sourced from `__version__.py`.
+**Updated in v0.8.0–v0.8.4:** All seven agents enabled by default (was founder-only); `PipelineOrchestrator` shim replaced with direct `BaseAgent.run()` (later restored in v0.8.7); wheel metadata version corrected; dynamic `pyproject.toml` version sourced from `__version__.py`; node24 migration completed across CI actions; `main.py` monolith decomposed into per-domain routers under `agentsuitelocal/api/routers/`; SQLite-backed state store replaces JSON sidecars.
+
+**Refined in v0.8.5–v0.8.7:** AgentSuite v1.1.0 pin with intra-stage `stage_update` SSE events; regression-guard tests for `progress_callback` and pipeline `step` key collision; Issue #19 — `PipelineOrchestrator` re-introduced for the multi-step pipeline path so cross-stage K1 context accumulates correctly (single-agent runs continue to take the direct path); CI lint gate that fails on node20 SHA-pinned actions (Issue #16).
+
+**Hardened in v0.8.8:** broken-bundle remediation — `ollama` SDK was missing from runtime deps in v0.8.7, so frozen builds crashed on first New Run; smoke step rewritten to exercise the real `_resolve_llm` → provider-construct path (not just an httpx ping to Ollama); 28 Critical/Major fixes across three audit rounds (Trust/Risk routing, async-safe resolver, Inno uninstall, Windows console-flicker, /api/run/{id}/retry state guard, factory-allowlist segment-boundary, atomic launcher.port.json with Windows share-violation retry, in-app uninstall re-elevation, and more — see `audit-AgentSuiteLocal-2026-05-05/`); landing page + discussion seeds + manual refreshed to v0.8.8.
+
+**Patched in v0.8.9:** seven Criticals from `audit-AgentSuiteLocal-2026-05-05-v088/` closed — Trust/Risk slug aligned across four sources of truth, Pro tier model fixed (`gemma4:26b-moe` was a 404; replaced with `gemma4:26b`), PDF-export HTML escape (artifact content now goes through `html.escape()`), SettingsView surfaces save errors instead of false "Saved", run/pipeline `events` lists capped at 200 (was unbounded; SQLite write size grew with run length), in-app `ManualView.jsx` refreshed to match `docs/user-manual.md`, `tests/test_execution.py` restructured to surface real-path resolver coverage. Plus a wider doc-currency sweep — README, CONTRIBUTING, architecture, and discussion seeds reconciled.
 
 ---
 
@@ -41,7 +47,7 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 | Python | 3.11 |
 | Node.js | 20 |
 
-Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma3:27b` (32 GB).  
+Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma4:26b` (32 GB).  
 Runs entirely on-device — no internet connection required after setup.
 
 ---
@@ -300,7 +306,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 | Version | Highlights |
 |---------|-----------|
-| **v0.8.9** | 7 audit Criticals closed — Trust/Risk slug fix; broken `gemma4:26b-moe` → `gemma3:27b`; PDF-export HTML escape; SettingsView save-error UX; events-list cap; in-app ManualView refresh; `test_execution.py` restructure |
+| **v0.8.9** | 7 audit Criticals closed — Trust/Risk slug fix; broken `gemma4:26b-moe` → `gemma4:26b`; PDF-export HTML escape; SettingsView save-error UX; events-list cap; in-app ManualView refresh; `test_execution.py` restructure |
 | **v0.8.8** | Bug-fix release: missing `ollama` SDK in runtime deps + 3 audit rounds (28 Critical/Major fixes) + landing-page/seeds/manual refresh |
 | **v0.8.7** | Issue #19 — migrate pipeline execution to `PipelineOrchestrator`; K1 cross-stage context now active |
 | **v0.8.6** | Regression-guard tests for `progress_callback`; fix `step` key collision in pipeline SSE |

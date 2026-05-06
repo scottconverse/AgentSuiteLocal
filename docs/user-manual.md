@@ -1,10 +1,10 @@
-# User Manual — AgentSuiteLocal v0.8.8
+# User Manual — AgentSuiteLocal v0.8.9
 
 AgentSuiteLocal runs seven specialist AI agents on your machine. Each agent takes a one-sentence business goal, walks a five-stage pipeline (intake → extract → spec → execute → QA), and writes a folder of structured markdown artifacts to your disk. You review them, approve what's good, and the approved output feeds every future run on that project.
 
 That's the whole loop. Everything in this app is a UI on top of it. All processing happens locally — nothing leaves your machine unless you explicitly configure a cloud API key.
 
-**Manual version:** v0.8.8 · **Last updated:** 2026-05-05
+**Manual version:** v0.8.9 · **Last updated:** 2026-05-06
 
 ---
 
@@ -16,7 +16,7 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 |------|--------|--------------|
 | 1 | Welcome | Intro screen. Click **Get started**. |
 | 2 | License & privacy | Read the license. Check the box. Click **I agree**. |
-| 3 | Hardware & model tier | The app probes your CPU, RAM, and disk and recommends a tier — Light (8 GB RAM, `gemma4:e2b`), Balanced (16 GB RAM, `gemma4:e4b`, recommended), or Pro (32 GB RAM, `gemma3:27b`). Pick one. |
+| 3 | Hardware & model tier | The app probes your CPU, RAM, and disk and recommends a tier — Light (8 GB RAM, `gemma4:e2b`), Balanced (16 GB RAM, `gemma4:e4b`, recommended), or Pro (32 GB RAM, `gemma4:26b`). Pick one. |
 | 4 | Ollama & model download | Confirms Ollama is running, then pulls the model for the tier you chose. Includes a 3-attempt retry loop with backoff. If Ollama isn't running yet, open the Ollama app and the screen unlocks automatically. |
 | 5 | Smoke test | Runs four sequential checks: Ollama reachable, model loaded, API healthy, real test inference. Each check shows a green tick or a fix card with a specific action. **Skip smoke test** is available with a confirmation if you need to bypass it (the app may not work after skipping). |
 | 6 | You're set up | Click **Launch AgentSuiteLocal** to open the main app. |
@@ -170,7 +170,7 @@ Open **Settings → Models** (or click **Models** in the sidebar) to manage your
 |------|-------|------|---------|
 | Light    | `gemma4:e2b`     | ~2 GB | 8 GB  |
 | Balanced | `gemma4:e4b`     | ~5 GB | 16 GB |
-| Pro      | `gemma3:27b`     | ~17 GB | 32 GB |
+| Pro      | `gemma4:26b`     | ~17 GB | 32 GB |
 
 Click **Pull** next to any recommended model to download it. A live progress bar shows download progress streamed directly from Ollama.
 

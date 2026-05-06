@@ -23,7 +23,7 @@ python agentsuitelocal/cli.py --reload
 cd web && npm run dev
 ```
 
-Open http://localhost:5173. The backend binds to port **8765** by default and writes the actual port to `~/.agentsuitelocal/launcher.log`.
+Open http://localhost:5173. The backend binds to port **8765** by default and writes the actual bound port to a structured JSON file at `~/.agentsuitelocal/launcher.port.json` (since v0.8.8 — the legacy plaintext `launcher.log` was split off and is no longer the source of truth for port lookups). E2E tests, the in-app uninstaller, and any other consumer should read `launcher.port.json`.
 
 ---
 
@@ -42,11 +42,11 @@ ruff check .
 # Frontend build smoke test (verifies no import/build errors)
 cd web && npm run build
 
-# E2E tests (backend auto-started by conftest via launcher.log; Ollama + gemma2:2b required)
+# E2E tests (backend auto-started by conftest via launcher.port.json; Ollama + gemma4:e4b required)
 pytest tests/e2e/ -v -m e2e
 ```
 
-The backend test suite covers 108+ tests without needing Ollama running. E2E tests self-start the backend via `subprocess` and read the bound port from `~/.agentsuitelocal/launcher.log`.
+The backend test suite covers 160+ tests without needing Ollama running (current count fluctuates per release; see the latest CHANGELOG entry for an exact figure). E2E tests self-start the backend via `subprocess` and read the bound port from `~/.agentsuitelocal/launcher.port.json`. The smoke step verifies the configured model is installed locally, so CI and local E2E runs need the same model that `_SETTINGS_DEFAULTS["model_name"]` points at — currently `gemma4:e4b`.
 
 Every PR must keep the unit + integration suite green. New backend behaviour needs at least one pytest test. New frontend behaviour needs at least one Vitest test.
 
@@ -105,7 +105,7 @@ Never pin a feature branch SHA in `pyproject.toml` for a merged PR — always pi
 - **Python:** `ruff check .` must pass. Run `ruff check . --fix` to auto-fix most issues.
 - **JavaScript/JSX:** Prettier defaults. Run `cd web && npx prettier --write src/`.
 - No comments unless the why is non-obvious. No docstrings on internal helpers.
-- Keep `agentsuitelocal/api/main.py` the single source of truth for the API — don't split across files without discussion.
+- The API was split per-domain in v0.8.0: `agentsuitelocal/api/main.py` is now an entrypoint that wires routers from `agentsuitelocal/api/routers/` (health, kernel, ollama, pipelines, projects, runs, settings, system, uninstall, etc.). New routes go in the most appropriate existing router, or a new router file if no fit exists. Don't reintroduce the pre-v0.8.0 monolith.
 
 ---
 
@@ -125,7 +125,7 @@ Open an issue at https://github.com/scottconverse/AgentSuiteLocal/issues. Includ
 - OS and RAM
 - AgentSuiteLocal version (shown in Settings or `agentsuitelocal --version`)
 - What you did and what you expected
-- What happened — paste logs from `~/.agentsuitelocal/launcher.log` if available
+- What happened — paste logs from `~/.agentsuitelocal/launcher.log` (general events) and the bound port from `~/.agentsuitelocal/launcher.port.json` if relevant
 - Crash report JSON if one was captured (Settings shows a banner when a crash report exists)
 
 ---

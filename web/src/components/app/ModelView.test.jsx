@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ModelView } from "./ModelView.jsx";
 
 // C-1: pullModel now uses fetch() POST streaming — no EventSource needed.
-// C-3: RECOMMENDED list now sourced from data.js (3 models: gemma4:e2b, gemma4:e4b, gemma3:27b)
+// C-3: RECOMMENDED list now sourced from data.js (3 models: gemma4:e2b, gemma4:e4b, gemma4:26b)
 
 const makePullStream = () => {
   const body = 'data: {"status":"success"}\n';
@@ -104,7 +104,7 @@ describe("ModelView", () => {
     render(<ModelView />);
     await waitFor(() => expect(screen.getAllByText(/gemma4:e2b/).length).toBeGreaterThanOrEqual(1));
     expect(screen.getAllByText(/gemma4:e4b/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/gemma3:27b/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/gemma4:26b/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("Pull buttons are disabled when Ollama is offline", async () => {
