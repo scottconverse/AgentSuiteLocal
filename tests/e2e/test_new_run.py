@@ -12,6 +12,7 @@ Ollama in CI)."""
 from __future__ import annotations
 
 import pathlib
+import re
 import tempfile
 
 import pytest
@@ -81,7 +82,10 @@ def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str
     # primary empty-state CTA (btn-primary). `.first` picks the
     # nav-strip one; either click is valid and reaches NewRunView.
     page.get_by_role("button", name="New run").first.click()
-    expect(page.get_by_role("heading", name=lambda t: "new run" in t.lower())).to_be_visible(timeout=5000)
+    # Playwright Python's `name=` accepts str or compiled Pattern, NOT a
+    # callable — pre-existing bug masked by the Step 5 smoke-block until
+    # gemma4:e4b landed in CI. Use regex for case-insensitive substring.
+    expect(page.get_by_role("heading", name=re.compile(r"new run", re.IGNORECASE))).to_be_visible(timeout=5000)
 
     # Fill goal + project
     page.get_by_label("Goal").fill("smoke-goal: produce a test artifact")
@@ -89,8 +93,8 @@ def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str
     if project_input.is_visible():
         project_input.fill("smoke-project")
 
-    # Submit
-    page.get_by_role("button", name=lambda t: t.lower() in ("start run", "run", "launch")).first.click()
+    # Submit — accept any of "Start run", "Run", or "Launch" as the CTA label.
+    page.get_by_role("button", name=re.compile(r"^(start run|run|launch)$", re.IGNORECASE)).first.click()
 
     # Assert we landed on LiveRunView and the stage timeline is visible
     expect(page.get_by_text("Five-stage pipeline")).to_be_visible(timeout=10000)
