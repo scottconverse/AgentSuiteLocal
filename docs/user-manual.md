@@ -60,35 +60,41 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 ### Design
 - **What it produces:** design briefs, visual language spec, brand QA checklist, icon direction, design principles
 - **Goal field tip:** "Design identity for [product name], expressed as [aesthetic direction]"
+- **What you'll get back:** ~18 artifacts (the named categories above plus their templates, manifests, and QA scoring files)
 - **Typical runtime:** 9 minutes
 - **Prerequisite:** Founder kernel recommended
 
 ### Product
 - **What it produces:** UI/UX spec, feature specs, user stories, handoff doc, acceptance criteria
 - **Goal field tip:** "Define the MVP feature set for [product name] targeting [user type]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 12 minutes
 - **Prerequisite:** Founder kernel recommended
 
 ### Engineering
 - **What it produces:** ADRs (Architecture Decision Records), system design, API specs, runbooks, infrastructure checklist
 - **Goal field tip:** "Design the backend architecture for [product name], a [type] app serving [scale]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 16 minutes
 - **Prerequisite:** Product kernel recommended
 
 ### Marketing
 - **What it produces:** launch plan, campaign briefs, messaging matrix, social content plan, email sequences, press release
 - **Goal field tip:** "Plan the launch campaign for [product name], targeting [channel] with [offer type]"
+- **What you'll get back:** ~18 artifacts
 - **Typical runtime:** 11 minutes
 - **Prerequisite:** Founder kernel recommended
 
 ### Trust / Risk
 - **What it produces:** threat model, controls register, compliance checklist, incident response plan, risk register
 - **Goal field tip:** "Assess the security and compliance risk profile for [product name], a [description]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 13 minutes
 
 ### CIO
 - **What it produces:** IT strategy, technology roadmap, vendor evaluation matrix, IT architecture brief
 - **Goal field tip:** "Build the IT strategy for [company type] adopting [technology]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 14 minutes
 
 ---

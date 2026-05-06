@@ -231,8 +231,9 @@ tests/
     test_installer.py    E2E — full 6-step installer walk
     test_app.py          E2E — nav items + New Run + Approval Gate
                                 pytest.mark.e2e
-                                Note: uses gemma2:2b (Gemma 2 family),
-                                not a Gemma 4 model
+                                Note: CI workflow pulls gemma4:e4b
+                                (matches _SETTINGS_DEFAULTS["model_name"];
+                                smoke step verifies it's installed)
 ```
 
 Backend test count grows over time as regression-guard tests are added. Approximate counts: v0.8.7 ~135, v0.8.8 ~150, v0.8.9 163+ passing + 1 documented xfail (test-fixture cascade from TEST-CRIT-001). The CI filter (`--ignore=tests/e2e -m "not ollama"`) deselects ~6 ollama-live tests. Coverage floor: 58% (`--cov-fail-under=58`). For the exact figure of any given release, see the corresponding CHANGELOG entry.
