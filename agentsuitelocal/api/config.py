@@ -53,7 +53,7 @@ _SETTINGS_DEFAULTS: dict[str, Any] = {
     "model_name": "gemma4:e4b",
     "open_on_launch": True,
     "telemetry": False,
-    "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust", "cio"],
+    "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust_risk", "cio"],
     # S-2: api_key is NOT stored in settings.json — it lives in the OS keychain.
     "cloud_model": "claude-3-5-haiku-20241022",
     "notifications": True,
