@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import collections
+import html
 import json
 import os
 import tempfile
@@ -26,9 +26,8 @@ from agentsuitelocal.api.execution import (
 )
 from agentsuitelocal.api.schemas import OverrideApproveRequest, RunRequest
 from agentsuitelocal.api.state import (
-    _SSE_BUFFER_SIZE,
+    _append_event,
     _run_cancel_tokens,
-    _run_event_buffers,
     _run_tasks,
     _runs,
     _save_state,
@@ -58,7 +57,6 @@ async def start_run(req: RunRequest):
         "partial_artifacts": False,
         "overridden": False,
     }
-    _run_event_buffers[run_id] = collections.deque(maxlen=_SSE_BUFFER_SIZE)
     _save_state()
     cancel_token = threading.Event()
     _run_cancel_tokens[run_id] = cancel_token
@@ -146,7 +144,7 @@ async def cancel_run(run_id: str):
     with _state_write_lock:
         run["status"] = "cancelled"
         run["cancelled_at"] = time.time()
-        run["events"].append({"type": "cancelled", "run_id": run_id, "ts": time.time()})
+        _append_event(run, {"type": "cancelled", "run_id": run_id, "ts": time.time()})
         _save_state()
 
     _move_partial_artifacts(run)
@@ -160,13 +158,20 @@ async def cancel_run(run_id: str):
 
 @router.get("/api/run/{run_id}/stream")
 async def stream_run(run_id: str, since: int = 0):
-    """B4: SSE stream with ?since= parameter for reconnect replay."""
+    """B4: SSE stream with ?since= parameter for reconnect replay.
+
+    Replay window is bounded by ``_MAX_EVENTS_PER_RUN`` (see state.py).
+    Reconnects with ``since`` lower than the FIFO-eviction floor will
+    receive only the still-buffered tail; the stream still progresses
+    correctly, but very early events from a long-running pipeline may
+    be missing. Lifecycle markers (agent_start, agent_done, approval,
+    error) are well within the cap.
+    """
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
 
     async def generator():
         run = _runs[run_id]
-        buf = _run_event_buffers.get(run_id)
         seen = since
 
         while True:
@@ -174,8 +179,6 @@ async def stream_run(run_id: str, since: int = 0):
             while seen < len(events):
                 evt = events[seen]
                 yield {"data": json.dumps(evt)}
-                if buf is not None:
-                    buf.append(evt)
                 seen += 1
             if run["status"] in ("approved", "rejected", "error", "waiting", "cancelled", "timeout"):
                 break
@@ -321,6 +324,34 @@ async def export_run_markdown(run_id: str):
     )
 
 
+def _build_pdf_html(run_id: str, outputs_dir) -> str:
+    """Build the HTML document used by ``export_run_pdf``.
+
+    Extracted so the HTML-escape contract (ENG-088-001) is unit-testable
+    without weasyprint or the FastAPI test client. Every interpolated
+    value (run_id, file path, file contents) is HTML-escaped — LLM-
+    produced artifacts routinely contain `<`, `>`, `&`, or literal
+    `</pre>` sequences (markdown-with-embedded-HTML, code blocks).
+    Without escaping, weasyprint parses them as live HTML and the PDF
+    renders incorrectly — or, with a malicious artifact, executes
+    injected `<style>` / `<a href="javascript:">`.
+    """
+    md_parts = [f"<h1>{html.escape(run_id)} — Artifact Bundle</h1>"]
+    if outputs_dir.exists():
+        for f in sorted(outputs_dir.rglob("*")):
+            if f.is_file():
+                rel = f.relative_to(outputs_dir)
+                try:
+                    content = f.read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    content = "(binary file)"
+                md_parts.append(
+                    f"<hr><h2>{html.escape(str(rel))}</h2>"
+                    f"<pre>{html.escape(content)}</pre>"
+                )
+    return f"<html><body style='font-family:sans-serif'>{''.join(md_parts)}</body></html>"
+
+
 @router.get("/api/run/{run_id}/export/pdf")
 async def export_run_pdf(run_id: str):
     """D4: Export all artifacts as a PDF via weasyprint."""
@@ -330,18 +361,7 @@ async def export_run_pdf(run_id: str):
     as_run_id = run.get("agentsuite_run_id") or run["id"]
     outputs_dir = _workspace() / ".agentsuite" / "runs" / as_run_id
 
-    md_parts = [f"<h1>{run_id} — Artifact Bundle</h1>"]
-    if outputs_dir.exists():
-        for f in sorted(outputs_dir.rglob("*")):
-            if f.is_file():
-                rel = f.relative_to(outputs_dir)
-                try:
-                    content = f.read_text(encoding="utf-8", errors="replace")
-                except Exception:
-                    content = "(binary file)"
-                md_parts.append(f"<hr><h2>{rel}</h2><pre>{content}</pre>")
-
-    html_content = f"<html><body style='font-family:sans-serif'>{''.join(md_parts)}</body></html>"
+    html_content = _build_pdf_html(run_id, outputs_dir)
 
     # PDF export depends on weasyprint + native GTK runtime (cairo/pango/gdk-pixbuf).
     # The PyInstaller bundle does NOT ship those native libs — README known-issue.

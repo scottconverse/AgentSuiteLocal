@@ -45,7 +45,7 @@ _LAUNCHER_LOG = _LAUNCHER_PORT_FILE  # back-compat alias; prefer _LAUNCHER_PORT_
 _TIER_MODEL_MAP = {
     "light":     "gemma4:e2b",
     "balanced":  "gemma4:e4b",
-    "pro":       "gemma4:26b-moe",
+    "pro":       "gemma4:26b",
 }
 
 _SETTINGS_DEFAULTS: dict[str, Any] = {
@@ -53,7 +53,7 @@ _SETTINGS_DEFAULTS: dict[str, Any] = {
     "model_name": "gemma4:e4b",
     "open_on_launch": True,
     "telemetry": False,
-    "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust", "cio"],
+    "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust_risk", "cio"],
     # S-2: api_key is NOT stored in settings.json — it lives in the OS keychain.
     "cloud_model": "claude-3-5-haiku-20241022",
     "notifications": True,

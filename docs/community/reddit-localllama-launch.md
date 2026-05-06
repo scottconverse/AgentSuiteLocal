@@ -1,10 +1,10 @@
 # r/LocalLLaMA — Intro post
 
-**AgentSuiteLocal — seven AI agents that run entirely on your machine, with a proper installer and approval workflow** (current release: v0.8.8)
+**AgentSuiteLocal — seven AI agents that run entirely on your machine, with a proper installer and approval workflow** (current release: v0.8.9)
 
 ---
 
-I've been building a desktop app that wraps local LLMs in a structured multi-agent workflow. The v0.7.0 line was the first feature-complete release; the v0.8.x line (currently v0.8.8) has been hardening reliability, supply-chain posture, and the pipeline orchestrator. Sharing it here since this community is exactly the audience.
+I've been building a desktop app that wraps local LLMs in a structured multi-agent workflow. The v0.7.0 line was the first feature-complete release; the v0.8.x line (currently v0.8.9) has been hardening reliability, supply-chain posture, and the pipeline orchestrator. Sharing it here since this community is exactly the audience.
 
 **What it is**
 
@@ -30,14 +30,14 @@ Models are managed through Ollama. The installer walks you through pulling a mod
 
 **Honest limitations**
 
-- Output quality is entirely dependent on your model. The Light tier (`gemma4:e2b`, 8 GB RAM) is enough to see the workflow but not for outputs you'd ship. The Balanced tier (`gemma4:e4b`, 16 GB RAM) is a reasonable middle ground. The Pro tier (`gemma4:26b-moe`, 32 GB RAM) is the best locally available option but takes longer.
+- Output quality is entirely dependent on your model. The Light tier (`gemma4:e2b`, 8 GB RAM) is enough to see the workflow but not for outputs you'd ship. The Balanced tier (`gemma4:e4b`, 16 GB RAM) is a reasonable middle ground. The Pro tier (`gemma4:26b`, 32 GB RAM) is the best locally available option but takes longer.
 - Runs take 8–25 minutes depending on model and hardware. The live view shows per-stage progress, but there's no magic speed-up.
 - PDF export requires weasyprint, which has its own system dependencies. If PDF export fails, ZIP and Markdown export work without any extra dependencies.
 - macOS build is `.app` only for now — no signed DMG yet, so Gatekeeper will block it on first launch until you right-click-open.
 
 **Installation**
 
-Windows: download `AgentSuiteLocal-0.8.8-setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
+Windows: download `AgentSuiteLocal-0.8.9-setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
 
 macOS: download the `.app`, right-click and open to bypass Gatekeeper on first launch.
 

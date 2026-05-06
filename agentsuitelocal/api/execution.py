@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import collections
 import json
 import logging
 import math
@@ -26,9 +25,8 @@ from agentsuitelocal.api.config import (
 )
 from agentsuitelocal.api.schemas import RunRequest
 from agentsuitelocal.api.state import (
-    _SSE_BUFFER_SIZE,
+    _append_event,
     _pipelines,
-    _run_event_buffers,
     _runs,
     _save_state,
 )
@@ -121,12 +119,15 @@ def _move_partial_artifacts(run: dict) -> None:
 
 
 def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
-    _pipelines[pipeline_id]["events"].append({
-        "type": event_type,
-        "pipeline_id": pipeline_id,
-        "ts": time.time(),
-        **kwargs,
-    })
+    _append_event(
+        _pipelines[pipeline_id],
+        {
+            "type": event_type,
+            "pipeline_id": pipeline_id,
+            "ts": time.time(),
+            **kwargs,
+        },
+    )
 
 
 async def _resolve_llm(settings: dict) -> Any:
@@ -271,12 +272,10 @@ async def _execute_run(
     run = _runs[run_id]
     settings = _load_settings()
     timeout_secs = int(settings.get("run_timeout_seconds", 900))
-    buf = _run_event_buffers.setdefault(run_id, collections.deque(maxlen=_SSE_BUFFER_SIZE))
 
     def emit(event_type: str, **kwargs):
         evt = {"type": event_type, "run_id": run_id, "ts": time.time(), **kwargs}
-        run["events"].append(evt)
-        buf.append(evt)
+        _append_event(run, evt)
 
     emit("agent_start", agent=req.agent_id, project=req.project)
 

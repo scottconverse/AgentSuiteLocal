@@ -142,6 +142,11 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // UX-V088-001: distinguish save failure from save success. Prior code
+  // always set saved=true regardless of fetch outcome (.catch(() => {})
+  // swallowed errors), giving false confirmation when the backend was
+  // unreachable or returned non-2xx.
+  const [saveError, setSaveError] = useState(null);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [apiKeyDirty, setApiKeyDirty] = useState(false);
   const [showWorkspaceInfo, setShowWorkspaceInfo] = useState(false);
@@ -165,17 +170,36 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
   }, []);
 
   const patch = async (updates) => {
+    const prev = settings;
     const next = { ...settings, ...updates };
-    setSettings(next);
+    setSettings(next);  // optimistic
     setSaving(true);
-    await fetch("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    }).catch(() => {});
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = String(body.detail);
+        } catch {
+          // non-JSON body; keep the HTTP status code
+        }
+        throw new Error(detail);
+      }
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (err) {
+      setSettings(prev);  // rollback the optimistic update
+      setSaving(false);
+      setSaved(false);
+      setSaveError(err?.message || "Couldn't save settings");
+    }
   };
 
   const saveApiKey = async () => {
@@ -222,7 +246,15 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
       <TopBar
         title="Settings"
         subtitle="Configure agents, model, costs, and behavior"
-        actions={saved ? <span style={{ fontSize: 12, color: "var(--good)" }}>Saved</span> : saving ? <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Saving…</span> : null}
+        actions={
+          saveError
+            ? <span style={{ fontSize: 12, color: "var(--bad, #c53030)" }}>Couldn't save: {saveError}</span>
+            : saved
+            ? <span style={{ fontSize: 12, color: "var(--good)" }}>Saved</span>
+            : saving
+            ? <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Saving…</span>
+            : null
+        }
       />
       <div style={{ padding: 24, maxWidth: 720, display: "flex", flexDirection: "column", gap: 16 }}>
 

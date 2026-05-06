@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import collections
 import json
 import math
 import sqlite3
@@ -24,15 +23,34 @@ _settings_lock = threading.RLock()
 _run_tasks: dict[str, asyncio.Task] = {}
 _run_cancel_tokens: dict[str, threading.Event] = {}
 
-# B4: per-run SSE event buffer (last N events per run)
-_run_event_buffers: dict[str, collections.deque] = {}
-
 _DB_FILE = Path.home() / ".agentsuitelocal" / "state.db"
 # Legacy JSON paths — read once during one-time migration, then ignored
 _RUNS_FILE = Path.home() / ".agentsuitelocal" / "runs.json"
 _PIPELINES_FILE = Path.home() / ".agentsuitelocal" / "pipelines.json"
 _MAX_RUNS = 50
-_SSE_BUFFER_SIZE = 100
+
+# ENG-088-002: Cap on the per-run SSE event log persisted in run["events"].
+# Long pipeline runs emit hundreds of stage_progress events; without a cap
+# the list grew unbounded and was serialized to SQLite on every _save_state(),
+# linearly increasing disk write size with run length. SSE reconnect replay
+# (?since=N) is bounded by this cap. Approve/resume code paths read events;
+# they need at minimum the run-lifecycle markers (agent_start, agent_done,
+# approval, error) which are <10 events — a 200-entry cap fits all of those
+# plus ~190 stage_progress events of recent history.
+_MAX_EVENTS_PER_RUN = 200
+
+
+def _append_event(run: dict[str, Any], event: dict[str, Any]) -> None:
+    """Append an SSE event to a run, FIFO-evicting beyond _MAX_EVENTS_PER_RUN.
+
+    All callers that record events on a run MUST go through this helper —
+    direct ``run["events"].append(evt)`` will reintroduce ENG-088-002.
+    """
+    events = run.setdefault("events", [])
+    events.append(event)
+    overflow = len(events) - _MAX_EVENTS_PER_RUN
+    if overflow > 0:
+        del events[:overflow]
 
 
 @contextmanager

@@ -6,12 +6,12 @@
 >
 > **▶ [Download the installer from the Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest)**
 >
-> - **Windows:** `AgentSuiteLocal-0.8.8-setup.exe`
-> - **macOS:** `AgentSuiteLocal-v0.8.8.dmg`
+> - **Windows:** `AgentSuiteLocal-0.8.9-setup.exe`
+> - **macOS:** `AgentSuiteLocal-v0.8.9.dmg`
 
 ---
 
-**v0.8.8** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v0.8.9** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run. All seven agents are enabled by default; override via `AGENTSUITE_ENABLED_AGENTS`.
 
@@ -19,7 +19,13 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 
 **Patched in v0.7.1:** 30+ bug fixes including project mutation endpoints (rename/archive/delete were 404), ModelView pull (was GET not POST), tier model map, update banner field names, optimistic approve/reject UI, installer compressed to five screens, KernelView artifact preview, skeleton loading states, OS keychain for API key, supply-chain hardening (SHA-pinned CI actions, pinned PyInstaller, release CI gate), and blocking subprocess.run → asyncio.to_thread.
 
-**Updated in v0.8.0–v0.8.2:** All seven agents enabled by default (was founder-only); `PipelineOrchestrator` replaced with direct `BaseAgent.run()` invocation (Sprint 1 shim); wheel metadata version corrected; dynamic `pyproject.toml` version sourced from `__version__.py`.
+**Updated in v0.8.0–v0.8.4:** All seven agents enabled by default (was founder-only); `PipelineOrchestrator` shim replaced with direct `BaseAgent.run()` (later restored in v0.8.7); wheel metadata version corrected; dynamic `pyproject.toml` version sourced from `__version__.py`; node24 migration completed across CI actions; `main.py` monolith decomposed into per-domain routers under `agentsuitelocal/api/routers/`; SQLite-backed state store replaces JSON sidecars.
+
+**Refined in v0.8.5–v0.8.7:** AgentSuite v1.1.0 pin with intra-stage `stage_update` SSE events; regression-guard tests for `progress_callback` and pipeline `step` key collision; Issue #19 — `PipelineOrchestrator` re-introduced for the multi-step pipeline path so cross-stage K1 context accumulates correctly (single-agent runs continue to take the direct path); CI lint gate that fails on node20 SHA-pinned actions (Issue #16).
+
+**Hardened in v0.8.8:** broken-bundle remediation — `ollama` SDK was missing from runtime deps in v0.8.7, so frozen builds crashed on first New Run; smoke step rewritten to exercise the real `_resolve_llm` → provider-construct path (not just an httpx ping to Ollama); 28 Critical/Major fixes across three audit rounds (Trust/Risk routing, async-safe resolver, Inno uninstall, Windows console-flicker, /api/run/{id}/retry state guard, factory-allowlist segment-boundary, atomic launcher.port.json with Windows share-violation retry, in-app uninstall re-elevation, and more — see `audit-AgentSuiteLocal-2026-05-05/`); landing page + discussion seeds + manual refreshed to v0.8.8.
+
+**Patched in v0.8.9:** seven Criticals from `audit-AgentSuiteLocal-2026-05-05-v088/` closed — Trust/Risk slug aligned across four sources of truth, Pro tier model fixed (`gemma4:26b-moe` was a 404; replaced with `gemma4:26b`), PDF-export HTML escape (artifact content now goes through `html.escape()`), SettingsView surfaces save errors instead of false "Saved", run/pipeline `events` lists capped at 200 (was unbounded; SQLite write size grew with run length), in-app `ManualView.jsx` refreshed to match `docs/user-manual.md`, `tests/test_execution.py` restructured to surface real-path resolver coverage. Plus a wider doc-currency sweep — README, CONTRIBUTING, architecture, and discussion seeds reconciled.
 
 ---
 
@@ -41,14 +47,14 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 | Python | 3.11 |
 | Node.js | 20 |
 
-Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma4:26b-moe` (32 GB).  
+Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma4:26b` (32 GB).  
 Runs entirely on-device — no internet connection required after setup.
 
 ---
 
 ## Install
 
-**Non-technical users:** download `AgentSuiteLocal-0.8.8-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
+**Non-technical users:** download `AgentSuiteLocal-0.8.9-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
 
@@ -87,7 +93,7 @@ make dist              # auto-detects OS — builds frontend then runs PyInstall
 # or explicitly:
 make build-mac         # → dist/AgentSuiteLocal.app  (macOS)
 make build-win         # → dist/AgentSuiteLocal/     (Windows onedir)
-make build-installer   # → dist/AgentSuiteLocal-0.8.8-setup.exe  (Windows only, requires Inno Setup)
+make build-installer   # → dist/AgentSuiteLocal-0.8.9-setup.exe  (Windows only, requires Inno Setup)
 ```
 
 The onedir output is self-contained — no Python or Node required on the target machine. `build-installer` wraps the onedir into a standard Windows installer with uninstall support.
@@ -201,7 +207,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | DELETE | `/api/ollama/models/{name}` | Delete an installed model |
 | GET | `/api/model/verify/{name}` | Verify model is functional |
 | GET | `/api/update/check` | Check for a newer GitHub release |
-| GET | `/api/version` | Return current version, e.g. `{"version": "0.8.8"}` |
+| GET | `/api/version` | Return current version, e.g. `{"version": "0.8.9"}` |
 | GET | `/api/crash-reports/latest` | Most recent crash report |
 | GET | `/api/telemetry/summary` | Local usage event counts |
 | GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.log` |
@@ -300,7 +306,8 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 | Version | Highlights |
 |---------|-----------|
-| **v0.8.8** | Docs-only: backfill v0.8.7 CHANGELOG with Issue #16 CI lint gate details and corrected test metrics |
+| **v0.8.9** | 7 audit Criticals closed — Trust/Risk slug fix; broken `gemma4:26b-moe` → `gemma4:26b`; PDF-export HTML escape; SettingsView save-error UX; events-list cap; in-app ManualView refresh; `test_execution.py` restructure |
+| **v0.8.8** | Bug-fix release: missing `ollama` SDK in runtime deps + 3 audit rounds (28 Critical/Major fixes) + landing-page/seeds/manual refresh |
 | **v0.8.7** | Issue #19 — migrate pipeline execution to `PipelineOrchestrator`; K1 cross-stage context now active |
 | **v0.8.6** | Regression-guard tests for `progress_callback`; fix `step` key collision in pipeline SSE |
 | **v0.8.5** | AgentSuite v1.1.0 pin; wire intra-stage `stage_update` SSE events; close Issue #10 |
@@ -313,12 +320,11 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ---
 
-## Known issues (v0.8.8)
+## Known issues (v0.8.9)
 
 - **PDF export requires GTK/Cairo on Windows.** The PDF export feature uses WeasyPrint, which requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). The PyInstaller bundle includes WeasyPrint's Python code but not the native GTK DLLs. If PDF export returns a 501 error, install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) separately. ZIP and Markdown export work without any additional runtime.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.
-- E2E test suite uses `gemma2:2b` (Gemma 2 family), not a Gemma 4 model. Tests exercise the API surface but not the model architecture used in production. This is documented in `tests/e2e/conftest.py`.
-- E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`.
+- E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`. The CI workflow (`.github/workflows/ci.yml`) pulls `gemma4:e4b` so the smoke-step model-installed check passes against `_SETTINGS_DEFAULTS["model_name"]`. Local E2E runs need the same model installed, or the smoke step fails on Step 5 of the installer walk.
 
 ---
 

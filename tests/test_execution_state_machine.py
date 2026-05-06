@@ -1,12 +1,25 @@
 """
-Integration test: _execute_run with a mocked LLM provider.
+State-machine tests for _execute_run / _execute_pipeline_step.
 
-Verifies that a single-agent run completes end-to-end (status → "waiting")
-without raising ModuleNotFoundError from the missing PipelineOrchestrator.
+These tests patch out _resolve_llm, the agent class, _save_state,
+telemetry, and notifications. They cover the run-status state machine
+(running → waiting / error / cancelled / timeout), the dispatch-by-
+agent-id path, the SSE stage_update event flow, and the orchestrator
+route for pipeline step 0 — i.e. the wiring between routes, executor,
+and state.
 
-This test was written BEFORE the PipelineOrchestrator shim (Sprint 1, step 2)
-and will fail until that shim is in place.  Once the shim replaces the import
-with a direct BaseAgent.run() call, the test should pass with the mocked LLM.
+They do NOT cover the resolver path or any layer below the agent class.
+audit-AgentSuiteLocal-2026-05-05-v088 finding TEST-CRIT-001 named this
+file as the source of v0.8.7's missing-`ollama`-SDK regression: because
+every test here mocks _resolve_llm, the resolver was never exercised
+by the suite. tests/test_dependencies.py and
+tests/test_execution_integration.py close that hole — they exercise
+the real resolver path with no patching.
+
+Originally named test_execution.py with an "Integration test"
+docstring. Both labels were misleading. Renamed in v0.8.9
+(TEST-CRIT-001 fix) so the contract this file actually upholds is
+visible from the filename.
 """
 
 from __future__ import annotations

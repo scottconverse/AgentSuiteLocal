@@ -2,7 +2,7 @@
 
 AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app split across nine routers and a handful of support modules under `agentsuitelocal/api/`. The frontend is React + Vite. They speak REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud-model fallback.
 
-> **A note on doc currency.** The CHANGELOG is the canonical source of truth for "what does this project actually do today". Where this document and the CHANGELOG disagree, trust the CHANGELOG and file an issue. As of v0.8.8 this document was reconciled against `App.jsx`, the `agentsuitelocal/api/` package, and the v0.8.0 → v0.8.8 changelog entries.
+> **A note on doc currency.** The CHANGELOG is the canonical source of truth for "what does this project actually do today". Where this document and the CHANGELOG disagree, trust the CHANGELOG and file an issue. As of v0.8.9 this document was reconciled against `App.jsx`, the `agentsuitelocal/api/` package, and the v0.8.0 → v0.8.9 changelog entries.
 
 ---
 
@@ -52,7 +52,7 @@ AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github
 │                                                                 │
 │  Tiers: Light    (gemma4:e2b)                                  │
 │         Balanced (gemma4:e4b)  ← recommended                   │
-│         Pro      (gemma4:26b-moe)                              │
+│         Pro      (gemma4:26b)                                  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -231,11 +231,12 @@ tests/
     test_installer.py    E2E — full 6-step installer walk
     test_app.py          E2E — nav items + New Run + Approval Gate
                                 pytest.mark.e2e
-                                Note: uses gemma2:2b (Gemma 2 family),
-                                not a Gemma 4 model
+                                Note: CI workflow pulls gemma4:e4b
+                                (matches _SETTINGS_DEFAULTS["model_name"];
+                                smoke step verifies it's installed)
 ```
 
-Full suite as of v0.8.7: **135 passing** (no filter). CI filter (`--ignore=tests/e2e -m "not ollama"`): 129 passing, 6 deselected. Coverage floor: 58% (`--cov-fail-under=58`). Repo-wide coverage: 65%.
+Backend test count grows over time as regression-guard tests are added. Approximate counts: v0.8.7 ~135, v0.8.8 ~150, v0.8.9 163+ passing + 1 documented xfail (test-fixture cascade from TEST-CRIT-001). The CI filter (`--ignore=tests/e2e -m "not ollama"`) deselects ~6 ollama-live tests. Coverage floor: 58% (`--cov-fail-under=58`). For the exact figure of any given release, see the corresponding CHANGELOG entry.
 
 CI matrix: Python 3.11 and 3.12, Ubuntu. Ruff lint, unit + integration, and Vite build run on every push. macOS build job verifies the `.app` bundle. E2E runs in a separate job after `npm run build`. The lint job also runs `scripts/check_action_node_versions.py` to verify every SHA-pinned GitHub Action is on a supported Node.js runtime (closes Issue #16).
 

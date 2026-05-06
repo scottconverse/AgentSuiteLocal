@@ -44,3 +44,4 @@ htmlcov/
 # Release tooling (internal, not shipped)
 audit-agentsuitelocal-*/
 scripts/take_screenshots.py
+CHANGELOG_RELEASE.md

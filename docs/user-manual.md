@@ -1,10 +1,10 @@
-# User Manual — AgentSuiteLocal v0.8.8
+# User Manual — AgentSuiteLocal v0.8.9
 
 AgentSuiteLocal runs seven specialist AI agents on your machine. Each agent takes a one-sentence business goal, walks a five-stage pipeline (intake → extract → spec → execute → QA), and writes a folder of structured markdown artifacts to your disk. You review them, approve what's good, and the approved output feeds every future run on that project.
 
 That's the whole loop. Everything in this app is a UI on top of it. All processing happens locally — nothing leaves your machine unless you explicitly configure a cloud API key.
 
-**Manual version:** v0.8.8 · **Last updated:** 2026-05-05
+**Manual version:** v0.8.9 · **Last updated:** 2026-05-06
 
 ---
 
@@ -16,7 +16,7 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 |------|--------|--------------|
 | 1 | Welcome | Intro screen. Click **Get started**. |
 | 2 | License & privacy | Read the license. Check the box. Click **I agree**. |
-| 3 | Hardware & model tier | The app probes your CPU, RAM, and disk and recommends a tier — Light (8 GB RAM, `gemma4:e2b`), Balanced (16 GB RAM, `gemma4:e4b`, recommended), or Pro (32 GB RAM, `gemma4:26b-moe`). Pick one. |
+| 3 | Hardware & model tier | The app probes your CPU, RAM, and disk and recommends a tier — Light (8 GB RAM, `gemma4:e2b`), Balanced (16 GB RAM, `gemma4:e4b`, recommended), or Pro (32 GB RAM, `gemma4:26b`). Pick one. |
 | 4 | Ollama & model download | Confirms Ollama is running, then pulls the model for the tier you chose. Includes a 3-attempt retry loop with backoff. If Ollama isn't running yet, open the Ollama app and the screen unlocks automatically. |
 | 5 | Smoke test | Runs four sequential checks: Ollama reachable, model loaded, API healthy, real test inference. Each check shows a green tick or a fix card with a specific action. **Skip smoke test** is available with a confirmation if you need to bypass it (the app may not work after skipping). |
 | 6 | You're set up | Click **Launch AgentSuiteLocal** to open the main app. |
@@ -60,35 +60,41 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 ### Design
 - **What it produces:** design briefs, visual language spec, brand QA checklist, icon direction, design principles
 - **Goal field tip:** "Design identity for [product name], expressed as [aesthetic direction]"
+- **What you'll get back:** ~18 artifacts (the named categories above plus their templates, manifests, and QA scoring files)
 - **Typical runtime:** 9 minutes
 - **Prerequisite:** Founder kernel recommended
 
 ### Product
 - **What it produces:** UI/UX spec, feature specs, user stories, handoff doc, acceptance criteria
 - **Goal field tip:** "Define the MVP feature set for [product name] targeting [user type]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 12 minutes
 - **Prerequisite:** Founder kernel recommended
 
 ### Engineering
 - **What it produces:** ADRs (Architecture Decision Records), system design, API specs, runbooks, infrastructure checklist
 - **Goal field tip:** "Design the backend architecture for [product name], a [type] app serving [scale]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 16 minutes
 - **Prerequisite:** Product kernel recommended
 
 ### Marketing
 - **What it produces:** launch plan, campaign briefs, messaging matrix, social content plan, email sequences, press release
 - **Goal field tip:** "Plan the launch campaign for [product name], targeting [channel] with [offer type]"
+- **What you'll get back:** ~18 artifacts
 - **Typical runtime:** 11 minutes
 - **Prerequisite:** Founder kernel recommended
 
 ### Trust / Risk
 - **What it produces:** threat model, controls register, compliance checklist, incident response plan, risk register
 - **Goal field tip:** "Assess the security and compliance risk profile for [product name], a [description]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 13 minutes
 
 ### CIO
 - **What it produces:** IT strategy, technology roadmap, vendor evaluation matrix, IT architecture brief
 - **Goal field tip:** "Build the IT strategy for [company type] adopting [technology]"
+- **What you'll get back:** ~17 artifacts
 - **Typical runtime:** 14 minutes
 
 ---
@@ -170,7 +176,7 @@ Open **Settings → Models** (or click **Models** in the sidebar) to manage your
 |------|-------|------|---------|
 | Light    | `gemma4:e2b`     | ~2 GB | 8 GB  |
 | Balanced | `gemma4:e4b`     | ~5 GB | 16 GB |
-| Pro      | `gemma4:26b-moe` | ~16 GB | 32 GB |
+| Pro      | `gemma4:26b`     | ~17 GB | 32 GB |
 
 Click **Pull** next to any recommended model to download it. A live progress bar shows download progress streamed directly from Ollama.
 

@@ -69,4 +69,45 @@ describe("SettingsView", () => {
     render(<SettingsView />);
     await waitFor(() => expect(screen.getByText(/Offline/i)).toBeInTheDocument());
   });
+
+  // UX-V088-001: save errors must surface, not silently show "Saved".
+  it("shows error banner when PATCH /api/settings fails (5xx)", async () => {
+    let patchCalled = false;
+    vi.stubGlobal("fetch", vi.fn((url, opts) => {
+      if (url.includes("/api/settings")) {
+        if (opts?.method === "PATCH") {
+          patchCalled = true;
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            json: () => Promise.resolve({ detail: "boom" }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSettings) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ running: true }) });
+    }));
+    render(<SettingsView />);
+    await waitFor(() => screen.getByRole("switch", { name: /Open browser on launch/i }));
+    fireEvent.click(screen.getByRole("switch", { name: /Open browser on launch/i }));
+    await waitFor(() => expect(patchCalled).toBe(true));
+    await waitFor(() => expect(screen.getByText(/Couldn't save/i)).toBeInTheDocument());
+    expect(screen.queryByText(/^Saved$/)).not.toBeInTheDocument();
+  });
+
+  it("shows error banner when PATCH /api/settings rejects (network)", async () => {
+    vi.stubGlobal("fetch", vi.fn((url, opts) => {
+      if (url.includes("/api/settings") && opts?.method === "PATCH") {
+        return Promise.reject(new Error("Failed to fetch"));
+      }
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSettings) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ running: true }) });
+    }));
+    render(<SettingsView />);
+    await waitFor(() => screen.getByRole("switch", { name: /Open browser on launch/i }));
+    fireEvent.click(screen.getByRole("switch", { name: /Open browser on launch/i }));
+    await waitFor(() => expect(screen.getByText(/Couldn't save: Failed to fetch/i)).toBeInTheDocument());
+  });
 });

@@ -30,7 +30,7 @@ export const AGENTS = [
     artifactCount: 18, runtime: "~11 min",
   },
   {
-    id: "trust", name: "Trust / Risk", icon: "shield",
+    id: "trust_risk", name: "Trust / Risk", icon: "shield",
     tagline: "Threat models, controls, compliance",
     desc: "Threat model, risk register, control framework, IR plan, compliance matrix, vendor risk, audit readiness.",
     artifactCount: 17, runtime: "~13 min",
@@ -60,8 +60,8 @@ export const MODELS = [
     speed: "Medium (~18 tok/s)",
   },
   {
-    id: "pro", tier: "Pro", model: "gemma4:26b-moe",
-    size: "15.2 GB", ram: "32 GB", quality: 5,
+    id: "pro", tier: "Pro", model: "gemma4:26b",
+    size: "17 GB", ram: "32 GB", quality: 5,
     blurb: "Workstation-class. Highest fidelity. Slower but closest to frontier-API quality.",
     consequence: "Highest fidelity output. Takes 2–3× longer per run.",
     speed: "Slow (~6 tok/s)",
@@ -99,7 +99,7 @@ export const RECENT_RUNS = [
   { id: "run-mq5jp", agent: "founder",     project: "novella-app", status: "approved", score: 8.9, time: "3 days ago",  duration: "12m 35s" },
   { id: "run-tk0rs", agent: "design",      project: "novella-app", status: "approved", score: 8.1, time: "3 days ago",  duration: "9m 14s"  },
   { id: "run-a1nzx", agent: "marketing",   project: "novella-app", status: "running",  score: null,time: "now",         duration: "4m 02s"  },
-  { id: "run-dq38e", agent: "trust",       project: "atlas-api",   status: "rejected", score: 6.2, time: "1 week ago",  duration: "11m 28s" },
+  { id: "run-dq38e", agent: "trust_risk",  project: "atlas-api",   status: "rejected", score: 6.2, time: "1 week ago",  duration: "11m 28s" },
 ];
 
 export const PROJECTS = [

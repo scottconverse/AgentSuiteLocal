@@ -182,8 +182,14 @@ jobs:
             sleep 0.5
           done
 
-      - name: Pull gemma2:2b (smallest model)
-        run: ollama pull gemma2:2b
+      - name: Pull gemma4:e4b (default model — matches _SETTINGS_DEFAULTS)
+        # The smoke endpoint verifies the configured model is actually
+        # installed locally before running the kernel-inference probe.
+        # _SETTINGS_DEFAULTS["model_name"] is "gemma4:e4b", so CI must
+        # have that model present or the smoke step rejects with
+        # "Model 'gemma4:e4b' is not installed" and the installer
+        # walk fails on Step 5 (Continue stays disabled).
+        run: ollama pull gemma4:e4b
         timeout-minutes: 10
 
       - name: Start backend + write launcher.port.json
