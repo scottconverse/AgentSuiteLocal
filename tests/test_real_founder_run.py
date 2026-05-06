@@ -59,7 +59,7 @@ def _isolate_state(monkeypatch, tmp_path: Path):
     The resolver must build a real OllamaProvider against the real daemon.
 
     Settings override extends run_timeout_seconds from the 900s production
-    default to 2700s (45 min). Empirical findings:
+    default to 3600s (60 min). Empirical findings:
     - e4b at 15-min timeout (b9d0e96): timed out on spec stage. CPU CI is
       too slow for the production 15-min window.
     - e2b at 30-min timeout (9c4b283): completed without timeout, but
@@ -67,10 +67,12 @@ def _isolate_state(monkeypatch, tmp_path: Path):
       JSON parse. README's Light-tier warning was right.
     - e4b at 30-min timeout (7884b0b): timed out again on spec stage.
       Spec generates 10 artifacts (founder's bulk); on free-tier CPU at
-      ~5-8 tok/s that's ~25-35 min for spec alone, doesn't fit a 30-min
-      whole-pipeline budget.
-    - e4b at 45-min timeout (this iteration): trying. If still timing out,
-      we may need to switch to a simpler agent or a hosted GPU runner.
+      ~5-8 tok/s that's ~25-35 min for spec alone.
+    - e4b at 45-min timeout (a77a006): MAJOR PROGRESS. Stages 1-4
+      (intake, extract, spec, execute) all completed within ~43 min;
+      timeout fired 2.2 min into the QA stage. Just need a few more
+      minutes to finish QA's JSON-output generation.
+    - e4b at 60-min timeout (this iteration): expected to land green.
     Production audience is solo founders on lower-end hardware who tolerate
     longer waits; a longer real-e2e cycle is consistent with that experience.
     """
@@ -88,7 +90,7 @@ def _isolate_state(monkeypatch, tmp_path: Path):
     test_settings.write_text(json.dumps({
         "model_name": "gemma4:e4b",
         "model_tier": "balanced",
-        "run_timeout_seconds": 2700,
+        "run_timeout_seconds": 3600,
         "enabled_agents": ["founder", "design", "product", "engineering",
                             "marketing", "trust_risk", "cio"],
     }))
@@ -163,11 +165,11 @@ async def test_founder_run_produces_approveable_artifacts(tmp_path: Path) -> Non
     try:
         await asyncio.wait_for(
             _execute_run(run_id, req, cancel_token=cancel_token),
-            timeout=3000.0,  # 50 min — exceeds the fixture's 45-min run_timeout
+            timeout=3900.0,  # 65 min — exceeds the fixture's 60-min run_timeout
         )
     except TimeoutError:
         pytest.fail(
-            f"Real-model Founder run did not complete in 50 min wall-clock. "
+            f"Real-model Founder run did not complete in 65 min wall-clock. "
             f"Run state: {_runs[run_id]}. The CI runner may be slow, the "
             f"goal may be producing too much output, or the agent may be "
             f"stuck in a stage. Check the SSE event log for the last stage_update."
