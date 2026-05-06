@@ -153,6 +153,10 @@ export const ManualView = () => (
     <TopBar title="User manual" subtitle="What every screen does, in plain language" />
     <div style={{ padding: "24px 24px 48px", maxWidth: 760, margin: "0 auto" }}>
 
+      <p style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", margin: "0 0 16px" }}>
+        Manual version: v0.8.9 · matches docs/user-manual.md
+      </p>
+
       <TableOfContents />
 
       {/* ── 30-second mental model ── */}
@@ -188,7 +192,7 @@ export const ManualView = () => (
               ["2", "License & privacy", "Read the license. Check the box. Click I agree."],
               ["3", "Hardware & model tier", "The app probes your CPU, RAM, and disk and recommends a tier (Light / Balanced / Pro). Pick one — Balanced (16 GB RAM, gemma4:e4b) works for most people."],
               ["4", "Ollama & model download", "Confirms Ollama is running, then pulls the model for the tier you chose. The pull includes a 3-attempt retry loop with backoff. If Ollama isn't running yet, click Install Ollama and the screen will unlock automatically."],
-              ["5", "Smoke test", "Runs five quick checks: Ollama daemon up, model loaded, /api/generate responding, real inference round-trip through the Python kernel, and workspace writable. Each shows a green tick or a fix card."],
+              ["5", "Smoke test", "Runs four sequential checks: Ollama daemon reachable, target model loaded, API health endpoint responding, and a real test inference through the Python kernel (the same _resolve_llm path New Run uses). Each check shows a green tick or, on failure, an actionable fix card. v0.8.8 added the kernel inference check — the prior version only verified the environment, not the app."],
               ["6", "You're set up", "Click Launch AgentSuiteLocal to open the main app."],
             ].map(([step, screen, desc]) => (
               <tr key={step}>
@@ -365,7 +369,7 @@ export const ManualView = () => (
 
         <h3 style={subHeader}>Kernel</h3>
         <p style={bodyText}>All approved artifacts, organized by project and agent. These are the files that feed every future run as canonical context.</p>
-        <p style={bodyText}>You can&#x2019;t delete from the Kernel through the UI in v0.1 — use your file manager at <span style={code}>~/AgentSuite/.agentsuite/_kernel/</span>.</p>
+        <p style={bodyText}>To remove an entry, use your file manager at <span style={code}>~/AgentSuite/.agentsuite/_kernel/</span>. The Kernel view is read-only by design — promotion happens via approval, demotion happens via the file system, and that asymmetry is intentional so an accidental click can&apos;t evict canonical context.</p>
 
         <h3 style={subHeader}>Pipelines</h3>
         <p style={bodyText}>Chain agents end-to-end. Each step&#x2019;s output feeds the next. Use for a full launch sequence: Founder &#x2192; Design &#x2192; Marketing &#x2192; Engineering. Each step pauses at an approval gate before advancing.</p>
@@ -519,7 +523,7 @@ export const ManualView = () => (
           </a>{" "}
           and paste the error message — that&#x2019;s enough to diagnose it.
           <div style={{ ...bodyText, background: "var(--bg-tint)", border: "1px solid var(--line)", borderRadius: 6, padding: "10px 14px", marginTop: 8 }}>
-            <strong>Note:</strong> The installer smoke test catches most setup problems, but not all of them. Phase 2 will surface these errors inside the app rather than as raw error messages.
+            <strong>Note:</strong> Installer smoke-test failures now surface as actionable per-check fix cards in the app — see step 5 of the installer walkthrough. If a check fails, the card tells you the exact next action; you don&apos;t need to read raw logs.
           </div>
         </TroubleEntry>
 
@@ -536,7 +540,7 @@ export const ManualView = () => (
         </TroubleEntry>
 
         <TroubleEntry title="My run disappeared after I restarted the app">
-          Completed runs survive restarts — they&apos;re stored at <span style={code}>~/.agentsuitelocal/runs.json</span>. If a run was actively running when the app closed, it will show as errored on restart with message &ldquo;AgentSuiteLocal restarted while this run was in progress.&rdquo; The artifacts written so far remain on disk under <span style={code}>~/AgentSuite/.agentsuite/runs/{"{run-id}"}/</span>. Use the Retry button to restart.
+          Completed runs survive restarts — since v0.8.0 they&apos;re stored in a WAL-mode SQLite database at <span style={code}>~/.agentsuitelocal/state.db</span> (the legacy <span style={code}>runs.json</span> file is migrated once on first launch and then ignored). If a run was actively running when the app closed, it will show as errored on restart with message &ldquo;AgentSuiteLocal restarted while this run was in progress.&rdquo; The artifacts written so far remain on disk under <span style={code}>~/AgentSuite/.agentsuite/runs/{"{run-id}"}/</span>. Use the Retry button to restart.
         </TroubleEntry>
 
         <TroubleEntry title="Run shows 'Timed out after 15 minutes'">
