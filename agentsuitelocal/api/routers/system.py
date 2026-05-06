@@ -105,6 +105,11 @@ async def latest_crash_report():
 
 @router.get("/api/launcher/port")
 async def get_launcher_port():
-    """A5: Return the actual bound port (from launcher.log)."""
+    """A5: Return the actual bound port (from ``launcher.port.json``).
+
+    QA-001 (v0.8.8) split the structured port snapshot off from the
+    plaintext ``launcher.log`` general-events file because the two
+    writers were corrupting each other.
+    """
     port = _read_launcher_port()
     return {"port": port}

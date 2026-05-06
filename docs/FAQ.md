@@ -93,7 +93,7 @@ Open a [private security advisory](https://github.com/scottconverse/AgentSuiteLo
 On Windows, look for the Ollama icon in the system tray and let it finish starting. On macOS, confirm Ollama is in the menu bar. If Ollama isn't installed, get it from [ollama.com/download](https://ollama.com/download), then return to the installer and click **Retry**.
 
 **The smoke test fails on "API health endpoint."**
-The backend failed to start, typically due to a port conflict. Check `~/.agentsuitelocal/launcher.log` for the actual port the backend bound to, and verify no other process is using it. Restart the app.
+The backend failed to start, typically due to a port conflict. Check `~/.agentsuitelocal/launcher.port.json` for the actual port the backend bound to (since v0.8.8 — older builds wrote it to `launcher.log`), and verify no other process is using it. Restart the app.
 
 **Model download stalls or fails after 3 attempts.**
 Usually a network or Ollama-registry transient. Wait a few minutes and click **Try again**. Partial downloads are resumed where Ollama supports it.

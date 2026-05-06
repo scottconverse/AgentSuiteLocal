@@ -210,7 +210,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | GET | `/api/version` | Return current version, e.g. `{"version": "0.8.9"}` |
 | GET | `/api/crash-reports/latest` | Most recent crash report |
 | GET | `/api/telemetry/summary` | Local usage event counts |
-| GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.log` |
+| GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.port.json` |
 | POST | `/api/pipelines/{id}/resume` | Resume an errored pipeline step |
 | GET | `/api/projects` | All projects |
 | POST | `/api/projects/{slug}/rename` | Rename a project |
