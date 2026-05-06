@@ -15,7 +15,7 @@ from agentsuitelocal.api.execution import (
     _execute_pipeline_step,
 )
 from agentsuitelocal.api.schemas import ApproveRequest, PipelineRequest
-from agentsuitelocal.api.state import _pipelines, _save_state
+from agentsuitelocal.api.state import _append_event, _pipelines, _save_state
 from agentsuitelocal.api.workspace import _push_to_kernel_by_run_id
 
 router = APIRouter()
@@ -117,12 +117,15 @@ async def reject_pipeline_step(pipeline_id: str):
     pipeline["steps"][step_idx]["status"] = "rejected"
     pipeline["status"] = "rejected"
     pipeline["updated_at"] = time.time()
-    _pipelines[pipeline_id]["events"].append({
-        "type": "pipeline_rejected",
-        "pipeline_id": pipeline_id,
-        "step": step_idx,
-        "ts": time.time(),
-    })
+    _append_event(
+        _pipelines[pipeline_id],
+        {
+            "type": "pipeline_rejected",
+            "pipeline_id": pipeline_id,
+            "step": step_idx,
+            "ts": time.time(),
+        },
+    )
     _save_state()
     return {"status": "rejected", "pipeline_id": pipeline_id}
 

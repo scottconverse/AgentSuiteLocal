@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import collections
 import html
 import json
 import os
@@ -27,9 +26,8 @@ from agentsuitelocal.api.execution import (
 )
 from agentsuitelocal.api.schemas import OverrideApproveRequest, RunRequest
 from agentsuitelocal.api.state import (
-    _SSE_BUFFER_SIZE,
+    _append_event,
     _run_cancel_tokens,
-    _run_event_buffers,
     _run_tasks,
     _runs,
     _save_state,
@@ -59,7 +57,6 @@ async def start_run(req: RunRequest):
         "partial_artifacts": False,
         "overridden": False,
     }
-    _run_event_buffers[run_id] = collections.deque(maxlen=_SSE_BUFFER_SIZE)
     _save_state()
     cancel_token = threading.Event()
     _run_cancel_tokens[run_id] = cancel_token
@@ -147,7 +144,7 @@ async def cancel_run(run_id: str):
     with _state_write_lock:
         run["status"] = "cancelled"
         run["cancelled_at"] = time.time()
-        run["events"].append({"type": "cancelled", "run_id": run_id, "ts": time.time()})
+        _append_event(run, {"type": "cancelled", "run_id": run_id, "ts": time.time()})
         _save_state()
 
     _move_partial_artifacts(run)
@@ -161,13 +158,20 @@ async def cancel_run(run_id: str):
 
 @router.get("/api/run/{run_id}/stream")
 async def stream_run(run_id: str, since: int = 0):
-    """B4: SSE stream with ?since= parameter for reconnect replay."""
+    """B4: SSE stream with ?since= parameter for reconnect replay.
+
+    Replay window is bounded by ``_MAX_EVENTS_PER_RUN`` (see state.py).
+    Reconnects with ``since`` lower than the FIFO-eviction floor will
+    receive only the still-buffered tail; the stream still progresses
+    correctly, but very early events from a long-running pipeline may
+    be missing. Lifecycle markers (agent_start, agent_done, approval,
+    error) are well within the cap.
+    """
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
 
     async def generator():
         run = _runs[run_id]
-        buf = _run_event_buffers.get(run_id)
         seen = since
 
         while True:
@@ -175,8 +179,6 @@ async def stream_run(run_id: str, since: int = 0):
             while seen < len(events):
                 evt = events[seen]
                 yield {"data": json.dumps(evt)}
-                if buf is not None:
-                    buf.append(evt)
                 seen += 1
             if run["status"] in ("approved", "rejected", "error", "waiting", "cancelled", "timeout"):
                 break
