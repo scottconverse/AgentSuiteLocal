@@ -52,7 +52,7 @@ AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github
 │                                                                 │
 │  Tiers: Light    (gemma4:e2b)                                  │
 │         Balanced (gemma4:e4b)  ← recommended                   │
-│         Pro      (gemma4:26b-moe)                              │
+│         Pro      (gemma3:27b)                                  │
 └────────────────────────────────────────────────────────────────┘
 ```
 

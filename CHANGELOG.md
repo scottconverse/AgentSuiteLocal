@@ -11,9 +11,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **QA-DD-001 (Critical) — Trust/Risk agent slug drift fixed.** v0.8.8 advertised seven agents in the picker but `web/src/data.js` used `id: "trust"` while `launcher.py` / `cli.py` used `trust_risk`. The kernel registry only knows `trust_risk`, so every Trust/Risk run errored 3 s after launch with `Agent 'trust' is not enabled or not registered`. Fixed by aligning `data.js` (id and mock-run reference) and the `_SETTINGS_DEFAULTS["enabled_agents"]` default in `agentsuitelocal/api/config.py` to the canonical `trust_risk`.
 
+- **QA-DD-002 (Critical) — Pro-tier model name fixed.** `_TIER_MODEL_MAP["pro"]` was `gemma4:26b-moe`, which 404s from `https://registry.ollama.ai/v2/library/gemma4/manifests/26b-moe`. Fresh installs that selected the Pro tier failed to pull. Replaced with `gemma3:27b` (real, dense 27 B, similar resource profile). The `gemma4:e2b` and `gemma4:e4b` entries — flagged by the audit as also missing — actually do exist on the registry; left unchanged. Fanned out to `web/src/data.js`, `docs/user-manual.md`, `docs/architecture.md`, README, both discussion seeds, `ManualView.jsx`, and `ModelView.test.jsx`.
+
 ### Added
 
 - **`tests/test_agent_slugs.py`**: regression test for QA-DD-001's bug class. Asserts the four sources of truth for the enabled-agent set (launcher.py env default, cli.py env default, `_SETTINGS_DEFAULTS["enabled_agents"]`, `web/src/data.js` AGENTS list) agree on the same seven slugs. Re-introducing slug drift in any one of those four files now fails CI at the lint/test gate before merge.
+- **`tests/test_tier_models_resolve.py`**: regression test for QA-DD-002's bug class. Each entry in `_TIER_MODEL_MAP` plus `_SETTINGS_DEFAULTS["model_name"]` is HEAD-checked against the Ollama OCI registry manifest endpoint that `ollama pull` queries internally. A 404 fails the test; a network error skips (so offline runners don't go red). Catches "named-but-nonexistent model" before it ships.
 
 ## [0.8.8] — 2026-05-05
 

@@ -45,7 +45,7 @@ _LAUNCHER_LOG = _LAUNCHER_PORT_FILE  # back-compat alias; prefer _LAUNCHER_PORT_
 _TIER_MODEL_MAP = {
     "light":     "gemma4:e2b",
     "balanced":  "gemma4:e4b",
-    "pro":       "gemma4:26b-moe",
+    "pro":       "gemma3:27b",
 }
 
 _SETTINGS_DEFAULTS: dict[str, Any] = {

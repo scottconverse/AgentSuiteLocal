@@ -431,7 +431,7 @@ export const ManualView = () => (
             {[
               ["Light",    "gemma4:e2b",     "~2 GB",  "8 GB"],
               ["Balanced", "gemma4:e4b",     "~5 GB",  "16 GB"],
-              ["Pro",      "gemma4:26b-moe", "~16 GB", "32 GB"],
+              ["Pro",      "gemma3:27b",     "~17 GB", "32 GB"],
             ].map(([t, m, d, r]) => (
               <tr key={t}><td style={tdBold}>{t}</td><td style={tdStyle}><span style={code}>{m}</span></td><td style={tdStyle}>{d}</td><td style={tdStyle}>{r}</td></tr>
             ))}

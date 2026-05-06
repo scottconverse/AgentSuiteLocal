@@ -41,7 +41,7 @@ Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust
 | Python | 3.11 |
 | Node.js | 20 |
 
-Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma4:26b-moe` (32 GB).  
+Supported models: `gemma4:e2b` (8 GB), `gemma4:e4b` (16 GB, recommended), `gemma3:27b` (32 GB).  
 Runs entirely on-device — no internet connection required after setup.
 
 ---
