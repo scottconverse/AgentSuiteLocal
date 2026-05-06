@@ -35,12 +35,14 @@ Why this is a top-level test file (not under `tests/e2e/`):
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import time
 from pathlib import Path
 
 import pytest
 
+from agentsuitelocal.api import config as _config
 from agentsuitelocal.api.execution import _execute_run, _resolve_llm
 from agentsuitelocal.api.schemas import RunRequest
 from agentsuitelocal.api.state import _runs
@@ -52,9 +54,17 @@ pytestmark = pytest.mark.real_ollama
 
 @pytest.fixture(autouse=True)
 def _isolate_state(monkeypatch, tmp_path: Path):
-    """Per-test workspace + state cleanup. Critically: does NOT set
-    AGENTSUITE_LLM_PROVIDER_FACTORY — that's the whole point. The
-    resolver must build a real OllamaProvider against the real daemon.
+    """Per-test workspace + settings override + state cleanup. Critically:
+    does NOT set AGENTSUITE_LLM_PROVIDER_FACTORY — that's the whole point.
+    The resolver must build a real OllamaProvider against the real daemon.
+
+    Settings override pins the test to gemma4:e2b (Light tier) with a
+    30-min timeout. Production default is gemma4:e4b at 15 min, but free-
+    tier ubuntu-latest CPU is too slow for e4b's spec stage to fit in
+    15 min (verified empirically in the b9d0e96 real-e2e CI run — Founder
+    timed out on stage 3). e2b is ~3× faster on CPU and exercises the
+    same agent code path; the test verifies the path, not the production
+    model choice.
     """
     monkeypatch.setenv("AGENTSUITE_WORKSPACE", str(tmp_path))
     monkeypatch.setenv(
@@ -63,6 +73,19 @@ def _isolate_state(monkeypatch, tmp_path: Path):
     )
     # Belt-and-braces: in case some other test left it set.
     monkeypatch.delenv("AGENTSUITE_LLM_PROVIDER_FACTORY", raising=False)
+
+    # Override _SETTINGS_FILE to a per-test JSON so we can pin model and
+    # timeout without touching the user's home dir.
+    test_settings = tmp_path / "settings.json"
+    test_settings.write_text(json.dumps({
+        "model_name": "gemma4:e2b",
+        "model_tier": "light",
+        "run_timeout_seconds": 1800,
+        "enabled_agents": ["founder", "design", "product", "engineering",
+                            "marketing", "trust_risk", "cio"],
+    }))
+    monkeypatch.setattr(_config, "_SETTINGS_FILE", test_settings)
+
     _runs.clear()
     yield
     _runs.clear()
@@ -132,11 +155,11 @@ async def test_founder_run_produces_approveable_artifacts(tmp_path: Path) -> Non
     try:
         await asyncio.wait_for(
             _execute_run(run_id, req, cancel_token=cancel_token),
-            timeout=1200.0,  # 20 min — exceeds the default 15 min run_timeout
+            timeout=2400.0,  # 40 min — exceeds the fixture's 30-min run_timeout
         )
     except TimeoutError:
         pytest.fail(
-            f"Real-model Founder run did not complete in 20 min. "
+            f"Real-model Founder run did not complete in 40 min wall-clock. "
             f"Run state: {_runs[run_id]}. The CI runner may be slow, the "
             f"goal may be producing too much output, or the agent may be "
             f"stuck in a stage. Check the SSE event log for the last stage_update."
