@@ -66,4 +66,5 @@ asyncio_mode = "auto"
 markers = [
     "ollama: requires a running Ollama daemon with a loaded model",
     "e2e: end-to-end browser tests (require built frontend + running backend)",
+    "real_ollama: real-model agent E2E (requires Ollama + gemma4:e4b; runs in dedicated CI workflow, not the default suite — opt-in via -m real_ollama)",
 ]

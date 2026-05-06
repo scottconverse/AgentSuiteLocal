@@ -66,7 +66,7 @@ jobs:
         # when each new module gets its own test file.
         # RATCHET RULE: this number may only increase, never decrease.
         # Lowering it requires a commit explaining why, reviewed in PR.
-        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=58
+        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama and not real_ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=58
 
   frontend:
     name: Frontend (build + test)
