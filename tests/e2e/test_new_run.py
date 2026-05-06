@@ -75,8 +75,12 @@ def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str
     missing-`ollama`-SDK bug killed — no test exercised it before today."""
     _walk_installer(page, base_url)
 
-    # Navigate to New Run
-    page.get_by_role("button", name="New run").click()
+    # Navigate to New Run.
+    # Dashboard intentionally renders two "New run" buttons — a small
+    # nav-strip button at the top-right (btn-accent btn-sm) and a
+    # primary empty-state CTA (btn-primary). `.first` picks the
+    # nav-strip one; either click is valid and reaches NewRunView.
+    page.get_by_role("button", name="New run").first.click()
     expect(page.get_by_role("heading", name=lambda t: "new run" in t.lower())).to_be_visible(timeout=5000)
 
     # Fill goal + project
