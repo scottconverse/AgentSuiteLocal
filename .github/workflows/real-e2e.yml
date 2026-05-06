@@ -23,6 +23,12 @@ on:
   push:
     tags:
       - "v*"
+    # SPRINT-TIME: while the milestone branch exists, push triggers
+    # this workflow so the team can iterate against CI logs. REMOVE
+    # this block at sprint 5 (v0.9.0 ship) — production trigger profile
+    # is cron + tag + labeled PR only.
+    branches:
+      - "release/v0.9.0"
   pull_request:
     types: [labeled, opened, reopened, synchronize]
 
