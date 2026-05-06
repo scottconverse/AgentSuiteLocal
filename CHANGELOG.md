@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+_Nothing pending._
+
+## [0.8.9] — 2026-05-06
+
 ### Fixed
 
 - **QA-DD-001 (Critical) — Trust/Risk agent slug drift fixed.** v0.8.8 advertised seven agents in the picker but `web/src/data.js` used `id: "trust"` while `launcher.py` / `cli.py` used `trust_risk`. The kernel registry only knows `trust_risk`, so every Trust/Risk run errored 3 s after launch with `Agent 'trust' is not enabled or not registered`. Fixed by aligning `data.js` (id and mock-run reference) and the `_SETTINGS_DEFAULTS["enabled_agents"]` default in `agentsuitelocal/api/config.py` to the canonical `trust_risk`.
