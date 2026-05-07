@@ -19,8 +19,11 @@ dependencies = [
     "reportlab>=4.0",
     "winotify>=1.1.0; sys_platform == 'win32'",
     "pync>=2.0.3; sys_platform == 'darwin'",
-    # Pinned to a tagged release — update intentionally before each dist build
-    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@v1.1.0",
+    # Pinned to a commit SHA (immutable) — update intentionally before each dist build.
+    # Locked decision: no tag pushes (project_agentsuite_v0.1_shipped.md).
+    # 4bd7869 = v1.1.1 (QA stage soft-degradation: V1 unparseable JSON +
+    # V2 non-canonical dimensions both soft-degrade instead of erroring).
+    "agentsuite @ git+https://github.com/scottconverse/AgentSuite.git@4bd7869db6e4e1147538c6bdb13d8e6b130ceaca",
     # N-1: Pin transitive LLM client deps to prevent silent breaking upgrades.
     # These are pulled in by agentsuite but pinned here so the distributable
     # build is reproducible and security patches are explicit.
