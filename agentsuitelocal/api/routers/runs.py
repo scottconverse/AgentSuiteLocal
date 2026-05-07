@@ -221,7 +221,7 @@ async def approve_run(run_id: str, body: OverrideApproveRequest):
         if run_id not in _runs:
             raise HTTPException(status_code=404, detail="Run not found")
         run = _runs[run_id]
-        if run["status"] not in ("waiting", "done"):
+        if run["status"] != "waiting":
             raise HTTPException(status_code=400, detail=f"Cannot approve run in state: {run['status']}")
 
         # QA-005: enforce qa_gate_threshold — gate is not purely cosmetic.

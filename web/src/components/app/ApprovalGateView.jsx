@@ -234,7 +234,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
               className="btn btn-accent btn-sm"
               onClick={() => handleApprove(false)}
               disabled={approveDisabled || approving}
-              title={approveDisabled ? `Score ${fmt(qaScore)}/10 is below your ${threshold.toFixed(1)} gate` : ""}
+              title={qaUnavailable ? "QA score unavailable — run QA evaluation or use Override & Approve" : belowThreshold ? `Score ${fmt(qaScore)}/10 is below your ${threshold.toFixed(1)} gate` : ""}
             >
               {approving
                 ? "Approving…"
