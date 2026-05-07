@@ -125,21 +125,6 @@ async def test_resolver_builds_real_ollama_provider() -> None:
     )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Two production bug variants documented in docs/sprint-2-punchlist.md. "
-        "V1 (run d41742a): gemma4:e4b's QA stage produces non-JSON output, "
-        "silent-degraded to status='waiting' with qa_score=None. "
-        "V2 (run 7f5ca95): gemma4:e4b's QA stage produces valid JSON but "
-        "with non-canonical dimension names ('clarity', 'actionability'), "
-        "loud-failed to status='error'. Both root in agentsuite v1.1.0's "
-        "QA-output validator being too strict for what gemma4:e4b actually "
-        "produces. Sprint 2 P1 owns the fix; this test currently surfaces "
-        "the bugs but expects to fail. When sprint-2 lands the fix, the "
-        "test will XPASS and this xfail marker comes off."
-    ),
-    strict=False,
-)
 async def test_founder_run_produces_approveable_artifacts(tmp_path: Path) -> None:
     """End-to-end through `_execute_run` with the REAL `OllamaProvider`
     against a REAL `gemma4:e4b` daemon.
@@ -222,12 +207,13 @@ async def test_founder_run_produces_approveable_artifacts(tmp_path: Path) -> Non
         f"{tmp_path}/.agentsuite/runs/{run.get('agentsuite_run_id')}"
     )
 
-    # qa_score: strict assertion — see the @pytest.mark.xfail reason above.
-    # When sprint-2 P1 lands the agentsuite-side fix for both V1 (non-JSON
-    # output) and V2 (unknown dimension names), this assertion will pass
-    # and the xfail marker can be removed. Until then, this assertion
-    # failing is the documented expected-failure that proves the test is
-    # surfacing the production bug class.
+    # qa_score: strict assertion. The V1 (non-JSON output) and V2 (unknown
+    # dimension names) bug variants documented in docs/sprint-2-punchlist.md
+    # were closed by the agentsuite v1.1.1 repin (commit 4bd7869). The
+    # @pytest.mark.xfail marker on this test was removed in Sprint A / A3
+    # once that repin held green for at least one real-e2e run. If this
+    # assertion regresses, V1/V2 (or a new sibling) has reopened — surface
+    # to the watchlist.
     assert run.get("qa_score") is not None, (
         "qa_score is None — V1 of the QA-stage bug class. The QA stage "
         "produced non-JSON output. Per docs/sprint-2-punchlist.md."
