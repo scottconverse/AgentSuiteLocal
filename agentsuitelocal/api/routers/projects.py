@@ -6,7 +6,7 @@ import shutil
 
 from fastapi import APIRouter, HTTPException
 
-from agentsuitelocal.api.schemas import RenameProjectRequest, _SLUG_RE
+from agentsuitelocal.api.schemas import _SLUG_RE, RenameProjectRequest
 from agentsuitelocal.api.state import _runs, _save_state, _state_write_lock
 from agentsuitelocal.api.workspace import _workspace
 

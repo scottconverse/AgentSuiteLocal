@@ -89,7 +89,6 @@ def test_sse_starlette_emits_ping_comments_during_long_stream(live_port):
     all the other places we assume the framing."""
     saw_ping = False
     saw_data = False
-    saw_success = False
     try:
         with httpx.stream("GET", f"http://127.0.0.1:{live_port}/slow-stream", timeout=15) as r:
             for line in r.iter_lines():
@@ -100,7 +99,8 @@ def test_sse_starlette_emits_ping_comments_during_long_stream(live_port):
                     evt = json.loads(payload)
                     saw_data = True
                     if evt.get("status") == "success":
-                        saw_success = True
+                        # Stream completed cleanly — exit early; saw_success
+                        # not asserted because daemon teardown can interrupt.
                         break
     except httpx.RemoteProtocolError:
         # Under full-suite load the module-scoped daemon-thread uvicorn server
