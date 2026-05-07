@@ -16,7 +16,7 @@ dependencies = [
     "aiofiles>=23.2",
     "psutil>=5.9",
     "httpx>=0.27",
-    "weasyprint>=62.0",
+    "reportlab>=4.0",
     "winotify>=1.1.0; sys_platform == 'win32'",
     "pync>=2.0.3; sys_platform == 'darwin'",
     # Pinned to a tagged release — update intentionally before each dist build

@@ -45,11 +45,10 @@ _DIST_TO_IMPORT = {
 # presence* test still runs — only the import step is skipped with a clear
 # message rather than a hard failure.
 #
-# weasyprint → needs GTK+ (libgobject, libpango, libcairo).  On Windows
-# this means the GTK3 runtime for Windows; on Linux it is usually present.
-# The user manual documents this as a known optional-feature requirement
-# (PDF export, Section 9 troubleshooting).
-_REQUIRES_SYSTEM_LIBS = {"weasyprint"}
+# Currently empty: weasyprint was replaced by reportlab (pure Python, no
+# native GTK/cairo/pango required).  Keep the set and the handling logic
+# in place — future deps with system-lib requirements belong here.
+_REQUIRES_SYSTEM_LIBS: set[str] = set()
 
 
 def _declared_deps() -> list[str]:

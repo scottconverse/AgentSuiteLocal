@@ -7,7 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-_Nothing pending._
+### Fixed
+
+- **PDF export replaced WeasyPrint with reportlab** — WeasyPrint required the GTK3 native runtime (libgobject, libpango, libcairo) which is not bundled and must be installed separately on Windows. PDF export silently failed with a 501 on most fresh installs. Replaced with reportlab (pure Python, no native runtime). PDF export now works out of the box on all platforms. The PyInstaller spec `hiddenimports` block is updated accordingly; the ~2 MB of GTK-dependent weasyprint/cairocffi/tinycss2 packages are replaced by reportlab.
+- **`approve_run` state guard corrected** — the guard previously accepted runs in `"done"` state (`not in ("waiting", "done")`); individual runs never reach `"done"` (only pipeline steps do), so the guard was wrong in principle. Changed to `!= "waiting"` for symmetry with `reject_run`.
+- **`ApprovalGateView` Approve button tooltip** — the tooltip now shows a distinct message when the button is disabled by missing/failed QA score (`"QA score unavailable — run QA evaluation or use Override & Approve"`) vs. below-threshold score (`"Score X/10 is below your Y gate"`). Previously always showed the score message, which rendered `null/10` when `qa_score` was absent.
 
 ## [0.8.9] — 2026-05-06
 

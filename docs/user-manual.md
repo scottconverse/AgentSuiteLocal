@@ -150,7 +150,7 @@ The kernel is the canonical store of approved artifacts. Every run loads the ker
 **Exporting:** in the Approval Gate and Run Detail views, an **Export** dropdown offers:
 - **ZIP — all artifacts** — downloads a zip of the entire run output folder
 - **Markdown bundle** — concatenates all artifacts into a single `.md` file with `---` separators
-- **PDF** — renders the markdown bundle as a PDF (requires GTK+ runtime on Windows; see Troubleshooting below)
+- **PDF** — renders all artifacts as a PDF (pure Python via reportlab; no system runtime required)
 
 ---
 
@@ -253,8 +253,8 @@ Windows: Settings → System → Notifications → AgentSuiteLocal. macOS: Syste
 **The app opens to the installer on every launch.**
 The setup-complete state is stored in the browser's `localStorage` under `agentsuite_setup_complete`. If the value is cleared (private browsing, profile reset, etc.) the installer reappears. Walk through the installer once and it persists.
 
-**PDF export returns a 501 error.**
-PDF export uses WeasyPrint, which on Windows requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). Install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases). ZIP and Markdown export work without any extra runtime.
+**PDF export fails.**
+PDF export uses reportlab, which is pure Python and requires no system runtime. A failure usually means the run has no artifact files yet. Ensure the run has completed at least one step and reached the approval gate before exporting. If the error persists, the backend log will show the underlying exception.
 
 **Antivirus flags the installer or `.exe`.**
 Some AV tools flag PyInstaller-bundled executables as suspicious — a known false positive. Add the install folder to your AV exclusion list, or upload the `.exe` to [virustotal.com](https://virustotal.com) to verify independently.

@@ -113,8 +113,8 @@ Override the workspace root with `AGENTSUITE_WORKSPACE=/your/path`.
 **The Retry button doesn't pre-fill the goal field.**
 Runs created before v0.7.0 may not have a `goal` field saved. Fill it in manually for those runs. All v0.7.0+ runs save the goal automatically.
 
-**PDF export returns a 501 error.**
-PDF export uses WeasyPrint, which on Windows requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). Install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) and the PDF option will work. ZIP and Markdown exports work without any extra runtime.
+**PDF export returns a 500 error.**
+PDF export uses reportlab (pure Python, no native runtime required). A 500 usually means the run has no artifacts yet — start a run and wait for it to reach the approval gate before exporting. If the error persists, check the backend log for the underlying exception.
 
 ---
 

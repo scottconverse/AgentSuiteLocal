@@ -322,7 +322,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ## Known issues (v0.8.9)
 
-- **PDF export requires GTK/Cairo on Windows.** The PDF export feature uses WeasyPrint, which requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). The PyInstaller bundle includes WeasyPrint's Python code but not the native GTK DLLs. If PDF export returns a 501 error, install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) separately. ZIP and Markdown export work without any additional runtime.
+- **PDF export** uses reportlab (pure Python) and works out of the box on all platforms — no GTK or native runtime required.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.
 - E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`. The CI workflow (`.github/workflows/ci.yml`) pulls `gemma4:e4b` so the smoke-step model-installed check passes against `_SETTINGS_DEFAULTS["model_name"]`. Local E2E runs need the same model installed, or the smoke step fails on Step 5 of the installer walk.
 

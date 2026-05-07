@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import io
 import json
 import os
 import tempfile
@@ -351,16 +352,17 @@ async def export_run_markdown(run_id: str):
 
 
 def _build_pdf_html(run_id: str, outputs_dir) -> str:
-    """Build the HTML document used by ``export_run_pdf``.
+    """Build an HTML document of all run artifacts.
 
-    Extracted so the HTML-escape contract (ENG-088-001) is unit-testable
-    without weasyprint or the FastAPI test client. Every interpolated
-    value (run_id, file path, file contents) is HTML-escaped — LLM-
-    produced artifacts routinely contain `<`, `>`, `&`, or literal
-    `</pre>` sequences (markdown-with-embedded-HTML, code blocks).
-    Without escaping, weasyprint parses them as live HTML and the PDF
-    renders incorrectly — or, with a malicious artifact, executes
-    injected `<style>` / `<a href="javascript:">`.
+    Maintained as the HTML-escape regression fixture for ENG-088-001 — the
+    class of bug where LLM-produced artifact content containing `<`, `>`,
+    `&`, or literal `</pre>` sequences (markdown-with-embedded-HTML, code
+    blocks) corrupts an HTML-based renderer or injects content.
+
+    The live PDF rendering path now uses ``_build_pdf_bytes`` (reportlab),
+    which does not interpret artifact text as markup. This function is kept
+    so ``tests/test_pdf_export_escape.py`` can verify the HTML-escape
+    contract in isolation without a PDF engine dependency.
     """
     md_parts = [f"<h1>{html.escape(run_id)} — Artifact Bundle</h1>"]
     if outputs_dir.exists():
@@ -378,49 +380,82 @@ def _build_pdf_html(run_id: str, outputs_dir) -> str:
     return f"<html><body style='font-family:sans-serif'>{''.join(md_parts)}</body></html>"
 
 
+def _build_pdf_bytes(run_id: str, outputs_dir) -> bytes:
+    """Render all run artifacts to a PDF using reportlab (pure Python, no GTK).
+
+    reportlab's ``Preformatted`` flowable treats artifact text as literal
+    characters — no HTML parsing, no injection surface. The run_id and
+    file-path strings go through reportlab's ``Paragraph`` flowable, which
+    interprets a small XML-like subset, so they are HTML-escaped to prevent
+    any embedded `<` / `>` / `&` from being mis-parsed as markup.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        HRFlowable,
+        Paragraph,
+        Preformatted,
+        SimpleDocTemplate,
+        Spacer,
+    )
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
+    styles = getSampleStyleSheet()
+    code_style = ParagraphStyle(
+        "ArtifactCode",
+        parent=styles["Normal"],
+        fontName="Courier",
+        fontSize=8,
+        leading=10,
+    )
+
+    # Paragraph parses reportlab XML — escape & < > in values going into it.
+    story = [Paragraph(html.escape(f"{run_id} — Artifact Bundle"), styles["Title"])]
+
+    if outputs_dir.exists():
+        for f in sorted(outputs_dir.rglob("*")):
+            if f.is_file():
+                rel = f.relative_to(outputs_dir)
+                try:
+                    content = f.read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    content = "(binary file)"
+                story.extend([
+                    HRFlowable(width="100%"),
+                    Spacer(1, 6),
+                    Paragraph(html.escape(str(rel)), styles["Heading2"]),
+                    # Preformatted: text is inserted literally — no XML parsing.
+                    Preformatted(content, code_style),
+                ])
+
+    doc.build(story)
+    return buf.getvalue()
+
+
 @router.get("/api/run/{run_id}/export/pdf")
 async def export_run_pdf(run_id: str):
-    """D4: Export all artifacts as a PDF via weasyprint."""
+    """D4: Export all artifacts as a PDF via reportlab (pure Python, no GTK)."""
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Run not found")
     run = _runs[run_id]
     as_run_id = run.get("agentsuite_run_id") or run["id"]
     outputs_dir = _workspace() / ".agentsuite" / "runs" / as_run_id
 
-    html_content = _build_pdf_html(run_id, outputs_dir)
-
-    # PDF export depends on weasyprint + native GTK runtime (cairo/pango/gdk-pixbuf).
-    # The PyInstaller bundle does NOT ship those native libs — README known-issue.
-    # End users have no `pip` and shouldn't be told to run it. Fail with a clear,
-    # actionable message that points them at ZIP/Markdown export instead.
     try:
-        import weasyprint
-    except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail=(
-                "PDF export is not available in this build. "
-                "Use ZIP or Markdown export instead — both contain the same "
-                "artifacts in formats every machine can open."
-            ),
-        )
-    try:
-        pdf_bytes = weasyprint.HTML(string=html_content).write_pdf()
+        pdf_bytes = _build_pdf_bytes(run_id, outputs_dir)
         return StreamingResponse(
             iter([pdf_bytes]),
             media_type="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={run_id}-bundle.pdf"},
-        )
-    except OSError as exc:
-        # weasyprint imports but its native libs (cairo/pango) are missing —
-        # most common PyInstaller-on-Windows failure mode for PDF export.
-        raise HTTPException(
-            status_code=501,
-            detail=(
-                "PDF export requires the GTK runtime, which is not bundled. "
-                "Use ZIP or Markdown export instead. "
-                f"(Underlying error: {exc})"
-            ),
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
