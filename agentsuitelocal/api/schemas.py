@@ -27,7 +27,6 @@ class RunRequest(BaseModel):
     goal: str = Field(max_length=2000)
     project: str
     inputs_dir: str | None = None
-    constraints: str | None = None
 
     @model_validator(mode="after")
     def validate_slugs_and_paths(self) -> RunRequest:
