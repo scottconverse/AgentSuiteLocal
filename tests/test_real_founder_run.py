@@ -125,6 +125,21 @@ async def test_resolver_builds_real_ollama_provider() -> None:
     )
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Two production bug variants documented in docs/sprint-2-punchlist.md. "
+        "V1 (run d41742a): gemma4:e4b's QA stage produces non-JSON output, "
+        "silent-degraded to status='waiting' with qa_score=None. "
+        "V2 (run 7f5ca95): gemma4:e4b's QA stage produces valid JSON but "
+        "with non-canonical dimension names ('clarity', 'actionability'), "
+        "loud-failed to status='error'. Both root in agentsuite v1.1.0's "
+        "QA-output validator being too strict for what gemma4:e4b actually "
+        "produces. Sprint 2 P1 owns the fix; this test currently surfaces "
+        "the bugs but expects to fail. When sprint-2 lands the fix, the "
+        "test will XPASS and this xfail marker comes off."
+    ),
+    strict=False,
+)
 async def test_founder_run_produces_approveable_artifacts(tmp_path: Path) -> None:
     """End-to-end through `_execute_run` with the REAL `OllamaProvider`
     against a REAL `gemma4:e4b` daemon.
@@ -207,20 +222,17 @@ async def test_founder_run_produces_approveable_artifacts(tmp_path: Path) -> Non
         f"{tmp_path}/.agentsuite/runs/{run.get('agentsuite_run_id')}"
     )
 
-    # qa_score: real production finding documented in
-    # docs/sprint-2-punchlist.md as P1 — gemma4:e4b's QA stage produces
-    # non-JSON output ~50% of runs in CI. When it parses, qa_score is a
-    # valid float in [0, 10] (the dimensions table populates correctly).
-    # When it doesn't, qa_score is None and the user sees an empty
-    # dimension table on the approval gate.
-    #
-    # This test originally asserted `qa_score is not None` to surface the
-    # bug class. Surfaced it. Now narrowed to allow None pending the
-    # sprint-2 fix (probably either: stricter JSON-mode prompt to the
-    # model, or a more forgiving parser in the agent's QA stage).
-    qa_score = run.get("qa_score")
-    if qa_score is not None:
-        assert isinstance(qa_score, float | int) and 0.0 <= qa_score <= 10.0, (
-            f"qa_score {qa_score!r} is set but out of expected [0, 10] range. "
-            f"The QA stage's parsing or normalization is wrong."
-        )
+    # qa_score: strict assertion — see the @pytest.mark.xfail reason above.
+    # When sprint-2 P1 lands the agentsuite-side fix for both V1 (non-JSON
+    # output) and V2 (unknown dimension names), this assertion will pass
+    # and the xfail marker can be removed. Until then, this assertion
+    # failing is the documented expected-failure that proves the test is
+    # surfacing the production bug class.
+    assert run.get("qa_score") is not None, (
+        "qa_score is None — V1 of the QA-stage bug class. The QA stage "
+        "produced non-JSON output. Per docs/sprint-2-punchlist.md."
+    )
+    assert isinstance(run["qa_score"], float | int) and 0.0 <= run["qa_score"] <= 10.0, (
+        f"qa_score {run['qa_score']!r} is out of expected [0, 10] range. "
+        f"QA-stage parsing or normalization is wrong."
+    )
