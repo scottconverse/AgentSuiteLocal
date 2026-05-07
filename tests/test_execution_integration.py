@@ -47,16 +47,32 @@ def _fake_provider_factory():
     so the Founder agent's five stages (intake / extract / spec /
     execute / qa) all receive non-empty text. The empty-string key
     is the catch-all for any prompt the substring router doesn't match.
+
+    TEST-002 fix (2026-05-07 audit): the extract stage parses the LLM
+    response as JSON. The original "Test extract artifact body." prose
+    response caused a JSON parse error, making the test an xfail fixture
+    bug rather than a production bug. All stage responses that the agent
+    layer parses as JSON now return valid JSON objects.
     """
     from agentsuite.llm.mock import MockLLMProvider
     return MockLLMProvider(
         responses={
+            # intake stage: prose is acceptable (no JSON parse in intake)
             "intake": "Test intake artifact body.",
-            "extract": "Test extract artifact body.",
-            "spec": "Test spec artifact body.",
-            "execute": "Test execute artifact body.",
-            "qa": '{"score": 0.9, "dimensions": []}',
-            "": "Generic stub response for any prompt.",
+            # extract stage: must return JSON — the agent parses it
+            "extract": '{"facts": ["key fact 1", "key fact 2"], "context": "Test extraction context.", "entities": []}',
+            # spec stage: return JSON to be safe
+            "spec": '{"spec": "Test specification content.", "requirements": []}',
+            # execute stage: return JSON to be safe
+            "execute": '{"output": "Test execution output.", "artifacts": []}',
+            # qa stage: must return JSON with score and canonical dimensions
+            "qa": (
+                '{"score": 8.5, "weighted_score": 8.5, "dimensions": {'
+                '"clarity": 8.5, "completeness": 8.5, "coherence": 8.5,'
+                '"specificity": 8.5, "brand_alignment": 8.5, "feasibility": 8.5,'
+                '"differentiation": 8.5, "depth": 8.5, "actionability": 8.5}}'
+            ),
+            "": '{"response": "Generic stub response for any prompt."}',
         },
         default_model="mock-integration",
     )
@@ -101,22 +117,6 @@ async def test_resolve_llm_returns_factory_provider_with_no_patching() -> None:
     )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "First-run discovery (TEST-CRIT-001 follow-up): the substring-router "
-        "MockLLMProvider returns prose like 'Test extract artifact body.' for "
-        "the extract stage, but the founder agent's extract stage parses the "
-        "LLM response as JSON. Production correctly raises with "
-        "'extract stage produced invalid JSON: …'. This is a TEST-FIXTURE "
-        "bug, not a production bug — the agent layer's defensive parsing is "
-        "behaving as designed. Hardening the mock provider to return canonical "
-        "JSON for stages that demand it (extract / qa) belongs in a follow-up "
-        "to the audit watchlist (W-1: sweep over-mocking). Until then this "
-        "test stays xfail so the resolver test above remains the active "
-        "regression guard for v0.8.7-class bugs."
-    ),
-    strict=False,
-)
 async def test_execute_run_real_path_against_factory_provider(tmp_path: Path) -> None:
     """End-to-end through _execute_run with no patching.
 
@@ -128,10 +128,13 @@ async def test_execute_run_real_path_against_factory_provider(tmp_path: Path) ->
       - _log_telemetry / _send_notification real
       - the run state-machine path through to a terminal status
 
-    Per the audit punchlist: this is the test that may surface a 'second
-    wave of bugs the first time it actually runs.' If it fails, the
-    failure message is documenting which production code is uncovered;
-    fix the production code, do not re-mock.
+    TEST-002 fix (2026-05-07 audit): the xfail decorator was removed after
+    _fake_provider_factory was updated to return valid JSON for all stages
+    that the agent layer parses (extract / spec / execute / qa). The fixture
+    bug was the root cause; production parsing is correct.
+
+    If this test fails, the failure message documents which production code
+    is uncovered. Fix the production path, do not re-mock.
     """
     run_id = "run-integration-001"
     req = RunRequest(

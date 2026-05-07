@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 from starlette.background import BackgroundTask
 
-from agentsuitelocal.api.config import _log_telemetry, _send_notification
+from agentsuitelocal.api.config import _load_settings, _log_telemetry, _send_notification
 from agentsuitelocal.api.execution import (
     _execute_run,
     _move_partial_artifacts,
@@ -53,6 +53,7 @@ async def start_run(req: RunRequest):
         "artifacts": [],
         "qa_score": None,
         "qa_dimensions": [],
+        "qa_status": "missing",   # "ok" | "failed" | "missing" — set by _execute_run
         "error": None,
         "partial_artifacts": False,
         "overridden": False,
@@ -223,6 +224,23 @@ async def approve_run(run_id: str, body: OverrideApproveRequest):
         if run["status"] not in ("waiting", "done"):
             raise HTTPException(status_code=400, detail=f"Cannot approve run in state: {run['status']}")
 
+        # QA-005: enforce qa_gate_threshold — gate is not purely cosmetic.
+        # Only enforce when: (a) qa_score is present (not None) AND (b) override
+        # flag is not set. A missing score (qa_status="missing"/"failed") never
+        # auto-approves — the frontend should also block it, but belt-and-suspenders.
+        if not body.override:
+            settings = _load_settings()
+            threshold = settings.get("qa_gate_threshold", 7.0)
+            qa_score = run.get("qa_score")
+            if qa_score is not None and qa_score < threshold:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        f"QA score {qa_score:.1f} is below the configured gate threshold "
+                        f"{threshold:.1f}. Use Override & approve to bypass with confirmation."
+                    ),
+                )
+
         export_path = _push_to_kernel(run)
 
         run["status"] = "approved"
@@ -249,6 +267,14 @@ async def reject_run(run_id: str):
         if run_id not in _runs:
             raise HTTPException(status_code=404, detail="Run not found")
         run = _runs[run_id]
+        # QA-002: state guard — symmetric with approve_run.
+        # Reject is only meaningful when the run is at the approval gate ("waiting").
+        # Rejecting a running/cancelled/error/approved run corrupts the record.
+        if run["status"] != "waiting":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot reject run in state: {run['status']}",
+            )
         run["status"] = "rejected"
         _save_state()
     _log_telemetry("run_rejected", agent=run.get("agent", ""), project=run.get("project", ""))

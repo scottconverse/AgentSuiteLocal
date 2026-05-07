@@ -49,13 +49,13 @@ We don't commit to timelines on feature requests, but we do read them all.
 
 ## Rough roadmap
 
-**v0.8 (planned)**
+**v0.8 (released — current)**
 - Pipeline templates — save and reuse agent sequences as named pipelines
 - Batch runs — run the same agent across multiple input folders
 - Kernel search — full-text search across all approved artifacts
 - Better QA explanations — per-dimension explanations of what the score means
 
-**v0.9 (planned)**
+**v0.9 (in progress)**
 - Team workspace — shared kernel across multiple users on a local network (no cloud)
 - Plugin system — bring your own agent definition as a YAML file
 - Custom stages — add, remove, or reorder stages within an agent

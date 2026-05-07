@@ -159,7 +159,7 @@ The kernel is the canonical store of approved artifacts. Every run loads the ker
 Pipelines chain multiple agents end-to-end. The output of each agent is passed as context to the next.
 
 - **Creating a pipeline:** in the Pipelines view, select the agents you want to chain and set the order. Typical sequence: Founder → Design → Product → Engineering.
-- **Running a pipeline:** each step pauses at an approval gate before advancing. Approve a step to run the next agent. Enable **Auto-approve** in Settings to skip the gates.
+- **Running a pipeline:** each step pauses at an approval gate before advancing. Approve a step to run the next agent, or click **Override & approve** to bypass the QA threshold on that step.
 - **Resuming after error:** if a step fails, click **Resume from step N** in the Pipelines view to restart from the failed step without re-running earlier ones.
 
 ---
@@ -191,7 +191,6 @@ Any model already in your Ollama library shows up in the Models view — click *
 |---------|---------|-------------|
 | Model tier | balanced | Which tier to use for all runs |
 | Run timeout | 15 min | Max time before a run is killed with an error |
-| Auto-approve | off | Skip the Approval Gate and promote artifacts automatically |
 | QA gate threshold | 7.0 | Minimum composite QA score to enable the Approve button |
 | Workspace path | ~/AgentSuite | Where runs and the kernel are stored |
 | Desktop notifications | on | OS toast when a run reaches a terminal state |

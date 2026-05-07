@@ -46,7 +46,7 @@ Either way you need Ollama installed and 8 GB RAM minimum. 16 GB is comfortable 
 **What I'd love feedback on**
 
 - Are there agent types that would be more useful to you than the current seven?
-- The QA scoring system rates output on 5 dimensions (accuracy, completeness, clarity, structure, actionability). Does this match how you'd evaluate agent output?
+- The QA scoring system rates output on 9 dimensions (clarity, completeness, coherence, specificity, brand alignment, feasibility, differentiation, depth, actionability). Does this match how you'd evaluate agent output?
 - Performance on different hardware. I've only tested on two machines (Windows/Intel and macOS/Apple Silicon).
 
 Repo: github.com/scottconverse/AgentSuiteLocal

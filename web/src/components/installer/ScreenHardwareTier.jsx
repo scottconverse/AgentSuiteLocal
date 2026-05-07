@@ -30,7 +30,17 @@ export const ScreenHardwareTier = ({ onBack, onNext, tier, setTier, totalSteps }
           { icon: "cpu", label: "CPU",  value: data.cpu?.brand || "Unknown",            sub: `${data.cpu?.cores ?? "?"} cores`,          status: { kind: "good", label: "PASS"     } },
           { icon: "ram", label: "RAM",  value: `${data.ram?.total_gb ?? "?"} GB`,        sub: `${data.ram?.free_gb ?? "?"} GB free`,       status: { kind: "good", label: "PASS"     } },
           { icon: "hdd", label: "DISK", value: `${data.disk?.free_gb ?? "?"} GB free`,   sub: `of ${data.disk?.total_gb ?? "?"} GB`,       status: { kind: "good", label: "PASS"     } },
-          { icon: "gpu", label: "GPU",  value: "Metal / CUDA",                           sub: "hardware accel",                            status: { kind: "good", label: "DETECTED" } },
+          // UX-002: use real GPU data if the API returns it; fall back to
+          // "Not detected" rather than hardcoding a false positive. The
+          // /api/hardware endpoint does not currently return GPU data —
+          // the fallback is displayed until GPU detection is added server-side.
+          { icon: "gpu", label: "GPU",
+            value: data.gpu?.name ?? "Not detected",
+            sub: data.gpu?.type ?? "hardware accel not confirmed",
+            status: data.gpu?.detected
+              ? { kind: "good", label: "DETECTED" }
+              : { kind: "warn", label: "UNKNOWN"  },
+          },
         ]);
         // Auto-select recommended tier based on RAM
         const rec = recommendedTier(detected);

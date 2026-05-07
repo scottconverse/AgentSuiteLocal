@@ -6,7 +6,7 @@ import shutil
 
 from fastapi import APIRouter, HTTPException
 
-from agentsuitelocal.api.schemas import RenameProjectRequest
+from agentsuitelocal.api.schemas import RenameProjectRequest, _SLUG_RE
 from agentsuitelocal.api.state import _runs, _save_state, _state_write_lock
 from agentsuitelocal.api.workspace import _workspace
 
@@ -41,6 +41,15 @@ async def rename_project(slug: str, body: RenameProjectRequest):
     new_slug = body.new_name.strip().lower().replace(" ", "-")
     if not new_slug:
         raise HTTPException(status_code=422, detail="new_name must be non-empty after normalisation")
+    # ENG-0907-003: validate slug after normalisation — a name like "my!project"
+    # survives the strip/lower/replace pass and would corrupt the approve_run
+    # path which does a filesystem lookup by slug.
+    if not _SLUG_RE.match(new_slug):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Normalised project name '{new_slug}' contains invalid characters. "
+                   "Use only letters, numbers, hyphens, and underscores.",
+        )
     with _state_write_lock:
         matched = [r for r in _runs.values() if r.get("project") == slug]
         if not matched:

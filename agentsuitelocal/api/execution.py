@@ -73,6 +73,20 @@ _resolver_lock = asyncio.Lock()
 _QA_KEY_RE = re.compile(r"[./]")
 
 
+def _first_defined(*values):
+    """Return the first value that is not None.
+
+    ENG-0907-002: replaces falsy or-chaining (`a or b or c`) so that a
+    legitimate qa_score of 0.0 is preserved instead of being promoted to
+    None.  Falsy or-chaining treats 0, 0.0, False, and "" identically to
+    None — any zero score would silently fall through to the next key.
+    """
+    for v in values:
+        if v is not None:
+            return v
+    return None
+
+
 def _sanitize_qa_dimensions(dims: dict) -> list[dict]:
     result = []
     for k, v in dims.items():
@@ -114,8 +128,8 @@ def _move_partial_artifacts(run: dict) -> None:
             shutil.move(str(outputs_dir), str(cancelled_dir))
             run["partial_artifacts"] = True
             _save_state()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("_move_partial_artifacts failed for run %s: %s", run.get("id"), exc)
 
 
 def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
@@ -323,6 +337,9 @@ async def _execute_run(
         artifacts: list[str] = []
         qa_score: float | None = None
         qa_dimensions: list[dict] = []
+        # "ok" = score parsed cleanly; "failed" = JSON error or schema rejection;
+        # "missing" = qa_scores.json absent (model didn't produce it)
+        qa_status: str = "missing"
 
         if state and state.run_id:
             run_dir = _workspace() / ".agentsuite" / "runs" / state.run_id
@@ -336,24 +353,37 @@ async def _execute_run(
                 if qa_file.exists():
                     try:
                         qa_data = json.loads(qa_file.read_text())
-                        qa_score = (
-                            qa_data.get("weighted_score")
-                            or qa_data.get("overall_score")
-                            or qa_data.get("score")
-                            or qa_data.get("overall")
+                        # ENG-0907-002 / V3: use explicit None-check instead of falsy
+                        # or-chaining so qa_score=0.0 is preserved (not promoted to None).
+                        qa_score = _first_defined(
+                            qa_data.get("weighted_score"),
+                            qa_data.get("overall_score"),
+                            qa_data.get("score"),
+                            qa_data.get("overall"),
                         )
                         dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
                         if isinstance(dims, dict):
                             qa_dimensions = _sanitize_qa_dimensions(dims)
                         elif isinstance(dims, list):
                             qa_dimensions = dims
-                    except Exception:
-                        pass
+                        qa_status = "ok"
+                    except (json.JSONDecodeError, ValueError) as exc:
+                        # V1: non-JSON output; V2: agentsuite validator rejects dimensions.
+                        # Surface as qa_status="failed" — do NOT swallow silently.
+                        logger.warning(
+                            "QA score parsing failed for run %s: %s — qa_score will be None",
+                            run.get("id"), exc,
+                        )
+                        qa_status = "failed"
+                    except Exception as exc:
+                        logger.warning("Unexpected QA score error for run %s: %s", run.get("id"), exc)
+                        qa_status = "failed"
 
         run["agentsuite_run_id"] = state.run_id if state else None
         run["artifacts"] = artifacts
         run["qa_score"] = qa_score
         run["qa_dimensions"] = qa_dimensions
+        run["qa_status"] = qa_status
         run["status"] = "waiting"
         emit("agent_waiting", qa_score=qa_score, artifacts=artifacts)
         _save_state()
@@ -415,19 +445,20 @@ def _collect_step_artifacts(
         if qa_file.exists():
             try:
                 qa_data = json.loads(qa_file.read_text())
-                qa_score = (
-                    qa_data.get("weighted_score")
-                    or qa_data.get("overall_score")
-                    or qa_data.get("score")
-                    or qa_data.get("overall")
+                # ENG-0907-002 / V3: use _first_defined to preserve qa_score=0.0.
+                qa_score = _first_defined(
+                    qa_data.get("weighted_score"),
+                    qa_data.get("overall_score"),
+                    qa_data.get("score"),
+                    qa_data.get("overall"),
                 )
                 dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
                 if isinstance(dims, dict):
                     qa_dimensions = _sanitize_qa_dimensions(dims)
                 elif isinstance(dims, list):
                     qa_dimensions = dims
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("_collect_step_artifacts: QA score error for run %s: %s", run_id, exc)
     return artifacts, qa_score, qa_dimensions
 
 

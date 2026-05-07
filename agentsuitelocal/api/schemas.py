@@ -53,8 +53,10 @@ class SettingsPatch(BaseModel):
     api_key: str | None = None
     cloud_model: str | None = None
     notifications: bool | None = None
-    run_timeout_seconds: int | None = None
-    qa_gate_threshold: float | None = None
+    # QA-003: bounds validation — prevents negative timeout (crashes asyncio.wait_for)
+    # and out-of-range threshold (makes approval impossible or always-pass).
+    run_timeout_seconds: int | None = Field(None, ge=60, le=86400)
+    qa_gate_threshold: float | None = Field(None, ge=0.0, le=10.0)
     dismissed_update_version: str | None = None
 
 

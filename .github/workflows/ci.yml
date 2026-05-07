@@ -136,10 +136,15 @@ jobs:
           file dist/AgentSuiteLocal.app/Contents/MacOS/AgentSuiteLocal
 
   e2e:
-    # J3: E2E job — runs on PRs to main only (too slow for every push)
+    # J3: E2E job — PRs to main + release/v0.9.0 push (TEST-004)
+    # Extended from "PRs to main only" so the milestone branch gets
+    # Playwright E2E coverage before it merges. Remove the push branch
+    # filter after release/v0.9.0 merges to main.
     name: Playwright E2E
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    if: |
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/release/v0.9.0')
     needs: [test, frontend]
 
     steps:

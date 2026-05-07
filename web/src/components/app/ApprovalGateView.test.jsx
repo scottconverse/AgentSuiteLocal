@@ -9,6 +9,9 @@ const mockRun = {
   status: "waiting",
   artifacts: ["brand-system.md", "voice-guide.md"],
   qa_score: 8.2,
+  // qa_status is required by ApprovalGateView: "ok" | "failed" | "missing".
+  // Without it, qaUnavailable=true and the Approve button stays disabled.
+  qa_status: "ok",
   qa_dimensions: [
     { name: "Accuracy", score: 8.5 },
     { name: "Completeness", score: 7.9 },
@@ -73,10 +76,11 @@ describe("ApprovalGateView", () => {
   });
 
   it("approve button is disabled when score < 7.0", async () => {
+    // qa_status: "ok" so the button is disabled by score, not by missing QA.
     vi.stubGlobal("fetch", vi.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ ...mockRun, qa_score: 5.5 }),
+        json: () => Promise.resolve({ ...mockRun, qa_score: 5.5, qa_status: "ok" }),
       })
     ));
     render(<ApprovalGateView runId="run-abc" onApprove={vi.fn()} onReject={vi.fn()} />);

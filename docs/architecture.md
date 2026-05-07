@@ -270,6 +270,16 @@ The backend uses `agentsuite_run_id` (AgentSuite's internal ID) to find the run 
 - **Dynamic version sourcing from `__version__.py`** (v0.8.3)
 - **AgentSuite K1 cross-stage context** (v0.8.5) — intra-stage progress events
 - **`PipelineOrchestrator` re-migration** (v0.8.7) — for the multi-agent path
+- **Smoke test screen** (v0.8.8) — re-introduced as installer step 5; four sequential checks with fix cards
+- **`launcher.port.json`** (v0.8.8) — replaces the legacy plaintext `launcher.log` as the canonical bound-port file; E2E conftest, the uninstaller, and CONTRIBUTING.md all read from it
+- **`utils/sseStream.js`** (v0.8.8) — extracted shared SSE fetch+ReadableStream parser; eliminates duplicate code across four installer screens; handles `: ping` keepalive comments and unparseable payloads
+- **QA score robustness** (v0.8.9) — `_first_defined()` helper replaces falsy or-chains that promoted score `0.0` to `None`; `json.JSONDecodeError` and `ValueError` now surface as `qa_status="failed"` with logging instead of being silently swallowed
+- **`qa_status` field** (v0.8.9) — new run dict field (`"ok" | "failed" | "missing"`) exposed via `GET /api/run/{id}`; ApprovalGateView disables Approve and shows an amber warning banner when QA parsing failed or was absent
+- **QA gate enforcement in approve_run** (v0.8.9) — `POST /api/run/{id}/approve` now checks `qa_score` against the configured `qa_gate_threshold` and returns HTTP 422 when below threshold unless `override=true`
+- **Path traversal guard on kernel diff** (v0.8.9) — `kernel/diff` now validates requested paths using `p.is_relative_to(kernel_root)` scoped to `workspace/.agentsuite/_kernel/`, replacing the looser home-dir prefix check
+- **SettingsPatch input bounds** (v0.8.9) — Pydantic `Field(ge=60, le=86400)` on `run_timeout_seconds`, `Field(ge=0.0, le=10.0)` on `qa_gate_threshold`; rejects unsafe values at the API layer
+- **reject_run state guard** (v0.8.9) — `POST /api/run/{id}/reject` now returns HTTP 400 for runs not in `waiting` or `done` state
+- **rename_project slug validation** (v0.8.9) — normalised slug validated against `_SLUG_RE` before storing; rejects names with invalid characters
 
 ## Roadmap
 
