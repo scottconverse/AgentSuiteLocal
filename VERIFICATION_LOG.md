@@ -867,3 +867,13 @@ python -m ruff check agentsuitelocal/ tests/
   - GitHub release: https://github.com/scottconverse/AgentSuiteLocal/releases/tag/v1.0.0
   - Release notes source: docs/release-notes-v1.0.0.md
   - Title: "AgentSuiteLocal v1.0.0"
+
+## C8 — Post-ship
+
+[2026-05-08 UTC] [C8] [orchestrator-claude] release/v0.9.0 merged to main; HANDOFF.md updated; memory files written.
+  - Merge commit (main): bcf3ccb (chore: merge release/v0.9.0 into main (v1.0.0))
+  - HANDOFF.md commit: 6af2387 (docs(handoff): v1.0.0 shipped — Sprint C complete)
+  - main final SHA (after HANDOFF commit): 6af2387
+  - Memory file written: C:\Users\scott\.claude\projects\C--Users-scott-OneDrive-Desktop-Claude\memory\handoff_2026-05-08-agentsuitelocal-v100-shipped.md
+  - MEMORY.md updated: Sprint B handoff marked CLOSED; v1.0.0-shipped handoff set as CURRENT
+  - Sprint C complete. Working tree clean.
