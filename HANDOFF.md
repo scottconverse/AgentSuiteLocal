@@ -1,96 +1,102 @@
 # AgentSuiteLocal — Session Handoff
 
-**Updated:** 2026-05-08
-**Branch:** `release/v0.9.0` at `1e6fe19`
-**State:** Sprint A FULLY COMPLETE — awaiting Scott calibration approval before Sprint B
+**Updated:** 2026-05-08 (Sprint B close)
+**Branch:** `release/v0.9.0` at `9654f31`
+**State:** Sprint A + Sprint B BOTH COMPLETE — awaiting Scott calibration approval before Sprint C (the v1.0 ship sprint)
 
 ---
 
 ## TL;DR
 
-Three-sprint v1.0 plan (replaces the prior 10-sprint plan). **Sprint A done.** 22 commits on `release/v0.9.0` since `5d9fef0`. CI green every commit. Real-e2e green 8 consecutive runs. Hard stop reached.
+Two of three v1.0 sprints closed. **Sprint C is the v1.0 ship sprint and requires explicit Scott approval before dispatch.** Do NOT auto-proceed.
 
-## What Sprint A delivered
+## What Sprint B delivered (since the prior handoff)
 
-11 plan items + 5 Scott-escalated loose ends:
+9 commits (`757a5c3` → `9654f31`):
 
-- **A1** `RunRequest.constraints` removed (D1)
-- **A2** "Run failed within 3s" e2e assertion restored
-- **A3** `xfail` removed from `tests/test_real_founder_run.py`
-- **V4** `qa_score` reads agentsuite `QAReport.average` (the deepest find — silent bug since the QA schema landed)
-- **A4** `docs/MOCKING_AUDIT.md` — 48 mock sites classified
-- **A5** Concurrent-run limitation declared in 3 docs (D3)
-- **A6** A11y Bar 1 code-only (aria-current, role=dialog, Esc, focus-rings) (D2)
-- **A7** Bundle smoke CI on macOS + Windows (catches v0.8.7-class regressions)
-- **A8** CHANGELOG + README current
-- **A9** Sprint-end audit-lite — CLEAN (0 Critical / 0 Blocker / 0 Major)
-- **A10** Hard stop ✓
-- **#1** Mock LLM contract fixed; e2e xfail removed; CI Playwright green
-- **#2** A11y Bar 1 runtime tests added (`tests/e2e/test_a11y.py`, 5 tests)
-- **#3** Real-e2e green on absolute HEAD
-- **#4** Bundle smoke also runs on PRs to main (was: release/* + tags only)
-- **#5** `tests/e2e/conftest.py` env-var leak fixed via session-scoped autouse fixture
+- **B1** `/audit-team` 5-role pass — 0 Blocker / 1 Critical / 4 Major (all triaged into existing items)
+- **B2** Triage per overflow rule
+- **B3** N/A (0 Blockers)
+- **B4** UX-B-001 Critical absorbed by B5
+- **B5** PipelineCard `key` prop fix + UX-B-001 mock field rename
+- **B6** `next-cleanup.md` moved to `docs/`
+- **B7** **MOCKING_AUDIT 9-site DI refactor** — `_save_state` / `_log_telemetry` / `_load_settings` converted to optional-default-callable kwargs. `_send_notification` reclassified BOUNDARY-OK
+- **B8** D4: `real-e2e.yml` `release/*` push trigger removed
+- **B9** Audit-team doc-rewrites merged (architecture currency + FAQ)
+- **B10** Scoped re-audit-lite — **0 of every severity** (genuinely clean)
+- **B11** Hard stop reached
+
+## Sprint C scope (when Scott approves)
+
+The Sprint C plan was drafted in chat but **never landed on disk** (interrupted). Next session must write it fresh from `docs/v1.0-milestone.md` Sprint C section. High level:
+
+1. **C1 — Version bump fan-out.** `__version__.py` (0.8.9), `web/package.json` (0.7.1 — known mismatch), ManualView.jsx version stamp, README, USER-MANUAL/user-manual.md, docs/troubleshooting.md, docs/index.html, AgentSuiteLocal.iss.
+2. **C2 — CHANGELOG `[Unreleased]` → `[1.0.0] — YYYY-MM-DD`.**
+3. **C3 — README "Recent releases" v1.0.0 paragraph + landing page.**
+4. **C4 — Pre-tag CI gate (7/7 jobs green on final commit).**
+5. **C5 — Generate `docs/release-notes-v1.0.0.md`.**
+6. **C6 — Final ship gate (HARD STOP — Scott explicit approval, then tag).**
+7. **C7 — Tag `v1.0.0` on `release/v0.9.0` (no rename), GitHub Actions auto-builds artifacts, `gh release create`.**
+8. **C8 — Post-ship: merge to main, update HANDOFF.md, write v1.0-shipped memory file.**
+
+## Critical pre-Sprint-C lessons (do not repeat)
+
+1. **Pass standing directives EXPLICITLY into every subagent dispatch prompt.** This session's "narrate as you work" instruction was given hours ago, not honored by the orchestrator dispatch I built, then misinterpreted as Sprint C approval at the calibration gate. Both errors. Fix: when Scott gives a how-to-work directive, bake it into every subsequent Agent dispatch as a per-item explicit instruction.
+
+2. **Calibration gates are LOAD-BEARING.** Sprint B → Sprint C dispatch is multi-hour autonomous work touching a release branch. Auto mode does NOT authorize that — it explicitly requires "ask and wait" for material shared-system changes. Approval requires a literal go/yes/ship signal. Ambiguous directives are not approval.
+
+3. **Long subagent runs queue user messages.** Scott sees grey-out during runs. Structural Claude Code behavior; not project-specific. Mitigate via shorter dispatches with more frequent return-to-user gates, or Esc-to-abort.
 
 ## Awaiting Scott
 
-The orchestrator does NOT auto-proceed to Sprint B per the layered audit pattern. Three options:
-1. **Approve Sprint A → kick off Sprint B** (audit-team + 3 carry-overs)
-2. Soft-fail (name the gap)
-3. Hard-fail / pause
+Three options at this calibration gate:
 
-## Sprint B queue (in `docs/next-cleanup.md`)
+**A — "Sprint B approved. Kick off Sprint C."** → Next session writes Sprint C `RELEASE_PLAN.md`, dispatches orchestrator with explicit per-item narration instruction. Stops at C6 hard stop for tag approval.
 
-Three items survived the loose-ends batch:
-1. MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR — 9 sites (refactor `_save_state` / `_log_telemetry` / `_send_notification` / `_load_settings` from module-level to DI)
-2. PipelineCard React `key` prop warning at `web/src/components/app/PipelineView.jsx:344` (pre-existing)
-3. Move `next-cleanup.md` from repo root to `docs/` (closed in Sprint B B6)
+**B — "Soft-fail — fix X first."** → Name the gap.
 
-Plus whatever audit-team surfaces. Sprint B's centerpiece is the `/audit-team` heavyweight 5-role review — the only one before v1.0 ship.
-
-## Sprint C (after Sprint B)
-
-Tag v1.0.0, cleanroom Docker E2E, PyInstaller builds for Win/macOS/Linux, 24h CI green hold, generate release notes from CHANGELOG, ship.
+**C — "Hard-fail / pause / replan."** → Stop, replan, or ship `v0.9.0` from current state and defer 1.0.
 
 ## Locked decisions
 
-- **No code-signing cert** for v1.0 (free OSS, users decide)
-- **No agentsuite tag pushes** — pin via commit SHA. Current pin `4bd7869` = v1.1.1 (V1+V2 closed at the source)
-- **Concurrent runs deferred to v1.1** — documented as v1.0 limitation in README + user-manual + FAQ
-- **A11y bar for v1.0 is Bar 1** (Tab nav, focus rings, aria-current, no traps). Bar 2/3 → v1.1
-- **gemma4 IS a real Ollama family** (e2b/e4b/26b) — verify against live registry, not training memory
+- No code-signing cert (free OSS)
+- No agentsuite tag pushes — pin via commit SHA. Current `4bd7869` = v1.1.1.
+- Tag v1.0.0 directly on `release/v0.9.0` — do NOT rename branch
+- Concurrent runs deferred to v1.1
+- A11y bar Bar 1 only for v1.0 (Bar 2/3 → v1.1)
+- 3-sprint plan replaces prior 10-sprint plan; slipped-to-v1.1 list is binding
+
+## Slipped to v1.1 (locked, do NOT pull back)
+
+Recovery sweeps, performance baseline, frozen API surface, Bar 2/3 a11y, multi-instance, plugin system, auto-update, Linux installer, Windows arm64, full WCAG AA, screen-reader audit, localization. v1.1 backlog lives in `docs/next-cleanup.md`.
 
 ## Files to read first next session
 
-- `RELEASE_PLAN.md` — Sprint A as executed
-- `VERIFICATION_LOG.md` — full timestamped evidence trail (~280 lines)
-- `docs/v1.0-milestone.md` — three-sprint plan
-- `docs/MOCKING_AUDIT.md` — Sprint B's INTERNAL-SUSPECT-REFACTOR table
-- `docs/next-cleanup.md` — 3 carry-overs
-- This file (`HANDOFF.md`) — rewritten as a quick orientation
-
-## Slipped to v1.1 (locked, do not pull back into v1.0)
-
-- Recovery sweeps (Ollama crash, model corruption, disk full, key revoke, concurrent runs robustness)
-- Performance baseline + benchmarks/
-- Frozen API surface + schema-change CI
-- A11y Bar 2/3 (skip-to-content, ARIA labels on icon-only buttons, alt text, full WCAG AA, screen-reader audit)
-- Linux installer, Windows arm64, multi-instance, plugin system, auto-update
+In order:
+1. This file
+2. `RELEASE_PLAN.md` — currently the Sprint B plan (all boxes ticked except STOP marker)
+3. `VERIFICATION_LOG.md` — full evidence trail across both sprints
+4. `docs/v1.0-milestone.md` — three-sprint plan (Sprint C section is the next-session blueprint)
+5. `docs/next-cleanup.md` — v1.1 backlog
+6. `docs/MOCKING_AUDIT.md` — should show 9 sites CLOSED after B7
 
 ## Branch state
 
-- `main` at `2269117` (post-v0.8.9 doc fixes; not touched this session)
-- `release/v0.9.0` at `1e6fe19` (Sprint A complete)
-- `v0.8.9` tag at `fe0e75e` (last shipped release)
+- `main` at `2269117`
+- `release/v0.9.0` at `9654f31` (Sprint B close)
+- `v0.8.9` tag at `fe0e75e`
 - AgentSuite repo `main` at `4bd7869` (v1.1.1)
 - Working tree clean
 
-## Sprint A statistics
+## Combined Sprint A + B statistics
 
 | Metric | Value |
 |---|---|
-| Commits | 22 (`5d9fef0` → `1e6fe19`) |
+| Sprint A commits | 22 + 1 handoff (`5d9fef0` → `2d6b540`) |
+| Sprint B commits | 9 (`757a5c3` → `9654f31`) |
 | CI green on every commit since | `0992e9a` |
 | Real-e2e successes since V4 fix | 8 consecutive |
-| Audit-lite findings at A9 | 0 Critical / 0 Blocker / 0 Major / 1 Minor / 2 Nit |
-| New tests | `test_qa_score_schema_contract.py` (4), `tests/e2e/test_a11y.py` (5), Vitest a11y (8 across 3 files) |
-| Sprint B queue (was 5, now) | 3 items |
+| Audit-lite finding counts (Sprint A end) | 0 / 0 / 0 / 1 / 2 |
+| Audit-team finding counts (Sprint B B1) | 0 / 1 / 4 / N / N (all triaged) |
+| Re-audit-lite (Sprint B end) | 0 / 0 / 0 / 0 / 0 |
+| Tests added | `test_qa_score_schema_contract.py`, `tests/e2e/test_a11y.py`, Vitest a11y suite, MOCKING_AUDIT refactor reduced internal-mock-suspect count to 0 |
