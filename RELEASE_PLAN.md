@@ -1,149 +1,154 @@
-# RELEASE_PLAN.md — v1.0 Sprint B
+# RELEASE_PLAN.md — v1.0 Sprint C (ship)
 
-**Type:** sprint (Sprint B of three: A → **B** → ship)
+**Type:** sprint (Sprint C of three: A → B → **C**)
 **Branch:** `release/v0.9.0`
-**Baseline:** `2d6b540` (Sprint A close — CI green, real-e2e green 8x since V4)
-**Sprint goal:** Audit-team 5-role pass + close all Blockers + close 3 carry-overs from Sprint A
-**Sprint gate:** Audit-team returns 0 Blockers, all Criticals fixed-or-explicitly-deferred-with-Scott-approval, Sprint-end re-audit-lite scoped to changed files returns 0 new Criticals
-**This is NOT v1.0 ship.** This is Sprint B's calibration gate.
+**Baseline:** `2cc4509` (Sprint B close — CI green, re-audit-lite 0/0/0/0/0)
+**Sprint goal:** Bump all version strings to 1.0.0, update CHANGELOG and docs, verify CI green, generate release notes, get explicit Scott approval, tag v1.0.0, merge to main.
+**Sprint gate:** Scott explicit approval at C6 before any tag or merge.
+**This IS the v1.0 ship sprint.**
 
 ---
 
 ## Discipline (layered audit pattern)
 
 - **Per-commit:** careful-coding 9-step
-- **Per checkpoint (every 2-3 commits):** lint clean + changed-file tests + diff review
-- **Per sprint end:** audit-lite scoped to changed files (NOT unscoped re-audit)
-- **Mid-sprint overflow:**
-  - **Blocker** stops sprint; surface to Scott; renegotiate scope
-  - **Critical** fix only if it fits remaining time; otherwise queue with Scott approval
-  - **Major** → queue to v1.1 in `docs/next-cleanup.md` with file path
-  - **Minor / Nit** → collect in `docs/next-cleanup.md`
-- **Scoped re-audits only.**
+- **Per checkpoint:** lint clean + changed-file tests
+- **Per sprint end:** audit-lite scoped to Sprint C diff
+- **Overflow rule:** any unexpected finding → surface to Scott before continuing
+- **No scope creep.** If something unrelated is found, document it in `docs/next-cleanup.md` and keep moving.
 
 ## Pre-flight gate
 
-- [x] Sprint A approved by Scott (this dispatch)
-- [x] CI green at baseline `2d6b540`
-- [x] Real-e2e green at baseline (8 consecutive successes since V4)
-- [x] `docs/next-cleanup.md` carries 3 Sprint B items (moved in B6)
-- [x] `docs/v1.0-milestone.md` Sprint B section governs scope
+- [x] Sprint B approved by Scott
+- [x] CI green at baseline `2cc4509`
+- [x] Working tree clean
+- [x] MOCKING_AUDIT: 9 INTERNAL-SUSPECT sites CLOSED (Sprint B B7)
+- [x] Re-audit-lite Sprint B: 0 / 0 / 0 / 0 / 0 (Blocker / Critical / Major / Minor / Nit)
+- [x] `docs/next-cleanup.md` carries only v1.1 queue items — no Sprint C blockers
+- [x] Locked decisions in effect (no code-signing, no branch rename, no agentsuite tag push, DI refactor complete)
 
 ---
 
-## Sprint B checklist
+## Sprint C checklist
 
-### B1 — `/audit-team` 5-role parallel pass
+### C1 — Version bump fan-out
 
-- [x] Run `/audit-team` skill scoped to `release/v0.9.0` HEAD
-- [x] 5 roles: Engineering / UX / Documentation / Tests / QA
-- [x] Output package lands at `audit-agentsuitelocal-2026-05-08/` (or similar dated dir)
-- [x] Read `00-executive-audit.md` and `sprint-punchlist.md` end-to-end
-- [x] VERIFICATION_LOG entry: audit-team output URL/path, finding counts by role, total Blocker/Critical/Major/Minor/Nit counts
+Fan-out grep to find every version string that needs updating, then update each:
 
-### B2 — Triage audit-team findings
+- [ ] `agentsuitelocal/__version__.py` — `0.8.9` → `1.0.0`
+- [ ] `web/package.json` — `0.7.1` → `1.0.0` (known mismatch — fix here)
+- [ ] `web/src/components/app/ManualView.jsx` — any hardcoded version stamp → `1.0.0`
+- [ ] `README.md` — installer filenames, version badges, any hardcoded version references
+- [ ] `USER-MANUAL/user-manual.md` — version stamps
+- [ ] `docs/troubleshooting.md` — version stamps
+- [ ] `docs/index.html` — version stamps and title
+- [ ] `AgentSuiteLocal.iss` (Inno Setup) — `AppVersion` or `OutputBaseFilename`
+- [ ] Fan-out grep: `grep -rn "0\.8\.9\|0\.7\.1\|0\.9\.0" --include="*.py" --include="*.json" --include="*.md" --include="*.jsx" --include="*.html" --include="*.iss" .` — catch any remaining strays
+- [ ] careful-coding 9-step on all changed files
+- [ ] `python -m pytest tests/ -m "not real_ollama and not e2e" -q` → all pass
+- [ ] `python -m ruff check agentsuitelocal/` → clean
+- [ ] One commit: `chore(release): bump version to 1.0.0`
+- [ ] Push; wait CI green
+- [ ] VERIFICATION_LOG entry: which files changed, grep output showing 0 strays, test + lint output
 
-- [x] Group findings by severity
-- [x] **Every Blocker** → fix this sprint (no exceptions) — 0 Blockers found
-- [x] **Every Critical that fits** → fix this sprint — 1 Critical (UX-B-001 → B5)
-- [x] **Critical-doesn't-fit** → STOP and surface to Scott for explicit defer-or-stretch decision — n/a
-- [x] **Major** → append to `docs/next-cleanup.md` with file path + reason — all 4 Majors map to B7/B9 existing items
-- [x] **Minor / Nit** → append to `docs/next-cleanup.md` (or fix inline if trivial single-line) — triaged inline
-- [x] VERIFICATION_LOG entry: triage decisions per finding ID
+### C2 — CHANGELOG `[Unreleased]` → `[1.0.0] — 2026-05-08`
 
-### B3 — Fix B1 Blockers (if any)
+- [ ] Read `CHANGELOG.md` — identify the `[Unreleased]` section header
+- [ ] Replace `[Unreleased]` with `[1.0.0] — 2026-05-08`
+- [ ] Add a new blank `## [Unreleased]` section above `[1.0.0]` (keep the keepachangelog pattern)
+- [ ] Verify the diff looks correct before committing
+- [ ] careful-coding 9-step
+- [ ] One commit: `docs(changelog): cut 1.0.0 release — 2026-05-08`
+- [ ] Push; wait CI green
+- [ ] VERIFICATION_LOG entry: CHANGELOG diff, confirm format
 
-- [x] careful-coding 9-step on each fix — n/a (0 Blockers found)
-- [x] One commit per logical Blocker close — n/a
-- [x] Push, wait CI green per commit — n/a
-- [x] VERIFICATION_LOG entry per fix — n/a (B2 triage entry covers)
+### C3 — README "Recent releases" v1.0.0 + landing page
 
-### B4 — Fix B1 Criticals that fit
+- [ ] Add a "v1.0.0" entry to README "Recent releases" section (one short paragraph: what's in 1.0.0, link to release notes once generated)
+- [ ] Update `docs/index.html` landing page — version badge / headline / download link if present
+- [ ] careful-coding 9-step
+- [ ] One commit: `docs: add v1.0.0 to README recent releases and landing page`
+- [ ] Push; wait CI green
+- [ ] VERIFICATION_LOG entry: sections updated, no broken links introduced
 
-- [x] careful-coding 9-step on each fix — done as part of B5 (the only Critical: UX-B-001)
-- [x] One commit per logical Critical close — folded into B5 commit
-- [x] Push, wait CI green per commit — pushed; CI poll on B5 commit
-- [x] VERIFICATION_LOG entry per fix — see B5 entry
+### C4 — Pre-tag CI gate
 
-### B5 — Carry-over from Sprint A: PipelineCard React `key` prop warning
+- [ ] Confirm all 7 CI jobs are green on the C3 commit (or latest Sprint C commit)
+- [ ] No red or cancelled jobs
+- [ ] VERIFICATION_LOG entry: CI run URL, job-by-job status, commit SHA
 
-- [x] `web/src/components/app/PipelineView.jsx:344` — add a unique `key` prop to the `<PipelineCard>` map
-- [x] Vitest no longer emits the React `key` warning for PipelineView
-- [x] careful-coding 9-step
-- [x] VERIFICATION_LOG entry: file:line, vitest output before/after
+### C5 — Generate `docs/release-notes-v1.0.0.md`
 
-### B6 — Carry-over: move `next-cleanup.md` to `docs/`
+Write a human-readable release notes file from CHANGELOG [1.0.0] plus sprint context:
 
-- [x] `git mv next-cleanup.md docs/next-cleanup.md`
-- [x] Update any references in HANDOFF.md, RELEASE_PLAN.md, VERIFICATION_LOG.md, docs/v1.0-milestone.md
-- [x] careful-coding 9-step (fan-out grep for `next-cleanup.md` references)
-- [x] VERIFICATION_LOG entry
+- [ ] Header: `# AgentSuiteLocal v1.0.0 — Release Notes` + date
+- [ ] Short (2–3 sentence) intro paragraph: what v1.0.0 is
+- [ ] Sections from CHANGELOG: Added / Changed / Fixed / Removed
+- [ ] "Known limitations" section — from `docs/next-cleanup.md` + locked decisions:
+  - One run at a time per session (concurrent runs land in v1.1)
+  - No code-signing cert (users decide; OSS)
+  - Recovery sweeps (Ollama crash, disk full, etc.) land in v1.1
+- [ ] "What's next (v1.1)" — one-liner list from `docs/next-cleanup.md`
+- [ ] careful-coding 9-step
+- [ ] One commit: `docs: generate v1.0.0 release notes`
+- [ ] Push; wait CI green
+- [ ] VERIFICATION_LOG entry: file path, section headings, confirmation known-limitations section complete
 
-### B7 — Carry-over: MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR (9 sites)
+### C6 — HARD STOP — Scott approval required before tag
 
-- [x] Read `docs/MOCKING_AUDIT.md` for the per-site recommendations
-- [x] Convert `_save_state`, `_log_telemetry`, `_send_notification`, `_load_settings` from module-level functions to dependency-injected callables (likely via FastAPI `Depends` or a `RuntimeEnv`/`AppContext` dataclass) — used optional-default-callable kwargs (audit option (c)); `_send_notification` reclassified BOUNDARY-OK and excluded
-- [x] Update each affected test in `tests/test_execution_state_machine.py` (and siblings) to substitute boundary implementations instead of mock-patching internal callables
-- [x] All non-deleted tests still pass — 5/5 state-machine tests + 187 backend tests
-- [x] CI green on the resulting commit — pending push
-- [x] **Acceptance:** 0 INTERNAL-SUSPECT-REFACTOR sites remain; `docs/MOCKING_AUDIT.md` updated to reflect closures
-- [x] VERIFICATION_LOG entry: per-site classification table now showing CLOSED for the 9 sites
+- [ ] All C1–C5 items have VERIFICATION_LOG entries
+- [ ] C4 CI gate is green
+- [ ] `docs/release-notes-v1.0.0.md` exists and looks correct
+- [ ] `CHANGELOG.md` shows `[1.0.0] — 2026-05-08`
+- [ ] **STOP. Surface the following to Scott for explicit approval:**
+  - Final commit SHA on `release/v0.9.0`
+  - Link to CI run (all green)
+  - Link to `docs/release-notes-v1.0.0.md`
+  - Confirm: "Ready to tag v1.0.0 on this commit. Proceed?"
+- [ ] **DO NOT PROCEED until Scott responds with an explicit go signal (e.g., "tag it", "ship it", "yes", "go").**
 
-### B8 — D4: Remove `real-e2e.yml` push trigger on `release/v0.9.0`
+### C7 — Tag v1.0.0 and create GitHub release
 
-- [x] Per `docs/v1.0-milestone.md` D4 decision: Sprint B removes the sprint-time `release/*` push trigger from `.github/workflows/real-e2e.yml`
-- [x] Keep cron + tag + opt-in PR-label triggers
-- [x] Verify the next push to `release/v0.9.0` does NOT auto-trigger real-e2e (a `release/v1.0.0` rename in Sprint C will need its own trigger if desired)
-- [x] VERIFICATION_LOG entry: workflow file diff + confirmation that next push doesn't auto-trigger
+Only after Scott's explicit C6 approval:
 
-### B9 — Doc-rewrite drafts from audit-team
+- [ ] `git tag -a v1.0.0 -m "AgentSuiteLocal v1.0.0"` on `release/v0.9.0` HEAD
+- [ ] `git push origin v1.0.0`
+- [ ] `gh release create v1.0.0 --title "AgentSuiteLocal v1.0.0" --notes-file docs/release-notes-v1.0.0.md`
+- [ ] Verify GitHub Actions builds trigger on the tag (if configured)
+- [ ] VERIFICATION_LOG entry: tag SHA, release URL, CI trigger confirmation
 
-- [x] If `/audit-team` produced `doc-rewrites/` drafts: review each, merge what's accurate, reject what's wrong with reason
-- [x] If no drafts produced: skip this item; note in VERIFICATION_LOG
-- [x] careful-coding 9-step on each merge
+### C8 — Post-ship
 
-### B10 — Scoped re-audit-lite
-
-- [x] Run `/audit-lite` 4-lens scoped to the diff `2d6b540..HEAD` (Sprint B's diff only)
-- [x] **0 Critical, 0 Blocker** — these would re-open Sprint B
-- [x] ≤2 Major findings (each with explicit "fold or queue?" decision) — 0 Major
-- [x] AUDITOR-RUN tagging on every Critical/Blocker — n/a (none surfaced); AUDITOR-RUN tags on key engineering/UX/test verifications
-- [x] VERIFICATION_LOG entry: full punchlist appended
-
-### B11 — Sprint B ship gate (HARD STOP)
-
-- [x] All B1–B9 items have VERIFICATION_LOG entries
-- [x] B10 audit-lite returns 0 Critical / 0 Blocker
-- [x] All CI workflows on the final commit are green — CI on `7a1b47d` GREEN (7/7 jobs)
-- [x] No outstanding Blocker or Critical from B1's audit-team — 0 Blockers found at B1; 1 Critical (UX-B-001) closed in B5
-- [ ] **STOP. Hand off to Scott for calibration. Do NOT proceed to Sprint C.**
+- [ ] `git checkout main && git merge --no-ff release/v0.9.0 -m "chore: merge release/v0.9.0 into main (v1.0.0)"`
+- [ ] `git push origin main`
+- [ ] Update `HANDOFF.md`: mark Sprint C complete; update branch state; record v1.0.0 tag SHA
+- [ ] Write memory file `handoff_2026-05-08-agentsuitelocal-v100-shipped.md` in `~/.claude/projects/.../memory/`
+- [ ] Update `MEMORY.md` index to point to the new memory file as CURRENT
+- [ ] VERIFICATION_LOG entry: merge SHA on main, memory file path
 
 ---
 
-## Out of scope for Sprint B
+## Out of scope for Sprint C
 
-Slipped to v1.1 explicitly (locked in `docs/v1.0-milestone.md`):
-- Recovery sweeps (Ollama crash, model corruption, disk full, key revoke, concurrent runs robustness)
+Per locked decisions and v1.1 backlog — do NOT pull back:
+
+- Recovery sweeps (Ollama crash, model corruption, disk full, key revoke, concurrent runs)
 - Performance baseline / benchmarks
 - Frozen API surface / schema-change CI
-- A11y Bar 2 / Bar 3 (skip-link, ARIA labels, full WCAG AA, screen-reader audit)
-- Multi-instance, plugin system, auto-update, Linux installer, Windows arm64, full localization
-
-If a finding from `/audit-team` falls into one of these areas:
-- **Blocker** → STOP; surface to Scott; renegotiate
-- **Critical** → only fix if fits; otherwise queue
-- **Major / Minor / Nit** → queue in `docs/next-cleanup.md`
-
-Sprint C scope (NOT this sprint):
-- Tag v1.0.0
-- Cleanroom Docker E2E (final integrity gate)
-- PyInstaller builds Win/macOS/Linux
+- A11y Bar 2 / Bar 3
+- Multi-instance, plugin system, auto-update, Linux installer, Windows arm64, full WCAG AA, screen-reader audit, localization
+- Code-signing cert
+- Cleanroom Docker E2E as a blocking step (CI artifacts build on tag push via GitHub Actions)
 - 24h CI green hold
-- Generate release notes
-- v1.0 ship gate (final Scott approval)
+
+If any unexpected finding surfaces during C1–C5:
+- **Blocker** → STOP; surface to Scott; renegotiate scope
+- **Critical** → STOP; surface to Scott before C6
+- **Major / Minor / Nit** → append to `docs/next-cleanup.md`; continue
 
 ---
 
 ## Hard stop
 
-The orchestrator MUST NOT proceed past B11 without Scott approval. Sprint B's "ship gate" is a calibration gate, not the v1.0 release gate. The next step after B11 is a fresh `/ship` invocation for Sprint C (the actual v1.0 tag).
+The orchestrator MUST NOT proceed past C6 without Scott's explicit go signal.
+Tag and merge are irreversible. C6 is load-bearing.
