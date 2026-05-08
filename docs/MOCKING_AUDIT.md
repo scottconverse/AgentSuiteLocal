@@ -20,7 +20,7 @@
 | Total real mock call sites | 48 |
 | BOUNDARY-OK | 23 |
 | INTERNAL-JUSTIFIED | 16 |
-| INTERNAL-SUSPECT-REFACTOR | 9 |
+| INTERNAL-SUSPECT-REFACTOR | 0 (was 9; closed in Sprint B B7 — see "Sprint B B7 closure" below) |
 | INTERNAL-SUSPECT-DELETE | 0 (1 deferred candidate — see below) |
 
 (8 additional `client.patch("/api/...")` HTTP-verb calls in `tests/test_api.py` are not mocks and are excluded from the count.)
@@ -78,8 +78,8 @@ The file's contract under test is the **state-machine wiring** between routes, e
 | `tests/test_execution_state_machine.py:100` | `MagicMock()` for `mock_llm` | Internal (LLM provider stand-in) | INTERNAL-JUSTIFIED | Keep — state-machine test, not LLM test. Real path covered by `test_real_founder_run.py`. |
 | `tests/test_execution_state_machine.py:103` | `agentsuitelocal.api.execution._resolve_llm` | Internal | INTERNAL-JUSTIFIED | Keep — see file docstring; resolver path covered elsewhere. |
 | `tests/test_execution_state_machine.py:104` | `agentsuite.agents.founder.agent.FounderAgent.run` | Internal (agentsuite agent) | INTERNAL-JUSTIFIED | Keep — wiring contract test; real-e2e covers the agent. |
-| `tests/test_execution_state_machine.py:105` | `agentsuitelocal.api.execution._save_state` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B: extract `_save_state` injection into a fixture or pass through DI so tests don't reach into module internals. |
-| `tests/test_execution_state_machine.py:106` | `agentsuitelocal.api.execution._log_telemetry` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B: same — convert to injected dependency. |
+| `tests/test_execution_state_machine.py:105` | `agentsuitelocal.api.execution._save_state` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — `_save_state` is now an injectable kwarg on `_execute_run`; test passes `save_state=lambda: None`. |
+| `tests/test_execution_state_machine.py:106` | `agentsuitelocal.api.execution._log_telemetry` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — `_log_telemetry` is now an injectable kwarg on `_execute_run`; test passes `log_telemetry=lambda *a, **kw: None`. |
 | `tests/test_execution_state_machine.py:107` | `agentsuitelocal.api.execution._send_notification` | Internal (wraps OS notification) | BOUNDARY-OK | Keep — wraps an OS-level notification primitive (toast/balloon). Boundary by transitive ownership; safe to keep. |
 | `tests/test_execution_state_machine.py:108` | `agentsuitelocal.api.execution._workspace` | Internal (filesystem path resolver) | BOUNDARY-OK | Keep — redirects filesystem writes to `/tmp`; canonical filesystem-boundary mock. |
 
@@ -89,8 +89,8 @@ The file's contract under test is the **state-machine wiring** between routes, e
 | --- | --- | --- | --- | --- |
 | `tests/test_execution_state_machine.py:136` | `agentsuitelocal.api.execution._resolve_llm` | Internal | INTERNAL-JUSTIFIED | Keep. |
 | `tests/test_execution_state_machine.py:137` | `agentsuite.agents.design.agent.DesignAgent.run` | Internal | INTERNAL-JUSTIFIED | Keep — guards the AGENTSUITE_ENABLED_AGENTS footgun for non-founder agents. |
-| `tests/test_execution_state_machine.py:138` | `_save_state` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B refactor (same as above). |
-| `tests/test_execution_state_machine.py:139` | `_log_telemetry` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B refactor. |
+| `tests/test_execution_state_machine.py:138` | `_save_state` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — DI kwarg substitution (same as above). |
+| `tests/test_execution_state_machine.py:139` | `_log_telemetry` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — DI kwarg substitution. |
 | `tests/test_execution_state_machine.py:140` | `_send_notification` | Internal/Boundary | BOUNDARY-OK | Keep. |
 | `tests/test_execution_state_machine.py:141` | `_workspace` | Boundary (filesystem) | BOUNDARY-OK | Keep. |
 
@@ -100,18 +100,18 @@ The file's contract under test is the **state-machine wiring** between routes, e
 | --- | --- | --- | --- | --- |
 | `tests/test_execution_state_machine.py:198` | `_resolve_llm` | Internal | INTERNAL-JUSTIFIED | Keep. |
 | `tests/test_execution_state_machine.py:199` | `agentsuite.pipeline.orchestrator.PipelineOrchestrator.run` | Internal | INTERNAL-JUSTIFIED | Keep — orchestrator wiring contract; real-e2e covers the live orchestrator path. |
-| `tests/test_execution_state_machine.py:200` | `_save_state` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B refactor. |
+| `tests/test_execution_state_machine.py:200` | `_save_state` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — DI kwarg substitution. |
 | `tests/test_execution_state_machine.py:201` | `_workspace` | Boundary (filesystem) | BOUNDARY-OK | Keep. |
 
 #### `test_execute_run_emits_progress_events` (lines 214–255)
 
 | File:line | Target | Boundary/Internal | Status | Recommendation |
 | --- | --- | --- | --- | --- |
-| `tests/test_execution_state_machine.py:236` | `_load_settings` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B: settings should be injectable; mocking the module-level loader is brittle. |
+| `tests/test_execution_state_machine.py:236` | `_load_settings` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — `_load_settings` is now an injectable kwarg on `_execute_run` and `_execute_pipeline_step`; tests pass `load_settings=lambda: {...}`. |
 | `tests/test_execution_state_machine.py:237` | `_resolve_llm` | Internal | INTERNAL-JUSTIFIED | Keep. |
 | `tests/test_execution_state_machine.py:238` | `FounderAgent.run` | Internal | INTERNAL-JUSTIFIED | Keep — `progress_callback=` wiring contract. Real-e2e covers the agent. |
-| `tests/test_execution_state_machine.py:239` | `_save_state` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B refactor. |
-| `tests/test_execution_state_machine.py:240` | `_log_telemetry` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B refactor. |
+| `tests/test_execution_state_machine.py:239` | `_save_state` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — DI kwarg substitution. |
+| `tests/test_execution_state_machine.py:240` | `_log_telemetry` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — DI kwarg substitution. |
 | `tests/test_execution_state_machine.py:241` | `_send_notification` | Internal/Boundary | BOUNDARY-OK | Keep. |
 | `tests/test_execution_state_machine.py:242` | `_workspace` | Boundary (filesystem) | BOUNDARY-OK | Keep. |
 
@@ -121,7 +121,7 @@ The file's contract under test is the **state-machine wiring** between routes, e
 | --- | --- | --- | --- | --- |
 | `tests/test_execution_state_machine.py:304` | `_resolve_llm` | Internal | INTERNAL-JUSTIFIED | Keep. |
 | `tests/test_execution_state_machine.py:305` | `PipelineOrchestrator.run` | Internal | INTERNAL-JUSTIFIED | Keep — `kernel_progress_callback=` wiring contract. |
-| `tests/test_execution_state_machine.py:306` | `_save_state` | Internal | INTERNAL-SUSPECT-REFACTOR | Sprint B refactor. |
+| `tests/test_execution_state_machine.py:306` | `_save_state` | Internal | REFACTORED-CLOSED (Sprint B B7) | Closed — DI kwarg substitution. |
 | `tests/test_execution_state_machine.py:307` | `_workspace` | Boundary (filesystem) | BOUNDARY-OK | Keep. |
 
 #### Module-scope `MagicMock()` constructors (lines 100/133/177/227/281)
@@ -155,3 +155,35 @@ If, after Sprint B, the `_save_state` / `_log_telemetry` / `_send_notification` 
 - Refactoring any test (Sprint B work, per Q1=(b)).
 - The `e2e/` subdirectory's `conftest.py` factory mock plumbing (browser/SSE e2e — separate concern).
 - `MockLLMProvider` substring routing (raised in A2 CI failure on `108b322`); separately tracked as A4 follow-up evidence.
+
+---
+
+## Sprint B B7 closure (2026-05-08)
+
+The 9 INTERNAL-SUSPECT-REFACTOR sites identified in this document have been closed via dependency-injection on `_execute_run` and `_execute_pipeline_step` in `agentsuitelocal/api/execution.py`. Pattern: optional kwargs `save_state`, `log_telemetry`, `load_settings` with default-None and inline `or`-fallback to the existing module-level helpers. Production callers continue to call without kwargs; behaviour is unchanged. Tests now pass fake callables via kwargs instead of patching module attributes.
+
+**Design doc:** `docs/sprint-B-mocking-refactor.md`.
+
+**Site-by-site closure:**
+
+| Site | Old patch | New mechanism | Status |
+| --- | --- | --- | --- |
+| `tests/test_execution_state_machine.py:105` | `patch(..., "_save_state")` | `save_state=lambda: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:106` | `patch(..., "_log_telemetry")` | `log_telemetry=lambda *a, **kw: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:138` | `patch(..., "_save_state")` | `save_state=lambda: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:139` | `patch(..., "_log_telemetry")` | `log_telemetry=lambda *a, **kw: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:200` | `patch(..., "_save_state")` | `save_state=lambda: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:236` | `patch(..., "_load_settings", return_value=...)` | `load_settings=lambda: {...}` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:239` | `patch(..., "_save_state")` | `save_state=lambda: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:240` | `patch(..., "_log_telemetry")` | `log_telemetry=lambda *a, **kw: None` kwarg | REFACTORED-CLOSED |
+| `tests/test_execution_state_machine.py:306` | `patch(..., "_save_state")` | `save_state=lambda: None` kwarg | REFACTORED-CLOSED |
+
+**Verification:**
+
+- `python -m pytest tests/test_execution_state_machine.py -v` → 5 passed in 0.08s (was 0.42s — 5× faster without `with patch(...)` overhead).
+- `python -m pytest tests/ -m "not real_ollama and not e2e" -q` → 187 passed.
+- `python -m ruff check agentsuitelocal/ tests/` → All checks passed!
+- Production HTTP shape: unchanged (no schema, no route, no public surface diff).
+- Production runtime: unchanged (defaults preserve existing behaviour; `or` fallback bound at call time).
+
+**Forward compat:** the `or _module_helper` pattern means a stray `unittest.mock.patch("agentsuitelocal.api.execution._save_state")` still works for any unmigrated caller. New tests should prefer the kwarg form.

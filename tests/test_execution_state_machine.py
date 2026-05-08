@@ -99,15 +99,24 @@ async def test_execute_run_completes_without_module_not_found_error():
 
     mock_llm = MagicMock()
 
+    # Sprint B B7 (MOCKING_AUDIT closure): _save_state / _log_telemetry /
+    # _load_settings are now substituted via injected callables (kwargs on
+    # _execute_run), not mock-patched. _send_notification stays as patch
+    # (it wraps OS-level toast/balloon — BOUNDARY-OK per audit). _resolve_llm,
+    # FounderAgent.run, _workspace stay as patch (INTERNAL-JUSTIFIED /
+    # filesystem-boundary).
     with (
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
         patch("agentsuite.agents.founder.agent.FounderAgent.run", return_value=fake_state),
-        patch("agentsuitelocal.api.execution._save_state"),
-        patch("agentsuitelocal.api.execution._log_telemetry"),
         patch("agentsuitelocal.api.execution._send_notification"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
-        await _execute_run(run_id, req, cancel_token=threading.Event())
+        await _execute_run(
+            run_id, req, cancel_token=threading.Event(),
+            save_state=lambda: None,
+            log_telemetry=lambda *a, **kw: None,
+            load_settings=lambda: {"api_key": "mock-key", "run_timeout_seconds": 30},
+        )
 
     run = _runs[run_id]
     assert run["status"] == "waiting", (
@@ -132,15 +141,19 @@ async def test_execute_run_dispatches_non_founder_agent(_all_agents_enabled):
     fake_state = _fake_run_state("agentsuite-design-run-id")
     mock_llm = MagicMock()
 
+    # Sprint B B7 (MOCKING_AUDIT closure): see test_execute_run_completes_*.
     with (
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
         patch("agentsuite.agents.design.agent.DesignAgent.run", return_value=fake_state),
-        patch("agentsuitelocal.api.execution._save_state"),
-        patch("agentsuitelocal.api.execution._log_telemetry"),
         patch("agentsuitelocal.api.execution._send_notification"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
-        await _execute_run(run_id, req, cancel_token=threading.Event())
+        await _execute_run(
+            run_id, req, cancel_token=threading.Event(),
+            save_state=lambda: None,
+            log_telemetry=lambda *a, **kw: None,
+            load_settings=lambda: {"api_key": "mock-key", "run_timeout_seconds": 30},
+        )
 
     run = _runs[run_id]
     assert run["status"] == "waiting", (
@@ -194,13 +207,18 @@ async def test_execute_pipeline_step_dispatches_non_founder_agent(_all_agents_en
             on_progress("agent_waiting", step, state)
         return state
 
+    # Sprint B B7 (MOCKING_AUDIT closure): _save_state and _load_settings
+    # injected via kwargs on _execute_pipeline_step.
     with (
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
         patch("agentsuite.pipeline.orchestrator.PipelineOrchestrator.run", side_effect=fake_orch_run),
-        patch("agentsuitelocal.api.execution._save_state"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
-        await _execute_pipeline_step(pipeline_id, 0)
+        await _execute_pipeline_step(
+            pipeline_id, 0,
+            save_state=lambda: None,
+            load_settings=lambda: {"api_key": "mock-key"},
+        )
 
     await asyncio.sleep(0)  # flush call_soon_threadsafe callbacks
 
@@ -232,16 +250,20 @@ async def test_execute_run_emits_progress_events():
             progress_callback({"type": "stage_progress", "stage": "intake", "step": 1, "total": 5, "message": "Intake complete"})
         return fake_state
 
+    # Sprint B B7 (MOCKING_AUDIT closure): _load_settings, _save_state,
+    # _log_telemetry injected via kwargs.
     with (
-        patch("agentsuitelocal.api.execution._load_settings", return_value={"api_key": "mock-key", "run_timeout_seconds": 30}),
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
         patch("agentsuite.agents.founder.agent.FounderAgent.run", side_effect=fake_agent_run),
-        patch("agentsuitelocal.api.execution._save_state"),
-        patch("agentsuitelocal.api.execution._log_telemetry"),
         patch("agentsuitelocal.api.execution._send_notification"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
-        await _execute_run(run_id, req, cancel_token=threading.Event())
+        await _execute_run(
+            run_id, req, cancel_token=threading.Event(),
+            save_state=lambda: None,
+            log_telemetry=lambda *a, **kw: None,
+            load_settings=lambda: {"api_key": "mock-key", "run_timeout_seconds": 30},
+        )
 
     await asyncio.sleep(0)  # flush call_soon_threadsafe callbacks scheduled from executor thread
 
@@ -300,13 +322,18 @@ async def test_execute_pipeline_step_emits_progress_events(_all_agents_enabled):
             on_progress("agent_waiting", step, state)
         return state
 
+    # Sprint B B7 (MOCKING_AUDIT closure): _save_state and _load_settings
+    # injected via kwargs on _execute_pipeline_step.
     with (
         patch("agentsuitelocal.api.execution._resolve_llm", return_value=mock_llm),
         patch("agentsuite.pipeline.orchestrator.PipelineOrchestrator.run", side_effect=fake_orch_run),
-        patch("agentsuitelocal.api.execution._save_state"),
         patch("agentsuitelocal.api.execution._workspace", return_value=Path("/tmp/agentsuite-exec-test")),
     ):
-        await _execute_pipeline_step(pipeline_id, 0)
+        await _execute_pipeline_step(
+            pipeline_id, 0,
+            save_state=lambda: None,
+            load_settings=lambda: {"api_key": "mock-key"},
+        )
 
     await asyncio.sleep(0)  # flush call_soon_threadsafe callbacks
 

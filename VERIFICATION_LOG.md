@@ -602,3 +602,72 @@ After commit + push of B8, will run `gh run list --branch release/v0.9.0 --workf
 8. Narrate path: GitHub renders the MD; users land on architecture.md and FAQ.md and see current information.
 9. Prove render: visual diff inspection only — no runtime to render against. Drafts staged with audit package.
 
+
+
+## B7 — MOCKING_AUDIT 9-site DI refactor
+
+[2026-05-08 ~14:55 UTC] [B7-design] [orchestrator-claude] Wrote pre-flight design doc at `docs/sprint-B-mocking-refactor.md` per dispatch. Approach: optional-default-callable kwargs on `_execute_run` and `_execute_pipeline_step` (audit option (c)) — smallest possible diff, zero public-surface change, forward-compat with any remaining `unittest.mock.patch` callers via `or _module_helper` fallback.
+
+[2026-05-08 ~14:58 UTC] [B7-impl] [orchestrator-claude] Implemented refactor:
+
+### Production changes (`agentsuitelocal/api/execution.py`)
+
+- `_execute_run` signature: added `*, save_state=None, log_telemetry=None, load_settings=None`. Body: at function entry, `save_state = save_state or _save_state` (and siblings). All 6 in-body calls to `_save_state()` / `_log_telemetry(...)` / `_load_settings()` replaced with the local-name calls. `_send_notification` left as module-level (BOUNDARY-OK per audit reclassification).
+- `_execute_pipeline_step` signature: added `*, save_state=None, load_settings=None`. Body: same pattern. 4 in-body `_save_state()` calls + 1 `_load_settings()` updated.
+- No other production changes. Routers untouched. `_execute_pipeline_step_direct` and `_advance_pipeline` not touched (no test sites land in them).
+
+### Test changes (`tests/test_execution_state_machine.py`)
+
+5 tests updated. Each test removed the `with patch(..., "_save_state")`, `patch(..., "_log_telemetry")`, `patch(..., "_load_settings")` lines and added kwarg substitution at the call site:
+
+```python
+await _execute_run(
+    run_id, req, cancel_token=threading.Event(),
+    save_state=lambda: None,
+    log_telemetry=lambda *a, **kw: None,
+    load_settings=lambda: {"api_key": "mock-key", "run_timeout_seconds": 30},
+)
+```
+
+`_send_notification`, `_resolve_llm`, agent-class, `_workspace` patches preserved (BOUNDARY-OK / INTERNAL-JUSTIFIED per audit).
+
+### MOCKING_AUDIT.md update
+
+`docs/MOCKING_AUDIT.md`:
+- Summary table: `INTERNAL-SUSPECT-REFACTOR` count `9 → 0` (with explanatory note).
+- Per-site rows for the 9 sites: status changed to `REFACTORED-CLOSED (Sprint B B7)` with closure-mechanism documented.
+- New "Sprint B B7 closure" section appended with the per-site closure table and verification commands.
+
+### Verification commands
+
+```
+python -m pytest tests/test_execution_state_machine.py -v
+# 5 passed in 0.08s (was 0.42s before refactor — 5× faster without `with patch(...)` overhead)
+
+python -m pytest tests/ -m "not real_ollama and not e2e" -q
+# 187 passed, 21 deselected, 85 warnings
+
+python -m ruff check agentsuitelocal/ tests/
+# All checks passed!
+```
+
+### careful-coding 9-step
+
+1. Read callers: `_execute_run` is called from `routers/runs.py::start_run` (and `retry_run`); `_execute_pipeline_step` is called from `routers/pipelines.py::start_pipeline` and `_advance_pipeline`. None pass kwargs.
+2. Runtime context: production callers continue to call without the new kwargs; defaults bind via `or` to the module-level helpers at call time.
+3. Fan-out grep: `grep -n "_execute_run\|_execute_pipeline_step" agentsuitelocal/` confirmed no other call sites in production.
+4. Data contract: production HTTP/SSE shapes untouched; `RunRequest` / pipeline schemas untouched; settings dict shape unchanged (test stubs return `{"api_key": ..., "run_timeout_seconds": ...}` — the keys actually read).
+5. Blast radius: 1 production file (`execution.py` — 4 hunks); 1 test file (`tests/test_execution_state_machine.py` — 5 hunks); 1 doc (`docs/MOCKING_AUDIT.md`); 1 new design doc (`docs/sprint-B-mocking-refactor.md`).
+6. Edit: applied per design doc.
+7. Re-read: confirmed no in-body call to a module-level helper survived inside `_execute_run`/`_execute_pipeline_step` (only `_send_notification` remains, intentionally).
+8. Narrate path: production caller invokes `_execute_run(run_id, req, cancel_token)` → defaults bind to module-level helpers → behaviour unchanged. Test caller invokes with kwargs → fakes are used.
+9. Prove render: 187/187 backend tests + ruff clean. Test suite 5× faster on this file.
+
+### Acceptance vs RELEASE_PLAN.md B7
+
+- [x] 0 INTERNAL-SUSPECT-REFACTOR sites remain
+- [x] `docs/MOCKING_AUDIT.md` updated
+- [x] All non-deleted tests pass
+- [x] Lint clean
+- [x] Public HTTP / schema / route surface unchanged
+
