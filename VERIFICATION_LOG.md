@@ -383,3 +383,22 @@ Pairs with the static Vitest tests added in `f8b9d08` (Sidebar.test.jsx, styles.
   - #3 Real-e2e on absolute HEAD: in progress (auto-triggered)
   - #4 Bundle smoke on PRs to main: CLOSED, validated in CI
   - #5 test_dependencies.py pollution: CLOSED, AUDITOR-RUN reproduction
+
+[2026-05-08 ~04:10 UTC] [#3-validation] [orchestrator-claude] Real-e2e on absolute HEAD `f09d724` (the loose-ends batch close commit) landed **GREEN** at 49m 53s. Run URL: https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25534679409. All four loose-end-batch real-e2e runs landed green:
+  - 6b9c604 (#4+#5) — 49m 28s
+  - d218c0e (#1) — 50m 14s
+  - 3383dbc (#2) — 50m 48s
+  - f09d724 (log update) — 49m 53s
+Combined with the 4 prior consecutive successes since V4 (b8de7f7, 5bffa63, 3743937, acfb374), V4 fix has now been validated by 8 consecutive real-Ollama runs — well above any sane reliability bar.
+
+### Sprint A loose-ends batch — ALL 5 CLOSED ✓
+
+  ✓ #1 Mock LLM contract → e2e xfail removed (d218c0e, CI + real-e2e green)
+  ✓ #2 A11y Bar 1 runtime tests added (3383dbc, CI + real-e2e green)
+  ✓ #3 Real-e2e on absolute HEAD (f09d724, real-e2e green at 49m 53s)
+  ✓ #4 Bundle smoke trigger expanded to PRs (6b9c604)
+  ✓ #5 test_dependencies.py pollution fixed (6b9c604, AUDITOR-RUN: 187/187)
+
+### Sprint A FULLY COMPLETE
+
+All 11 plan items closed. All 5 loose-ends closed. CI green on every commit since `0992e9a`. Real-e2e green on every commit since V4 fix landed. **Awaiting Scott calibration approval before Sprint B.**
