@@ -355,7 +355,11 @@ async def _execute_run(
                         qa_data = json.loads(qa_file.read_text())
                         # ENG-0907-002 / V3: use explicit None-check instead of falsy
                         # or-chaining so qa_score=0.0 is preserved (not promoted to None).
+                        # Sprint A V4: agentsuite QAReport schema uses `average` as the
+                        # canonical composite-score field (kernel/qa.py). Older legacy
+                        # field names kept as fallbacks for forward compat.
                         qa_score = _first_defined(
+                            qa_data.get("average"),
                             qa_data.get("weighted_score"),
                             qa_data.get("overall_score"),
                             qa_data.get("score"),
@@ -446,7 +450,10 @@ def _collect_step_artifacts(
             try:
                 qa_data = json.loads(qa_file.read_text())
                 # ENG-0907-002 / V3: use _first_defined to preserve qa_score=0.0.
+                # Sprint A V4: agentsuite QAReport schema uses `average` (see
+                # kernel/qa.py); legacy field names are fallbacks.
                 qa_score = _first_defined(
+                    qa_data.get("average"),
                     qa_data.get("weighted_score"),
                     qa_data.get("overall_score"),
                     qa_data.get("score"),
