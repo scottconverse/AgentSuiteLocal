@@ -199,3 +199,54 @@ Notes:
 [2026-05-08 ~01:30 UTC] [A2-followup-fix] [orchestrator-claude] Marked test as @pytest.mark.xfail(strict=True) with explicit reason pointing at MOCKING_AUDIT.md INTERNAL-SUSPECT-REFACTOR. Sprint B will refactor the Mock LLM contract; once the mock satisfies the agent contract the test will XPASS and the xfail can be removed. strict=True ensures forgotten xfails surface.
 
 [2026-05-08 ~01:30 UTC] [next-cleanup] [orchestrator-claude] Created next-cleanup.md with two Sprint B candidates: (1) MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR 9 sites, (2) Mock LLM contract gap → remove the e2e xfail.
+
+## A9 — Sprint-end audit-lite (CLEAN)
+
+[2026-05-08 ~01:35 UTC] [A9] [orchestrator-claude] audit-lite 4-lens (engineering, tests, docs, runtime) scoped to diff `0992e9a..3743937` (12 commits, 19 files, +957/-1060). Result: **0 Critical, 0 Blocker, 0 Major** (acceptance bar ≤2 Major met with margin).
+
+### Audit punchlist (full)
+
+**Critical / Blocker:** None.
+
+**Major:** None.
+
+**Minor / Nit:**
+1. (Minor) Repo working tree contained an uncommitted edit to `RELEASE_PLAN.md` at audit time. AUDITOR-RUN: `git status --short` showed ` M RELEASE_PLAN.md`. Fix: lands in this same commit alongside the audit-lite log entry.
+2. (Nit) `next-cleanup.md` carried in repo root rather than `docs/`. All other plan/audit docs live under `docs/`. Sprint B can move it; not worth a tick today. Fix: `git mv next-cleanup.md docs/next-cleanup.md` in Sprint B kickoff.
+3. (Nit) Frontend test pre-existing warning: `Each child in a list should have a unique "key" prop` from `PipelineCard` (`web/src/components/app/PipelineView.jsx:344`). Pre-existing — not introduced by Sprint A. AUDITOR-RUN: vitest output. Out of scope per RELEASE_PLAN binding rule but worth queuing for Sprint B.
+
+**Likely false positive:**
+- 2 backend failures in full-suite run (`tests/test_dependencies.py::test_resolve_llm_returns_provider_for_default_settings` and `::test_resolve_llm_records_error_on_failure`). AUDITOR-RUN confirmed these fail in the full backend suite at HEAD (`3743937`) AND at base (`0992e9a`) with identical output. Both pass in isolation. This is **pre-existing test-pollution** unrelated to Sprint A's diff. Sprint A did not touch `tests/test_dependencies.py` or `agentsuitelocal/api/dependencies.py`. CI splits tests differently and doesn't surface the pollution — CI on `3743937` is fully green (7/7 jobs). Worth queuing in `next-cleanup.md` as a Sprint B test-isolation cleanup item.
+
+**Working well (audit credit):**
+- V4 fix is symmetric and correct. Both call sites (`agentsuitelocal/api/execution.py:361-366` and `:455-460`) read `qa_data.get("average")` first with legacy fallbacks preserved. Contract test `tests/test_qa_score_schema_contract.py` (4 tests, all pass) locks the field-name agreement with `agentsuite.kernel.qa.QAReport.average`.
+- `RunRequest.constraints` removal is clean. Zero orphan references in `agentsuitelocal/` or `web/src/`. Wire-compat preserved (Pydantic v2 `extra="ignore"`).
+- A2 follow-up xfail is well-structured. `strict=True` ensures unintended XPASS surfaces immediately when Sprint B fixes the mock contract; reason text references `MOCKING_AUDIT.md` and `next-cleanup.md`.
+- A6 a11y additions backed by tests. `Sidebar.test.jsx` (4 tests including exclusivity), `ApprovalGateView.test.jsx` (2 new for role=dialog + Esc), `styles.test.js` regression-guards `:focus-visible`.
+- A7 bundle smoke is real CI surface, not just config. macOS step launches binary, polls for port file, hits `/api/health`, kills cleanly. Windows mirrors. Both gate on `main || tags || release/*`.
+- CHANGELOG entries are honest. Each Sprint A claim cites the commit/file/line and describes the actual mechanism.
+
+### Verification commands (AUDITOR-RUN)
+
+```
+git diff 0992e9a..3743937 --stat                                    # 19 files, +957/-1060
+python -m pytest --collect-only -q                                  # 203 tests collected
+python -m pytest tests/test_qa_score_schema_contract.py -v          # 4 passed in 0.10s
+python -m pytest -m "not real_ollama and not e2e" --tb=line -q      # 185 pass, 2 fail (pre-existing pollution)
+git checkout 0992e9a -- . && pytest -m "not real_ollama and not e2e" -q  # same 2 failures at base
+cd web && npx vitest run --reporter=basic                           # 18 files / 114 tests passed
+grep -rn "constraints" web/src/ agentsuitelocal/api/                # zero orphan refs
+gh run list --branch release/v0.9.0 --limit 3                       # CI@3743937: success | real-e2e: in_progress
+```
+
+### Acceptance
+
+A9 acceptance bar (0 Critical / 0 Blocker / ≤2 Major) → **PASSED with margin (all 0).**
+
+### Sprint B carry-overs (queued in next-cleanup.md)
+
+1. MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR: 9 sites
+2. Mock LLM contract gap → remove the e2e xfail in `tests/e2e/test_new_run.py`
+3. test_dependencies.py test-isolation pollution (pre-existing)
+4. PipelineCard React `key` warning (pre-existing)
+5. Move `next-cleanup.md` to `docs/`

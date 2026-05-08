@@ -47,6 +47,29 @@ the mock to actually satisfy the agent contract.
 
 ---
 
+## Items added by Sprint A audit-lite (3743937)
+
+### Pre-existing test-isolation pollution
+
+`tests/test_dependencies.py::test_resolve_llm_returns_provider_for_default_settings`
+and `::test_resolve_llm_records_error_on_failure` both fail in full-suite
+runs (under both Sprint A HEAD and Sprint A baseline `0992e9a`) but pass
+in isolation. Pre-existing — not introduced by Sprint A. CI splits tests
+differently and doesn't surface it. Sprint B should diagnose the
+pollution source (likely an autouse fixture, env var, or imported module
+state). Pointer: AUDITOR-RUN evidence in VERIFICATION_LOG A9 entry.
+
+### PipelineCard React key prop warning
+
+`web/src/components/app/PipelineView.jsx:344` — `<PipelineCard>` map
+without a unique `key` prop. Pre-existing vitest warning — not introduced
+by Sprint A. Easy fix in Sprint B.
+
+### Move next-cleanup.md to docs/
+
+All other plan/audit docs live under `docs/`. `next-cleanup.md` is at
+repo root for now. Sprint B kickoff: `git mv next-cleanup.md docs/`.
+
 ## Items deferred from earlier audits (carried)
 
 (none currently — fresh ledger)

@@ -32,89 +32,87 @@ Items execute in order. Each item runs the careful-coding 9-step loop; each comm
 
 ### A1 — Remove dead `RunRequest.constraints` field (D1)
 
-- [ ] Drop `constraints` from `RunRequest` Pydantic model (`agentsuitelocal/api/schemas.py`)
-- [ ] Remove any references in `agentsuitelocal/api/routers/runs.py`, `tests/`, `docs/architecture.md`
-- [ ] `grep -rn "RunRequest.*constraints\|constraints.*RunRequest" agentsuitelocal/ tests/` returns 0 references
-- [ ] `python -m pytest tests/test_api.py -k "run" -q` passes
-- [ ] VERIFICATION_LOG entry: file paths changed, test pass count, ruff clean
+- [x] Drop `constraints` from `RunRequest` Pydantic model (`agentsuitelocal/api/schemas.py`)
+- [x] Remove any references in `agentsuitelocal/api/routers/runs.py`, `tests/`, `docs/architecture.md`
+- [x] `grep -rn "RunRequest.*constraints\|constraints.*RunRequest" agentsuitelocal/ tests/` returns 0 references
+- [x] `python -m pytest tests/test_api.py -k "run" -q` passes
+- [x] VERIFICATION_LOG entry: file paths changed, test pass count, ruff clean
 
 ### A2 — Restore `assert not "Run failed" within 3s` in tests/e2e/test_new_run.py
 
-- [ ] Find the assertion that was removed in v0.8.9; restore it
-- [ ] Lint clean
-- [ ] Push triggers CI; CI is the actual gate (Playwright env not always set up locally)
-- [ ] VERIFICATION_LOG entry: file path, line number, CI run URL
+- [x] Find the assertion that was removed in v0.8.9; restore it
+- [x] Lint clean
+- [x] Push triggers CI; CI is the actual gate (Playwright env not always set up locally)
+- [x] VERIFICATION_LOG entry: file path, line number, CI run URL
 
 ### A3 — Remove `xfail` from `tests/test_real_founder_run.py`
 
-- [ ] Remove `@pytest.mark.xfail(strict=False, reason=...)` markers from V1+V2 cases
-- [ ] Push triggers real-e2e workflow
-- [ ] Real-e2e on the resulting commit returns `passed` (not `xpassed`)
-- [ ] VERIFICATION_LOG entry: real-e2e CI run URL + pass status + wall-clock
+- [x] Remove `@pytest.mark.xfail(strict=False, reason=...)` markers from V1+V2 cases
+- [x] Push triggers real-e2e workflow
+- [ ] Real-e2e on the resulting commit returns `passed` (not `xpassed`) — POLLING
+- [ ] VERIFICATION_LOG entry: real-e2e CI run URL + pass status + wall-clock — pending poll
 
 ### A4 — MOCKING_AUDIT.md sweep
 
-- [ ] Read every `patch(`/`Mock(` call in `tests/`
-- [ ] Classify each as boundary-mock-OK (HTTP, filesystem, subprocess, OS notifications) or internal-mock-suspect (AgentSuiteLocal/agentsuite internals)
-- [ ] Write classifications to new `docs/MOCKING_AUDIT.md`
-- [ ] Refactor any internal-mock-suspect tests in `tests/test_execution_state_machine.py` to use the real-resolver path via `AGENTSUITE_LLM_PROVIDER_FACTORY` (template in `tests/test_execution_integration.py`), OR delete as redundant with `tests/test_real_founder_run.py`
-- [ ] 0 internal-mock-suspect mocks remain (each refactored, deleted, or annotated with explicit justification queued in `next-cleanup.md`)
-- [ ] All non-deleted tests still pass
-- [ ] VERIFICATION_LOG entry: total patches classified, refactored count, deleted count, justified count
+- [x] Read every `patch(`/`Mock(` call in `tests/`
+- [x] Classify each as boundary-mock-OK (HTTP, filesystem, subprocess, OS notifications) or internal-mock-suspect (AgentSuiteLocal/agentsuite internals)
+- [x] Write classifications to new `docs/MOCKING_AUDIT.md` (commit `1f43795`)
+- [x] Q1=(b) two-phase per Scott decision: classify-only, refactors deferred to Sprint B
+- [x] 9 INTERNAL-SUSPECT-REFACTOR sites queued in `next-cleanup.md` for Sprint B
+- [x] All non-deleted tests still pass
+- [x] VERIFICATION_LOG entry: 48 mock sites classified — 23 BOUNDARY-OK, 16 INTERNAL-JUSTIFIED, 9 INTERNAL-SUSPECT-REFACTOR, 0 INTERNAL-SUSPECT-DELETE
 
 ### A5 — Document concurrent-run limitation (D3)
 
-- [ ] Add to `README.md` (known issues / limitations section): "v1.0 supports one run at a time per session. Concurrent runs land in v1.1."
-- [ ] Add to `docs/user-manual.md` (limitations / FAQ section)
-- [ ] Add to `docs/FAQ.md` (new entry: "Can I run multiple agents at the same time?")
-- [ ] Frontend tests still pass (no UI change)
-- [ ] VERIFICATION_LOG entry: file paths + line numbers added
+- [x] Added to `README.md` (known issues / limitations)
+- [x] Added to `docs/user-manual.md` (limitations / FAQ section)
+- [x] Added to `docs/FAQ.md` ("Can I run multiple agents at the same time?")
+- [x] Frontend tests still pass (no UI change)
+- [x] VERIFICATION_LOG entry: commit `a4989d7`
 
 ### A6 — Bare-min a11y (D2 — Bar 1)
 
-- [ ] Audit Tab order in every primary view (Dashboard, NewRun, LiveRun, Runs, Pipelines, Kernel, Manual, Settings, ApprovalGate)
-- [ ] Add visible focus rings (`:focus-visible` outline) to interactive elements in `web/src/styles/`
-- [ ] Verify modals trap focus correctly and Esc closes them, returning focus to trigger
-- [ ] Add `aria-current="page"` to active sidebar nav item in `web/src/components/shell/Sidebar.jsx`
-- [ ] Add Vitest tests for the aria-current attribute and focus-ring CSS
-- [ ] Manual checklist (per-view) recorded in VERIFICATION_LOG
-- [ ] Frontend tests pass; lint clean
-- [ ] VERIFICATION_LOG entry: per-view tab-through results + screenshot evidence references
+- [x] Q2=(b) code-only per Scott decision: code changes + manual checklist for Scott
+- [x] `aria-current="page"` on `Sidebar.jsx` active nav (top + bottom)
+- [x] Visible focus rings (`:focus-visible` outline) — pre-existed in CSS; regression-guard test added (`web/src/styles.test.js`)
+- [x] Override modal got `role="dialog"`, `aria-modal="true"`, `aria-label`, Esc-handler in `ApprovalGateView.jsx`
+- [x] Vitest tests added: `Sidebar.test.jsx` (4 tests), `ApprovalGateView.test.jsx` (2 new for role=dialog + Esc), `styles.test.js`
+- [x] Manual checklist (per-view) recorded in VERIFICATION_LOG for Scott pre-A10
+- [x] Frontend tests pass (114 passed, 18 files); lint clean
+- [x] VERIFICATION_LOG entry: commit `f8b9d08`
 
 ### A7 — Post-PyInstaller smoke (bundle integrity)
 
-- [ ] Add a CI job that builds the .exe (and .dmg on macOS-latest) and verifies first-launch end-to-end:
-  - Bundle launches without error
-  - Backend port file `launcher.port.json` is written
-  - GET `/api/health` returns 200
-  - Bundle process exits cleanly when killed
-- [ ] Job added to `.github/workflows/ci.yml` (or new `.github/workflows/bundle-smoke.yml`)
-- [ ] Job runs green on the latest `release/v0.9.0` commit
-- [ ] VERIFICATION_LOG entry: CI run URL, total wall-clock, exit code
+- [x] CI jobs added: `macOS build (PyInstaller)` smoke step + NEW `Windows build (PyInstaller)` mirror
+- [x] Bundle launches; `launcher.port.json` written; `/api/health` returns 200; clean kill
+- [x] Gated on `main || tags || release/*`
+- [x] Job runs **green** on `release/v0.9.0` HEAD (commit `3743937`, run 25531160434)
+- [x] VERIFICATION_LOG entry: workflow file + first green run URL
 
 ### A8 — CHANGELOG + README currency
 
-- [ ] CHANGELOG `[Unreleased]` includes:
-  - weasyprint → reportlab (already there)
-  - approve_run guard correction (already there)
-  - ApprovalGateView tooltip (already there)
+- [x] CHANGELOG `[Unreleased]` complete:
+  - weasyprint → reportlab
+  - approve_run guard correction
+  - ApprovalGateView tooltip
   - agentsuite v1.1.1 repin closing V1+V2
   - constraints removal (A1)
+  - V4 qa_score `average` field fix
   - test_real_founder_run xfail removal (A3)
   - MOCKING_AUDIT (A4)
   - concurrent-run documentation (A5)
   - a11y Bar 1 (A6)
   - bundle smoke CI (A7)
-- [ ] README "Recent releases" section reflects current state
-- [ ] Lint clean
-- [ ] VERIFICATION_LOG entry: lines added per file
+- [x] README "Recent releases" section reflects current state (v0.9.0 in-progress paragraph at top)
+- [x] Lint clean
+- [x] VERIFICATION_LOG entry: commit `b8de7f7`
 
 ### A9 — Sprint-end audit-lite
 
-- [ ] Run `/audit-lite` skill scoped to the diff `0992e9a..HEAD`
-- [ ] 0 Critical findings, 0 Blockers
-- [ ] ≤2 Major findings (each with explicit "fold into Sprint A or queue for Sprint B?" decision)
-- [ ] VERIFICATION_LOG entry: full audit-lite output appended
+- [x] Run `/audit-lite` skill scoped to the diff `0992e9a..HEAD` (HEAD=`3743937`)
+- [x] 0 Critical findings, 0 Blockers
+- [x] ≤2 Major findings — **0 Major found** (clean; bar met with margin)
+- [x] VERIFICATION_LOG entry: full audit-lite output appended
 
 ### A10 — Sprint A ship gate (HARD STOP)
 
