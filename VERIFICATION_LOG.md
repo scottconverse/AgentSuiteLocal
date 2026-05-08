@@ -460,3 +460,40 @@ All 11 plan items closed. All 5 loose-ends closed. CI green on every commit sinc
 - 1 Critical — covered by B5.
 - All 4 Majors map to existing Sprint B items B7 / B9 / B9.
 - No scope expansion required. Audit confirms Sprint B's existing scope is correct.
+
+
+## B2 — Triage of B1 audit findings
+
+[2026-05-08 ~14:05 UTC] [B2] [orchestrator-claude] Triaged 17 distinct findings (after cross-role de-dup). 0 Blockers, 1 Critical, 4 Majors all already covered by existing Sprint B items. No scope expansion required. Sprint B's planned scope (B5–B9) is sufficient.
+
+### Triage table
+
+| ID | Severity | Decision | Sprint B item / disposition |
+|---|---|---|---|
+| UX-B-001 / TEST-B-002 / QA-B-001 | Critical | FIX this sprint | B5 |
+| ENG-B-001 / TEST-B-001 | Major | FIX this sprint | B7 |
+| ENG-B-002 / DOC-B-001 | Major | FIX this sprint | B9 (architecture-recently-delivered.md) |
+| DOC-B-002 | Major | FIX this sprint | B9 (architecture-roadmap.md) |
+| DOC-B-003 | Minor | FIX this sprint | B9 (FAQ-intro.md) |
+| DOC-B-004 | Minor | FIX this sprint | B9 (FAQ-intro.md) |
+| DOC-B-005 | Minor | FIX this sprint | B6 |
+| (D4) | Minor | FIX this sprint | B8 |
+| ENG-B-003 | Minor | DEFER | Sprint C ship gate (version bump) |
+| ENG-B-004 | Minor | DEFER | next-cleanup.md → v1.1 (SSE busy-wait) |
+| ENG-B-005 | Minor | DEFER | next-cleanup.md (Nit; sweep when renaming) |
+| ENG-B-006 | Minor | FOLD | Folds into B7 RuntimeEnv design naturally |
+| UX-B-002 | Minor | DEFER | next-cleanup.md → v1.1 (UX polish) |
+| UX-B-003 | Minor | DEFER | v1.1 a11y Bar 2 (already locked) |
+| ENG-B-007 | Nit | FIX this sprint | Folds into B9 architecture-roadmap.md draft |
+| ENG-B-008 | Nit | FIX this sprint | Folds into B9 FAQ-intro.md draft |
+| UX-B-004 / DOC-B-006 | Nit | DEFER | Sprint C ship gate (version-stamp sweep) |
+| TEST-B-003 | Minor | DEFER | next-cleanup.md → v1.1 (frontend coverage) |
+
+### Acceptance check vs overflow rule
+
+- 0 Blockers → no STOP.
+- 1 Critical → fits remaining time (B5 is S-size single-commit) → fix this sprint.
+- 4 Majors → all map to existing B7/B9 items → no scope expansion.
+- All Minors/Nits triaged: 5 fixed inline (folded into B6/B8/B9 work); 7 deferred to next-cleanup.md or v1.1; 1 folds into B7 design.
+
+Proceeding to B3 (no Blockers — fast pass) → B5 → B6 → B8 → B9 → B7 (DI refactor; biggest piece) → B10 → B11.
