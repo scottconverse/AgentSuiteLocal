@@ -69,11 +69,27 @@ def _walk_installer(page: Page, base_url: str) -> None:
 
 
 @pytest.mark.e2e
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "v0.9 Sprint A A2 / MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR: the "
+        "substring-routed MockLLMProvider returns prose for the `extract` "
+        "stage; production correctly rejects as non-JSON; 'Run failed' "
+        "surfaces in <3s and the restored assertion at line 110 fires. "
+        "This is the test catching the mock lying, not a regression. "
+        "Sprint B work: refactor the Mock LLM contract per "
+        "docs/MOCKING_AUDIT.md. Once the mock satisfies the agent contract "
+        "the test will XPASS (strict=True) and this xfail can be removed."
+    ),
+)
 def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str):
     """TEST-003: clicking New Run → submitting a goal must reach a state
     where the orchestrator is running (the LiveRunView heading is visible
     and the SSE stream is connected). This is the path that the v0.8.7
-    missing-`ollama`-SDK bug killed — no test exercised it before today."""
+    missing-`ollama`-SDK bug killed — no test exercised it before today.
+
+    Currently xfail'd — see decorator. Real-e2e (real Ollama) is the
+    truthful gate for this path until Sprint B fixes the mock contract."""
     _walk_installer(page, base_url)
 
     # Navigate to New Run.
