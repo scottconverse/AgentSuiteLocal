@@ -187,7 +187,10 @@ function PipelineCard({ pipeline, onApprove, onReject }) {
 
       <div style={{ display: "flex", alignItems: "center", overflowX: "auto", paddingBottom: 8 }}>
         {pipeline.steps.map((step, i) => (
-          <React.Fragment key={step.agent}>
+          // UX-B-001: key by index — pipelines today reject duplicate agents in
+          // the form, but the production data shape allows them; index is the
+          // stable, always-unique key.
+          <React.Fragment key={i}>
             <StepCard step={step} />
             {i < pipeline.steps.length - 1 && (
               <div style={{ width: 28, height: 1, background: "var(--line-2)", flexShrink: 0 }} />

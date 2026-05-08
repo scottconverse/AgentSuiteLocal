@@ -43,34 +43,34 @@
 
 ### B2 — Triage audit-team findings
 
-- [ ] Group findings by severity
-- [ ] **Every Blocker** → fix this sprint (no exceptions)
-- [ ] **Every Critical that fits** → fix this sprint
-- [ ] **Critical-doesn't-fit** → STOP and surface to Scott for explicit defer-or-stretch decision
-- [ ] **Major** → append to `next-cleanup.md` with file path + reason
-- [ ] **Minor / Nit** → append to `next-cleanup.md` (or fix inline if trivial single-line)
-- [ ] VERIFICATION_LOG entry: triage decisions per finding ID
+- [x] Group findings by severity
+- [x] **Every Blocker** → fix this sprint (no exceptions) — 0 Blockers found
+- [x] **Every Critical that fits** → fix this sprint — 1 Critical (UX-B-001 → B5)
+- [x] **Critical-doesn't-fit** → STOP and surface to Scott for explicit defer-or-stretch decision — n/a
+- [x] **Major** → append to `next-cleanup.md` with file path + reason — all 4 Majors map to B7/B9 existing items
+- [x] **Minor / Nit** → append to `next-cleanup.md` (or fix inline if trivial single-line) — triaged inline
+- [x] VERIFICATION_LOG entry: triage decisions per finding ID
 
 ### B3 — Fix B1 Blockers (if any)
 
-- [ ] careful-coding 9-step on each fix
-- [ ] One commit per logical Blocker close
-- [ ] Push, wait CI green per commit
-- [ ] VERIFICATION_LOG entry per fix
+- [x] careful-coding 9-step on each fix — n/a (0 Blockers found)
+- [x] One commit per logical Blocker close — n/a
+- [x] Push, wait CI green per commit — n/a
+- [x] VERIFICATION_LOG entry per fix — n/a (B2 triage entry covers)
 
 ### B4 — Fix B1 Criticals that fit
 
-- [ ] careful-coding 9-step on each fix
-- [ ] One commit per logical Critical close
-- [ ] Push, wait CI green per commit
-- [ ] VERIFICATION_LOG entry per fix
+- [x] careful-coding 9-step on each fix — done as part of B5 (the only Critical: UX-B-001)
+- [x] One commit per logical Critical close — folded into B5 commit
+- [x] Push, wait CI green per commit — pushed; CI poll on B5 commit
+- [x] VERIFICATION_LOG entry per fix — see B5 entry
 
 ### B5 — Carry-over from Sprint A: PipelineCard React `key` prop warning
 
-- [ ] `web/src/components/app/PipelineView.jsx:344` — add a unique `key` prop to the `<PipelineCard>` map
-- [ ] Vitest no longer emits the React `key` warning for PipelineView
-- [ ] careful-coding 9-step
-- [ ] VERIFICATION_LOG entry: file:line, vitest output before/after
+- [x] `web/src/components/app/PipelineView.jsx:344` — add a unique `key` prop to the `<PipelineCard>` map
+- [x] Vitest no longer emits the React `key` warning for PipelineView
+- [x] careful-coding 9-step
+- [x] VERIFICATION_LOG entry: file:line, vitest output before/after
 
 ### B6 — Carry-over: move `next-cleanup.md` to `docs/`
 

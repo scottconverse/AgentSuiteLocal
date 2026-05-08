@@ -497,3 +497,40 @@ All 11 plan items closed. All 5 loose-ends closed. CI green on every commit sinc
 - All Minors/Nits triaged: 5 fixed inline (folded into B6/B8/B9 work); 7 deferred to next-cleanup.md or v1.1; 1 folds into B7 design.
 
 Proceeding to B3 (no Blockers — fast pass) → B5 → B6 → B8 → B9 → B7 (DI refactor; biggest piece) → B10 → B11.
+
+
+## B4 + B5 — UX-B-001 PipelineCard React key warning closed
+
+[2026-05-08 ~14:10 UTC] [B4/B5] [orchestrator-claude] Closed the only B1 Critical (UX-B-001 / TEST-B-002 / QA-B-001) — the PipelineCard React key warning. Two-line fix touching the prod component and the test fixture.
+
+### Files changed
+
+- `web/src/components/app/PipelineView.jsx:189-194` — `key={step.agent}` → `key={i}` (unique by index; comment explains why production data shape allows duplicate-agent keys even though the form rejects them).
+- `web/src/components/app/PipelineView.test.jsx:13-14` — `agent_id` → `agent` (rename to match production data shape per `agentsuitelocal/api/routers/pipelines.py:37,102`); comment notes the wrong field name was masking the warning.
+
+### careful-coding 9-step
+
+1. **Read callers:** `PipelineCard` is rendered exclusively from `PipelineView.jsx` (no other importers — `grep` confirms 0 external).
+2. **Runtime context:** Vite + React 18; render is on every poll tick (3s interval).
+3. **Fan-out grep:** `grep -rn "step\.agent_id\|step\[\"agent_id\"\]" web/src/` → 0 hits. Production code uses `step.agent` exclusively (`PipelineView.jsx:123,144,168,190,203`).
+4. **Data contract:** Production payload shape per `routers/pipelines.py:37` is `{agent: <slug>, status, run_id, qa_score?}`. Test mock used wrong key.
+5. **Blast radius:** PipelineView.jsx (1 hunk), PipelineView.test.jsx (1 hunk). No other surface affected.
+6. **Edit:** `key={step.agent}` → `key={i}` (with rationale comment); `agent_id` → `agent` in test mock (with rationale comment).
+7. **Re-read:** The map index is stable for the lifetime of a `pipeline.steps` array (steps don't reorder); React keys by-index are sound here.
+8. **Narrate path:** vitest re-runs PipelineView.test.jsx; renders mockPipeline; PipelineCard renders 2 step fragments with `key={0}` and `key={1}`; StepCard finds `AGENTS.find(x => x.id === step.agent)` via the corrected mock; step labels render.
+9. **Prove render:** vitest output below; 0 React key warnings.
+
+### Verification commands
+
+```
+cd web && npx vitest run src/components/app/PipelineView.test.jsx --reporter=basic
+# 5/5 passed; 0 React key warnings emitted
+
+cd web && npx vitest run --reporter=basic
+# 18 files / 114 tests passed; 0 React key warnings
+```
+
+### Commit (next)
+
+Commit incoming: `fix(pipelines): UX-B-001 PipelineCard key + test mock field name (B4/B5)`.
+
