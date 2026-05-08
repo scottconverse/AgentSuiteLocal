@@ -402,3 +402,7 @@ Combined with the 4 prior consecutive successes since V4 (b8de7f7, 5bffa63, 3743
 ### Sprint A FULLY COMPLETE
 
 All 11 plan items closed. All 5 loose-ends closed. CI green on every commit since `0992e9a`. Real-e2e green on every commit since V4 fix landed. **Awaiting Scott calibration approval before Sprint B.**
+
+# Sprint B — START
+
+[2026-05-08 ~04:30 UTC] [SPRINT-B-START] [orchestrator-claude] Scott approved Sprint A close; authorized Sprint B kickoff. RELEASE_PLAN.md replaced with Sprint B scope: audit-team 5-role pass + 3 carry-overs from Sprint A + D4 trigger removal. Sprint B baseline `2d6b540`. Out-of-scope list (slipped-to-v1.1) restated to prevent scope drift. Hard stop at B11 awaiting Scott calibration before Sprint C.

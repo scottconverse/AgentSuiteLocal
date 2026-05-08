@@ -1,150 +1,149 @@
-# RELEASE_PLAN.md — v1.0 Sprint A
+# RELEASE_PLAN.md — v1.0 Sprint B
 
-**Type:** sprint (Sprint A of three: A → audit-team → ship)
+**Type:** sprint (Sprint B of three: A → **B** → ship)
 **Branch:** `release/v0.9.0`
-**Baseline:** `0992e9a` (CI green, real-e2e green on `d707fac`, V1+V2 closed)
-**Sprint goal:** Test honesty + bundle integrity + a11y bar
-**Sprint gate:** Sprint-end audit-lite returns 0 Criticals, then Scott approval before Sprint B
-**This is NOT v1.0 ship.** This is Sprint A's calibration gate.
+**Baseline:** `2d6b540` (Sprint A close — CI green, real-e2e green 8x since V4)
+**Sprint goal:** Audit-team 5-role pass + close all Blockers + close 3 carry-overs from Sprint A
+**Sprint gate:** Audit-team returns 0 Blockers, all Criticals fixed-or-explicitly-deferred-with-Scott-approval, Sprint-end re-audit-lite scoped to changed files returns 0 new Criticals
+**This is NOT v1.0 ship.** This is Sprint B's calibration gate.
 
 ---
 
 ## Discipline (layered audit pattern)
 
-- **Per-commit:** careful-coding 9-step (read callers, runtime context, fan-out grep, data contract, blast radius, re-read, narrate path, prove render, self-audit)
-- **Per checkpoint (every 2-3 commits):** lint clean (`python -m ruff check .`), changed-file tests pass, `git diff` matches claimed work
-- **Per sprint end:** audit-lite (4-lens, scoped to sprint diff)
-- **Mid-sprint overflow:** Blocker stops sprint; Critical only if fits; Major queues to next sprint; Minor/Nit collects in `next-cleanup.md`
-- **Scoped re-audits only.** Never unscoped re-audit mid-sprint.
+- **Per-commit:** careful-coding 9-step
+- **Per checkpoint (every 2-3 commits):** lint clean + changed-file tests + diff review
+- **Per sprint end:** audit-lite scoped to changed files (NOT unscoped re-audit)
+- **Mid-sprint overflow:**
+  - **Blocker** stops sprint; surface to Scott; renegotiate scope
+  - **Critical** fix only if it fits remaining time; otherwise queue with Scott approval
+  - **Major** → queue to v1.1 in `next-cleanup.md` with file path
+  - **Minor / Nit** → collect in `next-cleanup.md`
+- **Scoped re-audits only.**
 
 ## Pre-flight gate
 
-- [x] Real-e2e CI green for at least one commit on this branch (`d707fac`)
-- [x] CI green at the baseline commit (`0992e9a`)
-- [x] D1–D4 decisions locked in `docs/v1.0-milestone.md`
-- [x] `agentsuite==1.1.1` (commit `4bd7869`) is the active pin
+- [x] Sprint A approved by Scott (this dispatch)
+- [x] CI green at baseline `2d6b540`
+- [x] Real-e2e green at baseline (8 consecutive successes since V4)
+- [x] `next-cleanup.md` carries 3 Sprint B items
+- [x] `docs/v1.0-milestone.md` Sprint B section governs scope
 
 ---
 
-## Sprint A checklist
+## Sprint B checklist
 
-Items execute in order. Each item runs the careful-coding 9-step loop; each commit produces a `VERIFICATION_LOG.md` entry with timestamped evidence.
+### B1 — `/audit-team` 5-role parallel pass
 
-### A1 — Remove dead `RunRequest.constraints` field (D1)
+- [ ] Run `/audit-team` skill scoped to `release/v0.9.0` HEAD
+- [ ] 5 roles: Engineering / UX / Documentation / Tests / QA
+- [ ] Output package lands at `audit-agentsuitelocal-2026-05-08/` (or similar dated dir)
+- [ ] Read `00-executive-audit.md` and `sprint-punchlist.md` end-to-end
+- [ ] VERIFICATION_LOG entry: audit-team output URL/path, finding counts by role, total Blocker/Critical/Major/Minor/Nit counts
 
-- [x] Drop `constraints` from `RunRequest` Pydantic model (`agentsuitelocal/api/schemas.py`)
-- [x] Remove any references in `agentsuitelocal/api/routers/runs.py`, `tests/`, `docs/architecture.md`
-- [x] `grep -rn "RunRequest.*constraints\|constraints.*RunRequest" agentsuitelocal/ tests/` returns 0 references
-- [x] `python -m pytest tests/test_api.py -k "run" -q` passes
-- [x] VERIFICATION_LOG entry: file paths changed, test pass count, ruff clean
+### B2 — Triage audit-team findings
 
-### A2 — Restore `assert not "Run failed" within 3s` in tests/e2e/test_new_run.py
+- [ ] Group findings by severity
+- [ ] **Every Blocker** → fix this sprint (no exceptions)
+- [ ] **Every Critical that fits** → fix this sprint
+- [ ] **Critical-doesn't-fit** → STOP and surface to Scott for explicit defer-or-stretch decision
+- [ ] **Major** → append to `next-cleanup.md` with file path + reason
+- [ ] **Minor / Nit** → append to `next-cleanup.md` (or fix inline if trivial single-line)
+- [ ] VERIFICATION_LOG entry: triage decisions per finding ID
 
-- [x] Find the assertion that was removed in v0.8.9; restore it
-- [x] Lint clean
-- [x] Push triggers CI; CI is the actual gate (Playwright env not always set up locally)
-- [x] VERIFICATION_LOG entry: file path, line number, CI run URL
+### B3 — Fix B1 Blockers (if any)
 
-### A3 — Remove `xfail` from `tests/test_real_founder_run.py`
+- [ ] careful-coding 9-step on each fix
+- [ ] One commit per logical Blocker close
+- [ ] Push, wait CI green per commit
+- [ ] VERIFICATION_LOG entry per fix
 
-- [x] Remove `@pytest.mark.xfail(strict=False, reason=...)` markers from V1+V2 cases
-- [x] Push triggers real-e2e workflow
-- [x] Real-e2e returns **`passed`** on 3 consecutive commits since V4 fix:
-  - `b8de7f7` (A8) — 54m 24s — run 25531018278
-  - `5bffa63` (CHECKPOINT) — 50m 35s — run 25531038434
-  - `3743937` (xfail) — 50m 29s — run 25531160433
-- [x] VERIFICATION_LOG entry: 3 consecutive real-e2e successes confirm V4 fix in production; founder agent runs against real `gemma4:e4b` reach approval gate with qa_score populated
+### B4 — Fix B1 Criticals that fit
 
-### A4 — MOCKING_AUDIT.md sweep
+- [ ] careful-coding 9-step on each fix
+- [ ] One commit per logical Critical close
+- [ ] Push, wait CI green per commit
+- [ ] VERIFICATION_LOG entry per fix
 
-- [x] Read every `patch(`/`Mock(` call in `tests/`
-- [x] Classify each as boundary-mock-OK (HTTP, filesystem, subprocess, OS notifications) or internal-mock-suspect (AgentSuiteLocal/agentsuite internals)
-- [x] Write classifications to new `docs/MOCKING_AUDIT.md` (commit `1f43795`)
-- [x] Q1=(b) two-phase per Scott decision: classify-only, refactors deferred to Sprint B
-- [x] 9 INTERNAL-SUSPECT-REFACTOR sites queued in `next-cleanup.md` for Sprint B
-- [x] All non-deleted tests still pass
-- [x] VERIFICATION_LOG entry: 48 mock sites classified — 23 BOUNDARY-OK, 16 INTERNAL-JUSTIFIED, 9 INTERNAL-SUSPECT-REFACTOR, 0 INTERNAL-SUSPECT-DELETE
+### B5 — Carry-over from Sprint A: PipelineCard React `key` prop warning
 
-### A5 — Document concurrent-run limitation (D3)
+- [ ] `web/src/components/app/PipelineView.jsx:344` — add a unique `key` prop to the `<PipelineCard>` map
+- [ ] Vitest no longer emits the React `key` warning for PipelineView
+- [ ] careful-coding 9-step
+- [ ] VERIFICATION_LOG entry: file:line, vitest output before/after
 
-- [x] Added to `README.md` (known issues / limitations)
-- [x] Added to `docs/user-manual.md` (limitations / FAQ section)
-- [x] Added to `docs/FAQ.md` ("Can I run multiple agents at the same time?")
-- [x] Frontend tests still pass (no UI change)
-- [x] VERIFICATION_LOG entry: commit `a4989d7`
+### B6 — Carry-over: move `next-cleanup.md` to `docs/`
 
-### A6 — Bare-min a11y (D2 — Bar 1)
+- [ ] `git mv next-cleanup.md docs/next-cleanup.md`
+- [ ] Update any references in HANDOFF.md, RELEASE_PLAN.md, VERIFICATION_LOG.md, docs/v1.0-milestone.md
+- [ ] careful-coding 9-step (fan-out grep for `next-cleanup.md` references)
+- [ ] VERIFICATION_LOG entry
 
-- [x] Q2=(b) code-only per Scott decision: code changes + manual checklist for Scott
-- [x] `aria-current="page"` on `Sidebar.jsx` active nav (top + bottom)
-- [x] Visible focus rings (`:focus-visible` outline) — pre-existed in CSS; regression-guard test added (`web/src/styles.test.js`)
-- [x] Override modal got `role="dialog"`, `aria-modal="true"`, `aria-label`, Esc-handler in `ApprovalGateView.jsx`
-- [x] Vitest tests added: `Sidebar.test.jsx` (4 tests), `ApprovalGateView.test.jsx` (2 new for role=dialog + Esc), `styles.test.js`
-- [x] Manual checklist (per-view) recorded in VERIFICATION_LOG for Scott pre-A10
-- [x] Frontend tests pass (114 passed, 18 files); lint clean
-- [x] VERIFICATION_LOG entry: commit `f8b9d08`
+### B7 — Carry-over: MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR (9 sites)
 
-### A7 — Post-PyInstaller smoke (bundle integrity)
+- [ ] Read `docs/MOCKING_AUDIT.md` for the per-site recommendations
+- [ ] Convert `_save_state`, `_log_telemetry`, `_send_notification`, `_load_settings` from module-level functions to dependency-injected callables (likely via FastAPI `Depends` or a `RuntimeEnv`/`AppContext` dataclass)
+- [ ] Update each affected test in `tests/test_execution_state_machine.py` (and siblings) to substitute boundary implementations instead of mock-patching internal callables
+- [ ] All non-deleted tests still pass
+- [ ] CI green on the resulting commit
+- [ ] **Acceptance:** 0 INTERNAL-SUSPECT-REFACTOR sites remain; `docs/MOCKING_AUDIT.md` updated to reflect closures
+- [ ] VERIFICATION_LOG entry: per-site classification table now showing CLOSED for the 9 sites
 
-- [x] CI jobs added: `macOS build (PyInstaller)` smoke step + NEW `Windows build (PyInstaller)` mirror
-- [x] Bundle launches; `launcher.port.json` written; `/api/health` returns 200; clean kill
-- [x] Gated on `main || tags || release/*`
-- [x] Job runs **green** on `release/v0.9.0` HEAD (commit `3743937`, run 25531160434)
-- [x] VERIFICATION_LOG entry: workflow file + first green run URL
+### B8 — D4: Remove `real-e2e.yml` push trigger on `release/v0.9.0`
 
-### A8 — CHANGELOG + README currency
+- [ ] Per `docs/v1.0-milestone.md` D4 decision: Sprint B removes the sprint-time `release/*` push trigger from `.github/workflows/real-e2e.yml`
+- [ ] Keep cron + tag + opt-in PR-label triggers
+- [ ] Verify the next push to `release/v0.9.0` does NOT auto-trigger real-e2e (a `release/v1.0.0` rename in Sprint C will need its own trigger if desired)
+- [ ] VERIFICATION_LOG entry: workflow file diff + confirmation that next push doesn't auto-trigger
 
-- [x] CHANGELOG `[Unreleased]` complete:
-  - weasyprint → reportlab
-  - approve_run guard correction
-  - ApprovalGateView tooltip
-  - agentsuite v1.1.1 repin closing V1+V2
-  - constraints removal (A1)
-  - V4 qa_score `average` field fix
-  - test_real_founder_run xfail removal (A3)
-  - MOCKING_AUDIT (A4)
-  - concurrent-run documentation (A5)
-  - a11y Bar 1 (A6)
-  - bundle smoke CI (A7)
-- [x] README "Recent releases" section reflects current state (v0.9.0 in-progress paragraph at top)
-- [x] Lint clean
-- [x] VERIFICATION_LOG entry: commit `b8de7f7`
+### B9 — Doc-rewrite drafts from audit-team
 
-### A9 — Sprint-end audit-lite
+- [ ] If `/audit-team` produced `doc-rewrites/` drafts: review each, merge what's accurate, reject what's wrong with reason
+- [ ] If no drafts produced: skip this item; note in VERIFICATION_LOG
+- [ ] careful-coding 9-step on each merge
 
-- [x] Run `/audit-lite` skill scoped to the diff `0992e9a..HEAD` (HEAD=`3743937`)
-- [x] 0 Critical findings, 0 Blockers
-- [x] ≤2 Major findings — **0 Major found** (clean; bar met with margin)
-- [x] VERIFICATION_LOG entry: full audit-lite output appended
+### B10 — Scoped re-audit-lite
 
-### A10 — Sprint A ship gate (HARD STOP)
+- [ ] Run `/audit-lite` 4-lens scoped to the diff `2d6b540..HEAD` (Sprint B's diff only)
+- [ ] **0 Critical, 0 Blocker** — these would re-open Sprint B
+- [ ] ≤2 Major findings (each with explicit "fold or queue?" decision)
+- [ ] AUDITOR-RUN tagging on every Critical/Blocker
+- [ ] VERIFICATION_LOG entry: full punchlist appended
 
-- [x] All A1–A8 items have VERIFICATION_LOG entries
-- [x] A9 audit-lite returns 0 Criticals (and 0 Blocker, 0 Major — clean with margin)
-- [x] All CI workflows on the final commit are green (CI on `3743937` and CI on `ba40a80`: 7/7 jobs)
-- [x] Real-e2e returns **passed** on 3 consecutive commits since V4 (`b8de7f7`, `5bffa63`, `3743937`); run on `ba40a80` in progress, expected to also pass
-- [ ] **STOP. Hand off to Scott for calibration. Do NOT proceed to Sprint B.** ⏳ awaiting Scott approval
+### B11 — Sprint B ship gate (HARD STOP)
+
+- [ ] All B1–B9 items have VERIFICATION_LOG entries
+- [ ] B10 audit-lite returns 0 Critical / 0 Blocker
+- [ ] All CI workflows on the final commit are green
+- [ ] No outstanding Blocker or Critical from B1's audit-team
+- [ ] **STOP. Hand off to Scott for calibration. Do NOT proceed to Sprint C.**
 
 ---
 
-## Out of scope for Sprint A
+## Out of scope for Sprint B
 
-- Sprint B work (audit-team, doc-rewrites)
-- Sprint C work (release artifact build, tagging)
+Slipped to v1.1 explicitly (locked in `docs/v1.0-milestone.md`):
 - Recovery sweeps (Ollama crash, model corruption, disk full, key revoke, concurrent runs robustness)
 - Performance baseline / benchmarks
 - Frozen API surface / schema-change CI
-- Bar 2 / Bar 3 a11y
-- Code signing
-- Multi-instance, plugin system, auto-update
+- A11y Bar 2 / Bar 3 (skip-link, ARIA labels, full WCAG AA, screen-reader audit)
+- Multi-instance, plugin system, auto-update, Linux installer, Windows arm64, full localization
 
-If a finding surfaces during Sprint A in one of these areas:
-- **Blocker** → stop sprint; surface to Scott; renegotiate
-- **Critical** → only fix if fits remaining time; otherwise queue
-- **Major / Minor / Nit** → queue in `next-cleanup.md` with file path
+If a finding from `/audit-team` falls into one of these areas:
+- **Blocker** → STOP; surface to Scott; renegotiate
+- **Critical** → only fix if fits; otherwise queue
+- **Major / Minor / Nit** → queue in `next-cleanup.md`
+
+Sprint C scope (NOT this sprint):
+- Tag v1.0.0
+- Cleanroom Docker E2E (final integrity gate)
+- PyInstaller builds Win/macOS/Linux
+- 24h CI green hold
+- Generate release notes
+- v1.0 ship gate (final Scott approval)
 
 ---
 
 ## Hard stop
 
-The orchestrator MUST NOT proceed past A10 without Scott approval. Sprint A's "ship gate" is a calibration gate, not the v1.0 release gate. The next step after A10 is a fresh `/ship` invocation for Sprint B.
+The orchestrator MUST NOT proceed past B11 without Scott approval. Sprint B's "ship gate" is a calibration gate, not the v1.0 release gate. The next step after B11 is a fresh `/ship` invocation for Sprint C (the actual v1.0 tag).
