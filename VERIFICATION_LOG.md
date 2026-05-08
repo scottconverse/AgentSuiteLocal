@@ -406,3 +406,57 @@ All 11 plan items closed. All 5 loose-ends closed. CI green on every commit sinc
 # Sprint B — START
 
 [2026-05-08 ~04:30 UTC] [SPRINT-B-START] [orchestrator-claude] Scott approved Sprint A close; authorized Sprint B kickoff. RELEASE_PLAN.md replaced with Sprint B scope: audit-team 5-role pass + 3 carry-overs from Sprint A + D4 trigger removal. Sprint B baseline `2d6b540`. Out-of-scope list (slipped-to-v1.1) restated to prevent scope drift. Hard stop at B11 awaiting Scott calibration before Sprint C.
+
+
+## B1 — `/audit-team` 5-role pass
+
+[2026-05-08 ~13:50 UTC] [B1] [orchestrator-claude] audit-team 5-role audit produced full package at `audit-agentsuitelocal-2026-05-08/`.
+
+### Output package (8 files + 3 drafts)
+
+- `00-executive-audit.md` — front-door synthesis
+- `01-engineering-deepdive.md` — 8 findings (0/0/2/4/2)
+- `02-uiux-deepdive.md` — 4 findings (0/1/0/2/1)
+- `03-documentation-deepdive.md` — 6 findings (0/0/1/4/1)
+- `04-test-deepdive.md` — 3 findings (0/0/1/2/0)
+- `05-qa-deepdive.md` — 1 finding (0/0/0/1/0)
+- `sprint-punchlist.md` — Sprint B actionable items mapped to checklist
+- `next-sprint-watchlist.md` — Sprint C + v1.1 queue
+- `doc-rewrites/architecture-recently-delivered.md` — append v0.9 Sprint A subsection
+- `doc-rewrites/architecture-roadmap.md` — replace Roadmap removing code-signing line
+- `doc-rewrites/FAQ-intro.md` — bump version stamp + drop versioned DMG filename
+
+### Severity rollup (across all roles, after cross-role de-duplication: 17 distinct)
+
+| | Eng | UX | Docs | Tests | QA | **Total** |
+|---|---|---|---|---|---|---|
+| Blocker | 0 | 0 | 0 | 0 | 0 | **0** |
+| Critical | 0 | 1 | 0 | 0 | 0 | **1** |
+| Major | 2 | 0 | 1 | 1 | 0 | **4** |
+| Minor | 4 | 2 | 4 | 2 | 1 | **13** |
+| Nit | 2 | 1 | 1 | 0 | 0 | **4** |
+
+### Cross-role merges
+
+- **DI refactor** — ENG-B-001 + TEST-B-001 → Sprint B item B7
+- **architecture.md currency** — ENG-B-002 + DOC-B-001 → Sprint B item B9
+- **PipelineCard React key** — UX-B-001 + TEST-B-002 + QA-B-001 → Sprint B item B5
+
+### Headline findings (mapped to Sprint B checklist)
+
+| Rank | ID | Severity | B-item |
+|---|---|---|---|
+| 1 | UX-B-001 / TEST-B-002 / QA-B-001 | Critical | B5 |
+| 2 | ENG-B-001 / TEST-B-001 | Major | B7 |
+| 3 | ENG-B-002 / DOC-B-001 | Major | B9 |
+| 4 | DOC-B-002 | Major | B9 |
+| 5 | DOC-B-005 | Minor | B6 |
+| 6–7 | DOC-B-003 / DOC-B-004 | Minor | B9 |
+| 8 | (D4) | Minor | B8 |
+
+### Acceptance
+
+- 0 Blocker — Sprint B is not gate-blocked at audit time.
+- 1 Critical — covered by B5.
+- All 4 Majors map to existing Sprint B items B7 / B9 / B9.
+- No scope expansion required. Audit confirms Sprint B's existing scope is correct.

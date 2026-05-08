@@ -35,11 +35,11 @@
 
 ### B1 — `/audit-team` 5-role parallel pass
 
-- [ ] Run `/audit-team` skill scoped to `release/v0.9.0` HEAD
-- [ ] 5 roles: Engineering / UX / Documentation / Tests / QA
-- [ ] Output package lands at `audit-agentsuitelocal-2026-05-08/` (or similar dated dir)
-- [ ] Read `00-executive-audit.md` and `sprint-punchlist.md` end-to-end
-- [ ] VERIFICATION_LOG entry: audit-team output URL/path, finding counts by role, total Blocker/Critical/Major/Minor/Nit counts
+- [x] Run `/audit-team` skill scoped to `release/v0.9.0` HEAD
+- [x] 5 roles: Engineering / UX / Documentation / Tests / QA
+- [x] Output package lands at `audit-agentsuitelocal-2026-05-08/` (or similar dated dir)
+- [x] Read `00-executive-audit.md` and `sprint-punchlist.md` end-to-end
+- [x] VERIFICATION_LOG entry: audit-team output URL/path, finding counts by role, total Blocker/Critical/Major/Minor/Nit counts
 
 ### B2 — Triage audit-team findings
 
