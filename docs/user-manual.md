@@ -272,6 +272,7 @@ See [docs/FAQ.md](./FAQ.md) for the full list. Short answers to the most common 
 - **Can I edit artifacts before approving?** Yes — they're plain markdown at `~/AgentSuite/.agentsuite/runs/{run-id}/`. The Approval Gate re-reads the files at approve time.
 - **How do I update?** A non-blocking banner appears on the Dashboard when a new release is available. Click **Download** to open the Releases page.
 - **Can I run multiple agents in parallel?** Not yet. Pipelines queue agents sequentially with approval gates between steps.
+- **Can I run multiple runs at the same time?** No. v1.0 supports one active run (or pipeline step) at a time per session. Concurrent runs land in v1.1.
 - **What Python version is required?** 3.11 or 3.12 — but only for development. The bundled distributable ships its own Python runtime.
 
 ---

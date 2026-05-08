@@ -43,6 +43,9 @@ The most common cause is a vague goal. Sharpen it to be specific and concrete �
 **The Approve button is greyed out — why?**
 It enables only when the composite QA score meets the gate threshold (default 7.0). Either lower the threshold in **Settings → QA gate threshold**, sharpen the goal and re-run, or click **Override & approve** to bypass the gate with a confirmation dialog.
 
+**Can I run multiple agents at the same time?**
+Not in v1.0. AgentSuiteLocal supports one active run (or one in-progress pipeline step) per session. Starting a second run while another is in progress is not supported. Concurrent runs land in v1.1. (See also the user manual's [Limitations / FAQ section](./user-manual.md#10-faq).)
+
 ---
 
 ## The kernel

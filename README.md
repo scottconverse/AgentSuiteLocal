@@ -324,6 +324,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 - **PDF export** uses reportlab (pure Python) and works out of the box on all platforms — no GTK or native runtime required.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.
+- **One run at a time per session.** v1.0 supports a single active agent run (or pipeline step) per AgentSuiteLocal session. Starting a second run while one is in progress is not supported in the UI and is unsafe in the backend. Concurrent runs land in v1.1.
 - E2E test suite requires a running Vite dev server (`:5173`) or built frontend; the backend on `:8766` is auto-started by `tests/e2e/conftest.py`. The CI workflow (`.github/workflows/ci.yml`) pulls `gemma4:e4b` so the smoke-step model-installed check passes against `_SETTINGS_DEFAULTS["model_name"]`. Local E2E runs need the same model installed, or the smoke step fails on Step 5 of the installer walk.
 
 ---
