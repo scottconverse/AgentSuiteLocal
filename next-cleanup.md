@@ -21,43 +21,33 @@ instead of mock-patching internal AgentSuiteLocal callables.
 sibling files. See `docs/MOCKING_AUDIT.md` for the full per-site list
 and recommendations.
 
-### Mock LLM contract gap → e2e xfail
+### ~~Mock LLM contract gap~~ → CLOSED in Sprint A loose-end batch (`d218c0e`)
 
 `tests/e2e/test_new_run.py::test_new_run_dispatches_orchestrator_with_mock_llm`
-is currently `@pytest.mark.xfail(strict=True, ...)` because the
-substring-routed `MockLLMProvider` returns prose for the `extract` stage,
-production correctly rejects as non-JSON, and "Run failed" surfaces in
-<3s — the restored assertion fires.
-
-**Sprint B fix path:**
-1. Update the Mock LLM stage-response map in `tests/e2e/conftest.py` (or
-   wherever the factory lives) so `extract` returns a JSON object that
-   satisfies the agentsuite `extract_json` contract.
-2. Verify the test now passes.
-3. Remove the `@pytest.mark.xfail` decorator (strict=True will surface
-   the unintended XPASS if you forget).
-4. Confirm CI green on the resulting commit.
-
-**Why xfail and not delete:** The test exercises the v0.8.7-class
-"orchestrator never started" regression path. It's the only e2e that
-catches that class. Real-e2e covers the same path with real Ollama, but
-real-e2e is slow (75 min) and gated behind `release/*` push triggers —
-mock-CI catches the regression in 5 minutes. Worth keeping; just needs
-the mock to actually satisfy the agent contract.
+xfail removed. The mock factory now returns valid JSON for stages that
+parse JSON (extract, spec consistency, qa) and prose for stages that
+don't (intake, per-artifact spec, execute). CI Playwright E2E job is
+green on `d218c0e`. No longer Sprint B work.
 
 ---
 
 ## Items added by Sprint A audit-lite (3743937)
 
-### Pre-existing test-isolation pollution
+### ~~Pre-existing test-isolation pollution~~ → CLOSED in Sprint A loose-end batch (`6b9c604`)
 
-`tests/test_dependencies.py::test_resolve_llm_returns_provider_for_default_settings`
-and `::test_resolve_llm_records_error_on_failure` both fail in full-suite
-runs (under both Sprint A HEAD and Sprint A baseline `0992e9a`) but pass
-in isolation. Pre-existing — not introduced by Sprint A. CI splits tests
-differently and doesn't surface it. Sprint B should diagnose the
-pollution source (likely an autouse fixture, env var, or imported module
-state). Pointer: AUDITOR-RUN evidence in VERIFICATION_LOG A9 entry.
+Root cause was `tests/e2e/conftest.py` setting `AGENTSUITE_LLM_PROVIDER_FACTORY`
+and `AGENTSUITE_ALLOW_MOCK_FACTORY` at module-import time via
+`os.environ.setdefault`. Pytest imports the conftest during collection
+(even when the marker filter deselects the e2e tests), so the env vars
+leaked into test_dependencies' `_resolve_llm` calls — which then
+dispatched to the mock factory and returned `MockLLMProvider` instead
+of `OllamaProvider`. The conftest's "must set at import time" comment
+was stale; `_resolve_llm` reads env vars at CALL time, not import time.
+
+Fix: replaced module-level setdefault with a session-scoped autouse
+fixture (`_e2e_mock_factory_env`) that scopes to e2e tests only via
+pytest fixture-scoping rules. `pytest -m "not real_ollama and not e2e"`:
+187 passed, 0 failed (was: 185 passed, 2 failed).
 
 ### PipelineCard React key prop warning
 

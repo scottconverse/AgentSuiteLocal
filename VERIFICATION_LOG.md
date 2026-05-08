@@ -332,3 +332,54 @@ Code changes verified by Vitest:
 ### **Sprint A complete. Awaiting Scott calibration approval before Sprint B.**
 
 A10 hard-stop reached. Per RELEASE_PLAN.md and the layered audit pattern, the orchestrator does NOT auto-proceed to Sprint B. Scott reviews this evidence package and explicitly approves before a fresh `/ship` invocation for Sprint B.
+
+## Sprint A Loose-Ends Batch (Scott escalation)
+
+[2026-05-08 ~02:30 UTC] [LOOSE-END-ESCALATION] [orchestrator-claude] Scott reviewed the Sprint A close evidence and requested all 5 loose ends be folded into Sprint A instead of slipping any to Sprint B. Layered audit pattern's overflow rule typically would queue these (Minor/Nit/queued-to-Sprint-B), but Scott's principal-decision overrides. Scope expansion accepted; sprint runs over budget; calibration acknowledged.
+
+### #4 — Bundle smoke trigger expansion to PRs targeting main (CLOSED)
+
+[2026-05-08 ~02:35 UTC] [#4] [orchestrator-claude] `.github/workflows/ci.yml` build-macos + build-windows conditions extended with `(github.event_name == 'pull_request' && github.base_ref == 'main')`. The v0.8.7-class regression motivating these jobs shipped because no PR-time gate caught it. Cost: ~5-10 min per PR. Commit `6b9c604`.
+
+### #5 — test_dependencies.py test-isolation pollution (CLOSED)
+
+[2026-05-08 ~02:40 UTC] [#5-rca] [orchestrator-claude] Bisected pollution source: `tests/e2e/conftest.py` was setting `AGENTSUITE_LLM_PROVIDER_FACTORY` and `AGENTSUITE_ALLOW_MOCK_FACTORY` via os.environ.setdefault at module-import time. pytest imports the conftest during collection even when the marker filter deselects e2e tests, leaking the env vars into test_dependencies' _resolve_llm calls — which then dispatched to the mock factory and returned MockLLMProvider instead of OllamaProvider. The conftest's "must set at import time" comment was stale (post-round-3 _resolve_llm reads env at CALL time, not import).
+
+[2026-05-08 ~02:45 UTC] [#5-fix-attempt-1] [orchestrator-claude] First attempt: `pytest_collection_modifyitems` hook gated env-var setting on `has_e2e` check of items. Failed because the hook runs BEFORE marker deselection — `items` always contained e2e tests at hook time.
+
+[2026-05-08 ~02:50 UTC] [#5-fix-final] [orchestrator-claude] Replaced with session-scoped autouse fixture `_e2e_mock_factory_env` in tests/e2e/conftest.py. Pytest fixture-scoping rules confine autouse to the conftest's directory, so the fixture only fires when an actual e2e test runs. Original env values restored on session exit. AUDITOR-RUN: `pytest -m "not real_ollama and not e2e"` → 187 passed, 0 failed (was: 185 passed, 2 failed). Commit `6b9c604`.
+
+### #1 — Mock LLM contract → e2e xfail removed (CLOSED)
+
+[2026-05-08 ~02:55 UTC] [#1] [orchestrator-claude] Updated `_mock_provider_factory` in tests/e2e/test_new_run.py with per-stage JSON contract:
+  - extract: `{"facts": ["test fact"], "gaps": []}` — gaps[] read by founder/stages/extract.py:74
+  - consistency: `{"mismatches": []}` — read by kernel/stages/spec.py:161
+  - qa: full agentsuite.kernel.qa.QAReport shape with canonical Founder rubric dimensions (reusability, brand_consistency, claims_grounded, voice_fit, template_specificity, goal_alignment, anti_genericity, constraint_adherence, completeness), each 8.0, average=8.0 (≥ default threshold 7.0)
+  - intake / per-artifact spec / execute: prose markdown
+xfail decorator removed.
+
+[2026-05-08 ~03:15 UTC] [#1-validation] [orchestrator-claude] CI on `d218c0e` GREEN: 7/7 jobs including Playwright E2E. The previously-xfailed test now actually passes the success path with deterministic mock LLM. Commit `d218c0e`.
+
+### #2 — A11y Bar 1 runtime tests (CLOSED)
+
+[2026-05-08 ~03:00 UTC] [#2] [orchestrator-claude] Per Scott escalation (Q2 (b) → durable runtime tests instead of one-time manual walk): added `tests/e2e/test_a11y.py` with 5 Playwright tests:
+  1. Tab key moves focus to an interactive element
+  2. Focused element matches `:focus-visible` (focus rings actually visible)
+  3. `aria-current="page"` rendered in DOM on active sidebar nav
+  4. aria-current updates correctly on nav clicks (catches stuck-active regressions)
+  5. Tab does not trap on first element (5-Tab sample, ≥3 distinct targets)
+Pairs with the static Vitest tests added in `f8b9d08` (Sidebar.test.jsx, styles.test.js, ApprovalGateView.test.jsx).
+
+[2026-05-08 ~03:20 UTC] [#2-validation] [orchestrator-claude] CI on `3383dbc` GREEN: 7/7 jobs including Playwright E2E (the new a11y tests passed). Commit `3383dbc`.
+
+### #3 — Real-e2e on absolute HEAD (PENDING — auto-triggered)
+
+[2026-05-08 ~03:08 UTC] [#3] [orchestrator-claude] Real-e2e auto-triggered on `6b9c604`, `d218c0e`, `3383dbc`. Earliest expected to land in ~50 min. Real-e2e on `acfb374` (immediately preceding) already landed GREEN at 46m 53s — V4 fix has 4 consecutive real-Ollama validations. The new commits change docs/CI/tests only — none touch the agent runtime path that real-e2e exercises — so all 3 are expected to land green. Will append final acceptance entry when the latest one (`3383dbc`) lands.
+
+### Sprint A loose-ends batch summary
+
+  - #1 Mock LLM contract: CLOSED, validated in CI
+  - #2 A11y Bar 1 runtime tests: CLOSED, validated in CI
+  - #3 Real-e2e on absolute HEAD: in progress (auto-triggered)
+  - #4 Bundle smoke on PRs to main: CLOSED, validated in CI
+  - #5 test_dependencies.py pollution: CLOSED, AUDITOR-RUN reproduction
