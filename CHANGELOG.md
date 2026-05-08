@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.0.0] — 2026-05-08
+
 ### Fixed
 
 - **PDF export replaced WeasyPrint with reportlab** — WeasyPrint required the GTK3 native runtime (libgobject, libpango, libcairo) which is not bundled and must be installed separately on Windows. PDF export silently failed with a 501 on most fresh installs. Replaced with reportlab (pure Python, no native runtime). PDF export now works out of the box on all platforms. The PyInstaller spec `hiddenimports` block is updated accordingly; the ~2 MB of GTK-dependent weasyprint/cairocffi/tinycss2 packages are replaced by reportlab.
