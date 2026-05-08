@@ -99,10 +99,18 @@ jobs:
     # D-1: macOS build verification — runs on main + version tags
     # A7: also runs on release/* branches so the v1.0 milestone gets the
     # bundle smoke before merging to main.
+    # Sprint-A loose-end #4: also runs on PRs targeting main, so bundle
+    # regressions are caught at PR time instead of post-merge. The cost
+    # is ~5-10 extra min per PR; the v0.8.7-class regression that
+    # motivates this job shipped because no PR-time gate caught it.
     name: macOS build (PyInstaller)
     runs-on: macos-latest
     needs: [test, frontend]
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/')
+    if: |
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      startsWith(github.ref, 'refs/heads/release/') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -176,10 +184,17 @@ jobs:
     # A7: Windows bundle smoke — catches v0.8.7-class regressions on the
     # Windows distributable (the platform that originally shipped the broken
     # bundle missing the `ollama` SDK hidden import).
+    # Sprint-A loose-end #4: also runs on PRs targeting main — same reason
+    # as build-macos. Bundle smoke at PR time is cheap insurance against
+    # the class of bug this job exists to catch.
     name: Windows build (PyInstaller)
     runs-on: windows-latest
     needs: [test, frontend]
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/')
+    if: |
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      startsWith(github.ref, 'refs/heads/release/') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6

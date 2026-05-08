@@ -18,21 +18,52 @@ import socket
 import threading
 import time
 
-# TEST2-001 fix: mock-factory env var must be set BEFORE the backend module
-# is imported, otherwise _resolve_llm closes over an unset value at import
-# time. Conftest is the earliest hook that runs before the test module body,
-# so set it here. Tests that don't need the mock just don't reference it.
-# E402 noqa intentional — the import order is the fix; reordering breaks it.
-os.environ.setdefault(
-    "AGENTSUITE_LLM_PROVIDER_FACTORY",
-    "tests.e2e.test_new_run:_mock_provider_factory",
-)
-os.environ.setdefault("AGENTSUITE_ALLOW_MOCK_FACTORY", "1")
+import pytest
+import uvicorn
 
-import pytest  # noqa: E402
-import uvicorn  # noqa: E402
+from agentsuitelocal.api.main import app
 
-from agentsuitelocal.api.main import app  # noqa: E402
+# Sprint-A loose-end #5: mock-factory env vars are set ONLY when an e2e
+# test is going to execute, not at conftest import time.
+#
+# History: the original TEST2-001 fix set the env vars at module-level via
+# os.environ.setdefault, with a comment claiming "_resolve_llm closes over
+# an unset value at import time." That comment is stale — agentsuitelocal/
+# api/execution.py:_resolve_llm reads AGENTSUITE_LLM_PROVIDER_FACTORY at
+# CALL time (line 178: `os.environ.get(...)`), not at import time. The
+# module-level setdefault leaked into any pytest run that collected
+# tests/e2e/ — including filter-only runs like `pytest -m "not e2e"` where
+# pytest imports the conftest during collection but deselects the e2e
+# tests. The leak corrupted tests/test_dependencies.py::test_resolve_llm_*
+# which expected the real Ollama path.
+#
+# Fix: a session-scoped autouse fixture in this conftest scopes to e2e
+# tests only (pytest fixture scoping rules). The fixture sets the env
+# vars on enter and restores them on exit, so they never leak to tests
+# collected outside tests/e2e/ — even when pytest imports this conftest
+# during a wider collection (e.g. `pytest -m "not e2e"`).
+
+_FACTORY_KEY = "AGENTSUITE_LLM_PROVIDER_FACTORY"
+_FACTORY_VAL = "tests.e2e.test_new_run:_mock_provider_factory"
+_ALLOW_KEY = "AGENTSUITE_ALLOW_MOCK_FACTORY"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _e2e_mock_factory_env():
+    """Set mock-factory env only for the e2e test session; restore on exit."""
+    original_factory = os.environ.get(_FACTORY_KEY)
+    original_allow = os.environ.get(_ALLOW_KEY)
+    os.environ[_FACTORY_KEY] = _FACTORY_VAL
+    os.environ[_ALLOW_KEY] = "1"
+    yield
+    if original_factory is None:
+        os.environ.pop(_FACTORY_KEY, None)
+    else:
+        os.environ[_FACTORY_KEY] = original_factory
+    if original_allow is None:
+        os.environ.pop(_ALLOW_KEY, None)
+    else:
+        os.environ[_ALLOW_KEY] = original_allow
 
 
 def _read_launcher_port() -> int:
