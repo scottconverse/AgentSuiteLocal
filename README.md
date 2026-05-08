@@ -304,6 +304,8 @@ Your cloud API key (if configured) is stored in the OS credential store — Wind
 
 See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
+**v0.9.0 (in progress, on `release/v0.9.0`):** v1.0 milestone Sprint A — agentsuite repinned to v1.1.1 (closes V1+V2); restored real-LLM `qa_score` via the `QAReport.average` field-name fix (V4); removed dead `RunRequest.constraints` field; restored E2E "Run failed within 3s" assertion; dropped the `xfail` on `test_real_founder_run.py`; new `tests/test_qa_score_schema_contract.py`; `docs/MOCKING_AUDIT.md` classification of all 48 test mock sites; one-run-per-session limitation declared; a11y Bar 1 (Sidebar `aria-current`, modal Esc + role/aria-modal); bundle-launch smoke CI on macOS + Windows.
+
 | Version | Highlights |
 |---------|-----------|
 | **v0.8.9** | 7 audit Criticals closed — Trust/Risk slug fix; broken `gemma4:26b-moe` → `gemma4:26b`; PDF-export HTML escape; SettingsView save-error UX; events-list cap; in-app ManualView refresh; `test_execution.py` restructure |
