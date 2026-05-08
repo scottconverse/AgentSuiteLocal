@@ -794,3 +794,29 @@ python -m ruff check agentsuitelocal/ tests/
     Sprint C is a SEPARATE future /ship invocation. Do NOT tag, do NOT push
     to main, do NOT spawn Sprint C work from this commit.
   status: pass
+
+---
+
+# Sprint C — v1.0.0 Ship
+
+## C1 — Version bump fan-out
+
+[2026-05-08 UTC] [C1] [orchestrator-claude] Version bump 0.8.9 → 1.0.0 fan-out complete.
+  - Files changed: agentsuitelocal/__version__.py, web/package.json, web/src/components/app/ManualView.jsx, README.md, docs/user-manual.md, docs/index.html, CONTRIBUTING.md
+  - web/package.json also resolved known mismatch (was 0.8.9, now 1.0.0 matching __version__.py)
+  - Installer .iss uses injected #define MyAppVersion at build time — no hardcoded version to bump
+  - Post-bump fan-out grep: 0 stray 0.8.9/0.7.1/0.9.0 hits in live production files (remaining hits are read-only audit archive docs)
+  - Tests: 187 passed, 21 deselected, 85 warnings (pytest -m "not real_ollama and not e2e")
+  - Lint: ruff check agentsuitelocal/ → All checks passed!
+  - Commit: 4440376 (chore(release): bump version to 1.0.0)
+  - Push: 2cc4509..4440376 release/v0.9.0 → release/v0.9.0
+  - CI: triggered on push; awaiting green (URL will be confirmed at C4 gate)
+
+## C2 — CHANGELOG cut
+
+[2026-05-08 UTC] [C2] [orchestrator-claude] CHANGELOG [Unreleased] → [1.0.0] — 2026-05-08 cut complete.
+  - File changed: CHANGELOG.md
+  - Diff: inserted `---` separator + `## [1.0.0] — 2026-05-08` after the `[Unreleased]` header; fresh empty `[Unreleased]` section preserved above per keepachangelog pattern
+  - Verified: CHANGELOG.md lines 1-14 read correctly — [Unreleased] empty, [1.0.0] — 2026-05-08 follows with all Sprint A/B/v0.8.9 content
+  - Commit: 030114c (docs(changelog): cut 1.0.0 release — 2026-05-08)
+  - Push: 4440376..030114c release/v0.9.0 → release/v0.9.0
