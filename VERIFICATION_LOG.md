@@ -577,3 +577,28 @@ trigger profile.
 
 After commit + push of B8, will run `gh run list --branch release/v0.9.0 --workflow real-e2e --limit 3` to confirm the latest push did not auto-trigger real-e2e. If a real-e2e run shows up matching the B8 commit SHA, the trigger removal is incorrect — STOP and surface.
 
+
+
+## B9 — Doc-rewrite drafts merged
+
+[2026-05-08 ~14:30 UTC] [B9] [orchestrator-claude] Merged all 3 doc-rewrites from `audit-agentsuitelocal-2026-05-08/doc-rewrites/`. Each merge applied verbatim from the draft.
+
+### Merges applied
+
+1. **`docs/architecture.md` "Recently delivered" — appended v0.9 Sprint A subsection** (closes ENG-B-002 / DOC-B-001). 8 bullets with file pointers covering V4, A1, A4, A5, A6, A7, loose-ends #1 + #5.
+2. **`docs/architecture.md` Roadmap section — replaced** (closes DOC-B-002 / ENG-B-007). Removed misleading code-signing line; replaced with explicit "Not on the roadmap: code-signing certs" statement aligned with locked decision. Added v1.1 entries for streaming preview, concurrent runs, A11y Bar 2, recovery sweeps.
+3. **`docs/FAQ.md:3` intro line** (closes DOC-B-003 / ENG-B-008). Replaced "v0.8.x" with "v0.8.9 and the v0.9.0 work in progress".
+4. **`docs/FAQ.md:19` macOS DMG line** (closes DOC-B-004). Removed versioned filename; pointed at Releases page.
+
+### careful-coding 9-step (consolidated)
+
+1. Read callers: docs only; no code imports affected.
+2. Runtime context: Markdown rendered on GitHub + via `npm` site build; no runtime impact.
+3. Fan-out grep: `grep -rn "AgentSuiteLocal-v0.8.8.dmg" .` returned the FAQ line only; `grep -rn "v0.8.x" docs/` returned only the FAQ intro; `grep -rn "Authenticode\|Developer ID" .` returned the architecture.md line + 1 README mention which is intentional (the SmartScreen/Gatekeeper section).
+4. Data contract: structural Markdown headings preserved.
+5. Blast radius: 2 docs touched, 4 logical edits.
+6. Edit: applied each draft verbatim.
+7. Re-read: reviewed each diff for grammar and link integrity.
+8. Narrate path: GitHub renders the MD; users land on architecture.md and FAQ.md and see current information.
+9. Prove render: visual diff inspection only — no runtime to render against. Drafts staged with audit package.
+

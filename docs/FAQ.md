@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-These answers cover AgentSuiteLocal v0.8.x. For full details on any topic, see the [user manual](./user-manual.md) and the in-app **Manual** view.
+These answers cover AgentSuiteLocal v0.8.9 and the v0.9.0 work in progress. For full details on any topic, see the [user manual](./user-manual.md) and the in-app **Manual** view.
 
 ---
 
@@ -16,7 +16,7 @@ No. Download the installer from the [Releases page](https://github.com/scottconv
 The installer's hardware-probe step tells you which model tier fits — Light (8 GB), Balanced (16 GB), or Pro (24+ GB).
 
 **Does it work on macOS?**
-Yes — `AgentSuiteLocal-v0.8.8.dmg` is a macOS distributable. The DMG is currently unsigned, so on first run macOS may show "AgentSuiteLocal cannot be opened because it is from an unidentified developer." Right-click the app and choose **Open** to allow it. See the README's Gatekeeper section for the full procedure.
+Yes — the macOS DMG is published on the [Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest). The DMG is unsigned, so on first run macOS may show "AgentSuiteLocal cannot be opened because it is from an unidentified developer." Right-click the app and choose **Open** to allow it. See the README's Gatekeeper section for the full procedure.
 
 **Does it work on Linux?**
 There is no Linux distributable yet. Linux developers can run from source (`pip install -e .[dev]` and `npm run dev`) but the bundled installer artifacts ship for Windows and macOS only.

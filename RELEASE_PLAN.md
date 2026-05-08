@@ -98,9 +98,9 @@
 
 ### B9 — Doc-rewrite drafts from audit-team
 
-- [ ] If `/audit-team` produced `doc-rewrites/` drafts: review each, merge what's accurate, reject what's wrong with reason
-- [ ] If no drafts produced: skip this item; note in VERIFICATION_LOG
-- [ ] careful-coding 9-step on each merge
+- [x] If `/audit-team` produced `doc-rewrites/` drafts: review each, merge what's accurate, reject what's wrong with reason
+- [x] If no drafts produced: skip this item; note in VERIFICATION_LOG
+- [x] careful-coding 9-step on each merge
 
 ### B10 — Scoped re-audit-lite
 
