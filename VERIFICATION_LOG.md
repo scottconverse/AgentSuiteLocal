@@ -857,3 +857,13 @@ python -m ruff check agentsuitelocal/ tests/
   - Commit: 69e48ad (docs: generate v1.0.0 release notes)
   - Push: e673c2b..69e48ad release/v0.9.0 → release/v0.9.0
   - CI: 7/7 green — https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25578556353
+
+## C7 — Tag v1.0.0 and GitHub release
+
+[2026-05-08 UTC] [C7] [orchestrator-claude] v1.0.0 tagged and GitHub release created.
+  - Pre-tag: committed RELEASE_PLAN.md Sprint C update (0509f34) — working tree was clean except this file (LF→CRLF + Sprint B→C content update)
+  - Tag SHA: 0509f343c21924ecaf5bd02c13af72da22d1d0a5
+  - Tag push: `git push origin v1.0.0` — confirmed `[new tag] v1.0.0 -> v1.0.0`
+  - GitHub release: https://github.com/scottconverse/AgentSuiteLocal/releases/tag/v1.0.0
+  - Release notes source: docs/release-notes-v1.0.0.md
+  - Title: "AgentSuiteLocal v1.0.0"
