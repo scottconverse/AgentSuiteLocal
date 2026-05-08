@@ -1,10 +1,10 @@
-# User Manual — AgentSuiteLocal v0.8.9
+# User Manual — AgentSuiteLocal v1.0.0
 
 AgentSuiteLocal runs seven specialist AI agents on your machine. Each agent takes a one-sentence business goal, walks a five-stage pipeline (intake → extract → spec → execute → QA), and writes a folder of structured markdown artifacts to your disk. You review them, approve what's good, and the approved output feeds every future run on that project.
 
 That's the whole loop. Everything in this app is a UI on top of it. All processing happens locally — nothing leaves your machine unless you explicitly configure a cloud API key.
 
-**Manual version:** v0.8.9 · **Last updated:** 2026-05-06
+**Manual version:** v1.0.0 · **Last updated:** 2026-05-08
 
 ---
 

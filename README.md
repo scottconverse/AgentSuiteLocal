@@ -6,12 +6,12 @@
 >
 > **▶ [Download the installer from the Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest)**
 >
-> - **Windows:** `AgentSuiteLocal-0.8.9-setup.exe`
-> - **macOS:** `AgentSuiteLocal-v0.8.9.dmg`
+> - **Windows:** `AgentSuiteLocal-1.0.0-setup.exe`
+> - **macOS:** `AgentSuiteLocal-v1.0.0.dmg`
 
 ---
 
-**v0.8.9** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
+**v1.0.0** — Desktop UI for [AgentSuite](https://github.com/scottconverse/AgentSuite), running 100% local via Ollama. Built for non-technical founders — no CLI, no API key, no cloud required.
 
 Seven specialist agents (Founder, Design, Product, Engineering, Marketing, Trust/Risk, CIO) walk a five-stage pipeline and write a structured artifact library to your disk. You review, approve, and promote outputs into a persistent kernel that feeds every future run. All seven agents are enabled by default; override via `AGENTSUITE_ENABLED_AGENTS`.
 
@@ -54,7 +54,7 @@ Runs entirely on-device — no internet connection required after setup.
 
 ## Install
 
-**Non-technical users:** download `AgentSuiteLocal-0.8.9-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
+**Non-technical users:** download `AgentSuiteLocal-1.0.0-setup.exe` from the [Releases](https://github.com/scottconverse/AgentSuiteLocal/releases) page and run it. The Inno Setup installer handles installation to Program Files and optionally adds a desktop shortcut. The in-app installer then handles Ollama, model download, and smoke test — no terminal required.
 
 **Developers:** see [Development mode](#development-mode) below.
 
@@ -93,7 +93,7 @@ make dist              # auto-detects OS — builds frontend then runs PyInstall
 # or explicitly:
 make build-mac         # → dist/AgentSuiteLocal.app  (macOS)
 make build-win         # → dist/AgentSuiteLocal/     (Windows onedir)
-make build-installer   # → dist/AgentSuiteLocal-0.8.9-setup.exe  (Windows only, requires Inno Setup)
+make build-installer   # → dist/AgentSuiteLocal-1.0.0-setup.exe  (Windows only, requires Inno Setup)
 ```
 
 The onedir output is self-contained — no Python or Node required on the target machine. `build-installer` wraps the onedir into a standard Windows installer with uninstall support.
@@ -207,7 +207,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design doc.
 | DELETE | `/api/ollama/models/{name}` | Delete an installed model |
 | GET | `/api/model/verify/{name}` | Verify model is functional |
 | GET | `/api/update/check` | Check for a newer GitHub release |
-| GET | `/api/version` | Return current version, e.g. `{"version": "0.8.9"}` |
+| GET | `/api/version` | Return current version, e.g. `{"version": "1.0.0"}` |
 | GET | `/api/crash-reports/latest` | Most recent crash report |
 | GET | `/api/telemetry/summary` | Local usage event counts |
 | GET | `/api/launcher/port` | Port read from `~/.agentsuitelocal/launcher.port.json` |
@@ -304,7 +304,7 @@ Your cloud API key (if configured) is stored in the OS credential store — Wind
 
 See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
-**v0.9.0 (in progress, on `release/v0.9.0`):** v1.0 milestone Sprint A — agentsuite repinned to v1.1.1 (closes V1+V2); restored real-LLM `qa_score` via the `QAReport.average` field-name fix (V4); removed dead `RunRequest.constraints` field; restored E2E "Run failed within 3s" assertion; dropped the `xfail` on `test_real_founder_run.py`; new `tests/test_qa_score_schema_contract.py`; `docs/MOCKING_AUDIT.md` classification of all 48 test mock sites; one-run-per-session limitation declared; a11y Bar 1 (Sidebar `aria-current`, modal Esc + role/aria-modal); bundle-launch smoke CI on macOS + Windows.
+**v1.0.0 (2026-05-08):** First stable release. Sprint A–C v1.0 milestone: agentsuite repinned to v1.1.1 (closes V1+V2); real-LLM `qa_score` via `QAReport.average` field-name fix (V4); DI refactor for `_save_state`/`_log_telemetry`/`_load_settings` (9 INTERNAL-SUSPECT-REFACTOR sites closed); PipelineCard React key fix; a11y Bar 1 (Sidebar `aria-current`, modal Esc + role/aria-modal, Playwright runtime tests); bundle-launch smoke CI on macOS + Windows; one-run-per-session limitation declared. See [release notes](docs/release-notes-v1.0.0.md) and [CHANGELOG](CHANGELOG.md) for full detail.
 
 | Version | Highlights |
 |---------|-----------|
@@ -322,7 +322,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ---
 
-## Known issues (v0.8.9)
+## Known issues (v1.0.0)
 
 - **PDF export** uses reportlab (pure Python) and works out of the box on all platforms — no GTK or native runtime required.
 - **macOS DMG is unsigned.** See the [Gatekeeper guidance](#macos-gatekeeper-warning) above. Apple Developer ID codesigning is on the roadmap.
