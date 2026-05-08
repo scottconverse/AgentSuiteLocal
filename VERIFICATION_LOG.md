@@ -820,3 +820,40 @@ python -m ruff check agentsuitelocal/ tests/
   - Verified: CHANGELOG.md lines 1-14 read correctly — [Unreleased] empty, [1.0.0] — 2026-05-08 follows with all Sprint A/B/v0.8.9 content
   - Commit: 030114c (docs(changelog): cut 1.0.0 release — 2026-05-08)
   - Push: 4440376..030114c release/v0.9.0 → release/v0.9.0
+
+## C3 — README recent releases + landing page
+
+[2026-05-08 UTC] [C3] [orchestrator-claude] README "Recent releases" v1.0.0 paragraph and docs/index.html landing page update complete.
+  - README.md: v1.0.0 paragraph added above the releases table — summarises Sprint A–C milestone, links forward to docs/release-notes-v1.0.0.md (C5) and CHANGELOG.md
+  - docs/index.html: nav "Download v1.0.0", hero badge "v1.0.0", download CTA heading, Windows .exe URL, macOS .dmg URL, version line, release-notes tag link, SHA256 release page link — all updated to v1.0.0
+  - No broken links introduced (release-notes link points to a tag URL that will exist after C7; docs/release-notes-v1.0.0.md link in README points to a file that will exist after C5)
+  - Commit: e673c2b (docs: add v1.0.0 to README recent releases and landing page)
+  - Push: 030114c..e673c2b release/v0.9.0 → release/v0.9.0
+
+## C4 — Pre-tag CI gate
+
+[2026-05-08 UTC] [C4] [orchestrator-claude] Pre-tag CI gate confirmed: all 7 jobs green on latest Sprint C commit (69e48ad — C5 "docs: generate v1.0.0 release notes").
+  - CI run: https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25578556353
+  - Commit SHA: 69e48ad
+  - Job results:
+    - Lint: success
+    - Test (Python 3.11): success
+    - Test (Python 3.12): success
+    - Frontend (build + test): success
+    - macOS build (PyInstaller): success
+    - Windows build (PyInstaller): success
+    - Playwright E2E: success
+  - Also confirmed 7/7 green on C1 commit (25578396175) and 6/7 complete (Playwright in-progress) on C2/C3 — all non-Playwright jobs passed on every Sprint C commit.
+  - No red or cancelled jobs.
+
+## C5 — Release notes
+
+[2026-05-08 UTC] [C5] [orchestrator-claude] docs/release-notes-v1.0.0.md generated and committed.
+  - File path: docs/release-notes-v1.0.0.md
+  - Section headings: intro paragraph (2 sentences), Fixed, Added, Changed, Removed, Known Limitations, What's Next (v1.1)
+  - Known limitations section complete: one run at a time per session, no code-signing cert, recovery sweeps deferred to v1.1
+  - What's next sourced from docs/next-cleanup.md: SSE busy-wait, cancel confirmation, frontend coverage, launcher alias, recovery sweeps, perf baseline, frozen API, a11y Bar 2/3, multi-instance/plugin/auto-update/Linux/arm64/localization
+  - Tests: 187 passed, 21 deselected (run before commit). Lint: ruff clean.
+  - Commit: 69e48ad (docs: generate v1.0.0 release notes)
+  - Push: e673c2b..69e48ad release/v0.9.0 → release/v0.9.0
+  - CI: 7/7 green — https://github.com/scottconverse/AgentSuiteLocal/actions/runs/25578556353
