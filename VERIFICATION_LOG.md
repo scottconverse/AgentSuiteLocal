@@ -552,3 +552,28 @@ Commit incoming: `fix(pipelines): UX-B-001 PipelineCard key + test mock field na
 8. Narrate path: any future `grep -rn "next-cleanup"` from the repo root finds `docs/next-cleanup.md`; the audit package's references match too.
 9. Prove render: `grep -n "next-cleanup\.md" HANDOFF.md docs/v1.0-milestone.md RELEASE_PLAN.md` shows all live references prefixed with `docs/`.
 
+
+
+## B8 — D4 Remove real-e2e push trigger on release/*
+
+[2026-05-08 ~14:24 UTC] [B8] [orchestrator-claude] Removed the `branches: ["release/v0.9.0"]` push-trigger block from `.github/workflows/real-e2e.yml`. Kept cron + tag + labeled-PR triggers. Updated the inline comment to record the D4 / B8 rationale.
+
+### Diff (.github/workflows/real-e2e.yml lines 19-33)
+
+Removed:
+```yaml
+    branches:
+      - "release/v0.9.0"
+```
+
+Replaced the SPRINT-TIME comment with a D4/B8 note explaining production
+trigger profile.
+
+### YAML validation
+
+`python -c "import yaml; yaml.safe_load(open('.github/workflows/real-e2e.yml'))"` → "YAML OK".
+
+### Verification (post-push, see next entry)
+
+After commit + push of B8, will run `gh run list --branch release/v0.9.0 --workflow real-e2e --limit 3` to confirm the latest push did not auto-trigger real-e2e. If a real-e2e run shows up matching the B8 commit SHA, the trigger removal is incorrect — STOP and surface.
+

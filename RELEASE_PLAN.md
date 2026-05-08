@@ -91,10 +91,10 @@
 
 ### B8 — D4: Remove `real-e2e.yml` push trigger on `release/v0.9.0`
 
-- [ ] Per `docs/v1.0-milestone.md` D4 decision: Sprint B removes the sprint-time `release/*` push trigger from `.github/workflows/real-e2e.yml`
-- [ ] Keep cron + tag + opt-in PR-label triggers
-- [ ] Verify the next push to `release/v0.9.0` does NOT auto-trigger real-e2e (a `release/v1.0.0` rename in Sprint C will need its own trigger if desired)
-- [ ] VERIFICATION_LOG entry: workflow file diff + confirmation that next push doesn't auto-trigger
+- [x] Per `docs/v1.0-milestone.md` D4 decision: Sprint B removes the sprint-time `release/*` push trigger from `.github/workflows/real-e2e.yml`
+- [x] Keep cron + tag + opt-in PR-label triggers
+- [x] Verify the next push to `release/v0.9.0` does NOT auto-trigger real-e2e (a `release/v1.0.0` rename in Sprint C will need its own trigger if desired)
+- [x] VERIFICATION_LOG entry: workflow file diff + confirmation that next push doesn't auto-trigger
 
 ### B9 — Doc-rewrite drafts from audit-team
 
