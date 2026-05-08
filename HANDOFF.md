@@ -38,12 +38,12 @@ The orchestrator does NOT auto-proceed to Sprint B per the layered audit pattern
 2. Soft-fail (name the gap)
 3. Hard-fail / pause
 
-## Sprint B queue (in `next-cleanup.md`)
+## Sprint B queue (in `docs/next-cleanup.md`)
 
 Three items survived the loose-ends batch:
 1. MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR — 9 sites (refactor `_save_state` / `_log_telemetry` / `_send_notification` / `_load_settings` from module-level to DI)
 2. PipelineCard React `key` prop warning at `web/src/components/app/PipelineView.jsx:344` (pre-existing)
-3. Move `next-cleanup.md` to `docs/`
+3. Move `next-cleanup.md` from repo root to `docs/` (closed in Sprint B B6)
 
 Plus whatever audit-team surfaces. Sprint B's centerpiece is the `/audit-team` heavyweight 5-role review — the only one before v1.0 ship.
 
@@ -65,7 +65,7 @@ Tag v1.0.0, cleanroom Docker E2E, PyInstaller builds for Win/macOS/Linux, 24h CI
 - `VERIFICATION_LOG.md` — full timestamped evidence trail (~280 lines)
 - `docs/v1.0-milestone.md` — three-sprint plan
 - `docs/MOCKING_AUDIT.md` — Sprint B's INTERNAL-SUSPECT-REFACTOR table
-- `next-cleanup.md` — 3 carry-overs
+- `docs/next-cleanup.md` — 3 carry-overs
 - This file (`HANDOFF.md`) — rewritten as a quick orientation
 
 ## Slipped to v1.1 (locked, do not pull back into v1.0)

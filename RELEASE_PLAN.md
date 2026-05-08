@@ -17,8 +17,8 @@
 - **Mid-sprint overflow:**
   - **Blocker** stops sprint; surface to Scott; renegotiate scope
   - **Critical** fix only if it fits remaining time; otherwise queue with Scott approval
-  - **Major** → queue to v1.1 in `next-cleanup.md` with file path
-  - **Minor / Nit** → collect in `next-cleanup.md`
+  - **Major** → queue to v1.1 in `docs/next-cleanup.md` with file path
+  - **Minor / Nit** → collect in `docs/next-cleanup.md`
 - **Scoped re-audits only.**
 
 ## Pre-flight gate
@@ -26,7 +26,7 @@
 - [x] Sprint A approved by Scott (this dispatch)
 - [x] CI green at baseline `2d6b540`
 - [x] Real-e2e green at baseline (8 consecutive successes since V4)
-- [x] `next-cleanup.md` carries 3 Sprint B items
+- [x] `docs/next-cleanup.md` carries 3 Sprint B items (moved in B6)
 - [x] `docs/v1.0-milestone.md` Sprint B section governs scope
 
 ---
@@ -47,8 +47,8 @@
 - [x] **Every Blocker** → fix this sprint (no exceptions) — 0 Blockers found
 - [x] **Every Critical that fits** → fix this sprint — 1 Critical (UX-B-001 → B5)
 - [x] **Critical-doesn't-fit** → STOP and surface to Scott for explicit defer-or-stretch decision — n/a
-- [x] **Major** → append to `next-cleanup.md` with file path + reason — all 4 Majors map to B7/B9 existing items
-- [x] **Minor / Nit** → append to `next-cleanup.md` (or fix inline if trivial single-line) — triaged inline
+- [x] **Major** → append to `docs/next-cleanup.md` with file path + reason — all 4 Majors map to B7/B9 existing items
+- [x] **Minor / Nit** → append to `docs/next-cleanup.md` (or fix inline if trivial single-line) — triaged inline
 - [x] VERIFICATION_LOG entry: triage decisions per finding ID
 
 ### B3 — Fix B1 Blockers (if any)
@@ -74,10 +74,10 @@
 
 ### B6 — Carry-over: move `next-cleanup.md` to `docs/`
 
-- [ ] `git mv next-cleanup.md docs/next-cleanup.md`
-- [ ] Update any references in HANDOFF.md, RELEASE_PLAN.md, VERIFICATION_LOG.md, docs/v1.0-milestone.md
-- [ ] careful-coding 9-step (fan-out grep for `next-cleanup.md` references)
-- [ ] VERIFICATION_LOG entry
+- [x] `git mv next-cleanup.md docs/next-cleanup.md`
+- [x] Update any references in HANDOFF.md, RELEASE_PLAN.md, VERIFICATION_LOG.md, docs/v1.0-milestone.md
+- [x] careful-coding 9-step (fan-out grep for `next-cleanup.md` references)
+- [x] VERIFICATION_LOG entry
 
 ### B7 — Carry-over: MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR (9 sites)
 
@@ -132,7 +132,7 @@ Slipped to v1.1 explicitly (locked in `docs/v1.0-milestone.md`):
 If a finding from `/audit-team` falls into one of these areas:
 - **Blocker** → STOP; surface to Scott; renegotiate
 - **Critical** → only fix if fits; otherwise queue
-- **Major / Minor / Nit** → queue in `next-cleanup.md`
+- **Major / Minor / Nit** → queue in `docs/next-cleanup.md`
 
 Sprint C scope (NOT this sprint):
 - Tag v1.0.0

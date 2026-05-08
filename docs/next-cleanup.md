@@ -60,6 +60,34 @@ by Sprint A. Easy fix in Sprint B.
 All other plan/audit docs live under `docs/`. `next-cleanup.md` is at
 repo root for now. Sprint B kickoff: `git mv next-cleanup.md docs/`.
 
+## Items deferred from Sprint B audit-team pass (B1)
+
+### ENG-B-004 — SSE busy-wait at 200ms in stream_run
+
+`agentsuitelocal/api/routers/runs.py:179-187` polls `run["events"]` length
+every 200ms. Replace with `asyncio.Event` per run; producer wakes consumer
+directly. Tiny CPU cost today; relevant under multi-SSE concurrency. v1.1
+performance sprint.
+
+### ENG-B-005 — `_LAUNCHER_LOG` alias retained for back-compat
+
+`agentsuitelocal/api/config.py:40-41` keeps `_LAUNCHER_LOG = _LAUNCHER_PORT_FILE`
+as a soft-deprecation alias from the QA-001 fix. New code uses the function,
+not the alias. Sweep when renaming `_write_launcher_log` to
+`_write_launcher_port_file`. Nit.
+
+### UX-B-002 — Cancel-button confirmation on Live Run
+
+`LiveRunView.jsx` Cancel button has no confirmation modal. For a 9–16-minute
+run, a stray click loses partial work (though `_move_partial_artifacts` does
+preserve outputs as `cancelled-outputs/`). v1.1 UX polish.
+
+### TEST-B-003 — Frontend coverage tooling not configured
+
+`web/vitest.config.js` does not configure coverage; no `npm run test:coverage`
+script. Backend has `pytest --cov`; frontend is dark. Add `@vitest/coverage-v8`
+in v1.1.
+
 ## Items deferred from earlier audits (carried)
 
 (none currently — fresh ledger)

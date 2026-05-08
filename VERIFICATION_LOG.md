@@ -534,3 +534,21 @@ cd web && npx vitest run --reporter=basic
 
 Commit incoming: `fix(pipelines): UX-B-001 PipelineCard key + test mock field name (B4/B5)`.
 
+
+
+## B6 — Move next-cleanup.md to docs/
+
+[2026-05-08 ~14:18 UTC] [B6] [orchestrator-claude] Moved `next-cleanup.md` from repo root to `docs/next-cleanup.md`. Updated 6 path-string references across HANDOFF.md, docs/v1.0-milestone.md, RELEASE_PLAN.md. Appended 4 new deferred items from B1 audit (ENG-B-004 SSE busy-wait, ENG-B-005 launcher alias, UX-B-002 cancel confirmation, TEST-B-003 frontend coverage) before the move.
+
+### careful-coding 9-step
+
+1. Read callers: only Markdown text refers to the file path; no code imports.
+2. Runtime context: documentation only, no runtime impact.
+3. Fan-out grep `grep -rn "next-cleanup\.md"`: 5 .md files (RELEASE_PLAN, HANDOFF, docs/v1.0-milestone, VERIFICATION_LOG, the file itself).
+4. Data contract: file is human-readable Markdown.
+5. Blast radius: 6 path-string references in 3 files (excluding VERIFICATION_LOG.md historical entries which describe past state and are append-only by design).
+6. Edit: appended deferred items first; `git mv next-cleanup.md docs/next-cleanup.md`; 6 path-string updates.
+7. Re-read: the live HANDOFF "Move ..." bullet was misedited by replace_all and corrected to read "Move `next-cleanup.md` from repo root to `docs/` (closed in Sprint B B6)".
+8. Narrate path: any future `grep -rn "next-cleanup"` from the repo root finds `docs/next-cleanup.md`; the audit package's references match too.
+9. Prove render: `grep -n "next-cleanup\.md" HANDOFF.md docs/v1.0-milestone.md RELEASE_PLAN.md` shows all live references prefixed with `docs/`.
+
