@@ -88,4 +88,35 @@ describe("ApprovalGateView", () => {
     const approveBtn = screen.getAllByRole("button", { name: /approve/i })[0];
     expect(approveBtn).toBeDisabled();
   });
+
+  // A6 (a11y): override dialog must have role="dialog" + aria-modal, and Esc closes it.
+  it("override dialog announces role=dialog and aria-modal", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ...mockRun, qa_score: 5.5, qa_status: "ok" }),
+      })
+    ));
+    render(<ApprovalGateView runId="run-abc" onApprove={vi.fn()} onReject={vi.fn()} />);
+    await waitFor(() => screen.getAllByText("brand-system.md")[0]);
+    const overrideBtn = screen.getByRole("button", { name: /override.*approve/i });
+    fireEvent.click(overrideBtn);
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+  });
+
+  it("override dialog closes on Escape key", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ...mockRun, qa_score: 5.5, qa_status: "ok" }),
+      })
+    ));
+    render(<ApprovalGateView runId="run-abc" onApprove={vi.fn()} onReject={vi.fn()} />);
+    await waitFor(() => screen.getAllByText("brand-system.md")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /override.*approve/i }));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
 });

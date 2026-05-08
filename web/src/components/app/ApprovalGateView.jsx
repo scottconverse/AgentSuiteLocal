@@ -43,6 +43,13 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   // C1: override approval flow
   const [overrideConfirm, setOverrideConfirm] = useState(false);
   const [overrideDialog, setOverrideDialog] = useState(false);
+  // A6 (a11y): Esc closes the override dialog
+  useEffect(() => {
+    if (!overrideDialog) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setOverrideDialog(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [overrideDialog]);
   // D1: export path banner
   const [exportPath, setExportPath] = useState(null);
   // D4: export dropdown
@@ -287,7 +294,8 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
 
       {/* C1: Override confirmation dialog */}
       {overrideDialog && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div role="dialog" aria-modal="true" aria-label="Override and approve confirmation"
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="card" style={{ padding: 24, maxWidth: 440, width: "100%" }}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Override & approve?</div>
             <div style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 16, lineHeight: 1.55 }}>
