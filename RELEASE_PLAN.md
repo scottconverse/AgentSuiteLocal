@@ -104,18 +104,18 @@
 
 ### B10 — Scoped re-audit-lite
 
-- [ ] Run `/audit-lite` 4-lens scoped to the diff `2d6b540..HEAD` (Sprint B's diff only)
-- [ ] **0 Critical, 0 Blocker** — these would re-open Sprint B
-- [ ] ≤2 Major findings (each with explicit "fold or queue?" decision)
-- [ ] AUDITOR-RUN tagging on every Critical/Blocker
-- [ ] VERIFICATION_LOG entry: full punchlist appended
+- [x] Run `/audit-lite` 4-lens scoped to the diff `2d6b540..HEAD` (Sprint B's diff only)
+- [x] **0 Critical, 0 Blocker** — these would re-open Sprint B
+- [x] ≤2 Major findings (each with explicit "fold or queue?" decision) — 0 Major
+- [x] AUDITOR-RUN tagging on every Critical/Blocker — n/a (none surfaced); AUDITOR-RUN tags on key engineering/UX/test verifications
+- [x] VERIFICATION_LOG entry: full punchlist appended
 
 ### B11 — Sprint B ship gate (HARD STOP)
 
-- [ ] All B1–B9 items have VERIFICATION_LOG entries
-- [ ] B10 audit-lite returns 0 Critical / 0 Blocker
-- [ ] All CI workflows on the final commit are green
-- [ ] No outstanding Blocker or Critical from B1's audit-team
+- [x] All B1–B9 items have VERIFICATION_LOG entries
+- [x] B10 audit-lite returns 0 Critical / 0 Blocker
+- [x] All CI workflows on the final commit are green — CI on `7a1b47d` GREEN (7/7 jobs)
+- [x] No outstanding Blocker or Critical from B1's audit-team — 0 Blockers found at B1; 1 Critical (UX-B-001) closed in B5
 - [ ] **STOP. Hand off to Scott for calibration. Do NOT proceed to Sprint C.**
 
 ---

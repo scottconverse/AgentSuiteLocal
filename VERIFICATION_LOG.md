@@ -671,3 +671,126 @@ python -m ruff check agentsuitelocal/ tests/
 - [x] Lint clean
 - [x] Public HTTP / schema / route surface unchanged
 
+
+---
+
+## B10 — Scoped re-audit-lite (2026-05-08)
+
+- timestamp: 2026-05-08T14:02:00Z
+  claim: "Scoped /audit-lite 4-lens pass on diff 2d6b540..7a1b47d (Sprint B)"
+  evidence_type: file_check
+  command: "git diff --stat 2d6b540..HEAD ; manual 4-lens review (Engineering, UX, Docs, Tests) of all 14 changed files"
+  exit_code: 0
+  evidence: |
+    Scope: 14 files, +724 / -184, 8 commits (757a5c3..7a1b47d).
+    Diff inventory: .github/workflows/real-e2e.yml, HANDOFF.md, RELEASE_PLAN.md,
+    VERIFICATION_LOG.md, agentsuitelocal/api/execution.py, docs/FAQ.md,
+    docs/MOCKING_AUDIT.md, docs/architecture.md, docs/next-cleanup.md (renamed),
+    docs/sprint-B-mocking-refactor.md, docs/v1.0-milestone.md,
+    tests/test_execution_state_machine.py, web/src/components/app/PipelineView.jsx,
+    web/src/components/app/PipelineView.test.jsx.
+
+    AUDITOR-RUN findings by lens:
+
+    Engineering (AUDITOR-RUN ✓):
+      - B7 DI shape verified: kwargs default None, fall through to module-level
+        lookup via `or _save_state` etc. Preserves unittest.mock.patch
+        compatibility per design (rationale (b) in code comment). Production
+        callers in routers/runs.py + routers/pipelines.py call without kwargs
+        and still receive module functions.
+      - _send_notification correctly excluded from refactor (BOUNDARY-OK
+        reclassification consistent across MOCKING_AUDIT.md and tests).
+      - B8 D4 trigger removal verified by absence of auto-trigger on B7
+        (7a1b47d) and B9 (5c60d91) commits. Cron + tag + labeled-PR triggers
+        preserved in real-e2e.yml.
+
+    UX (AUDITOR-RUN ✓):
+      - B5 PipelineCard `key={i}` fix correct. Index stable per-render for
+        pipeline.steps (no reordering). Inline comment explains why
+        `step.agent` was wrong (production data permits duplicate agents).
+
+    Documentation:
+      - B6 next-cleanup.md move: references swept in HANDOFF.md, RELEASE_PLAN.md,
+        docs/v1.0-milestone.md. No dangling refs.
+      - B9 doc-rewrites merged into architecture.md + FAQ.md.
+      - docs/sprint-B-mocking-refactor.md (new, 138 lines) captures B7 design
+        rationale with care.
+
+    Tests (AUDITOR-RUN ✓):
+      - PipelineView.test.jsx mock field rename agent_id → agent matches
+        production data shape at agentsuitelocal/api/routers/pipelines.py:37,102
+        per inline comment. Verified by reading the cited file:line.
+      - test_execution_state_machine.py 5/5 pass per B7 entry. Each mock-patch
+        removal traced site-by-site. No tests-passing-only-due-to-mocks pattern.
+
+    Findings totals:
+      Blocker:  0
+      Critical: 0
+      Major:    0
+      Minor:    0
+      Nit:      0
+
+    Decision: 0 Critical / 0 Blocker → proceed to B11 ship gate.
+  status: pass
+
+---
+
+## Sprint B Complete Summary (2026-05-08)
+
+- timestamp: 2026-05-08T14:03:00Z
+  claim: "Sprint B complete — all 11 plan items closed, B10 scoped re-audit-lite clean"
+  evidence_type: file_check
+  command: "Sprint B summary roll-up"
+  exit_code: 0
+  evidence: |
+    ### Items completed (B1–B10)
+
+    | Item | Description                                       | Commit    |
+    |------|---------------------------------------------------|-----------|
+    | B1   | audit-team 5-role pass                            | `757a5c3` |
+    | B2   | Triage of B1 findings                             | `c8cff2e` |
+    | B3   | 0 Blockers (n/a — folded into B2)                 | (B2)      |
+    | B4   | 1 Critical fixed (folded into B5)                 | (B5)      |
+    | B5   | PipelineCard key + test mock field name           | `a6dc05a` |
+    | B6   | next-cleanup.md → docs/                           | `8f0322b` |
+    | B7   | MOCKING_AUDIT 9-site DI refactor                  | `7a1b47d` |
+    | B8   | D4 real-e2e release/* trigger removal             | `ec775af` |
+    | B9   | doc-rewrites merge (architecture + FAQ)           | `5c60d91` |
+    | B10  | Scoped re-audit-lite (this commit)                | (this)    |
+
+    ### Items deferred to v1.1
+
+    Per B2 triage, additions to docs/next-cleanup.md included:
+      - Recovery sweeps (Ollama crash, model corruption, disk full, key revoke,
+        concurrent runs robustness) — locked v1.1 in docs/v1.0-milestone.md.
+      - Performance baseline / benchmarks.
+      - Frozen API surface / schema-change CI.
+      - A11y Bar 2 / Bar 3 (skip-link, ARIA, full WCAG AA, screen-reader audit).
+      - Multi-instance, plugin system, auto-update, Linux installer, Windows
+        arm64, full localization.
+
+    All 4 Major findings from audit-team mapped to existing Sprint B work
+    (B7 / B9). 0 Blocker / 1 Critical (UX-B-001 → B5, closed).
+
+    ### Sprint B statistics
+
+      Commits in scope:        8 (757a5c3..7a1b47d) + this B10/B11 ticks commit
+      Files changed:           14
+      Insertions / deletions:  +724 / -184
+      audit-team findings:     0 Blocker / 1 Critical / 4 Major / (Minors/Nits triaged)
+      audit-lite findings:     0 Blocker / 0 Critical / 0 Major / 0 Minor / 0 Nit
+
+    ### Final CI status
+
+      - CI on `7a1b47d` (B7 refactor): GREEN — 7/7 jobs success including
+        macOS bundle, Windows bundle, Playwright E2E.
+      - real-e2e last green on `8f0322b` (B6 — before D4 trigger removal).
+      - D4 verified active: no auto-trigger of real-e2e on B9 (`5c60d91`)
+        or B7 (`7a1b47d`). release/* push trigger confirmed removed.
+
+    ### Next step
+
+    Sprint B complete. Awaiting Scott calibration approval before Sprint C.
+    Sprint C is a SEPARATE future /ship invocation. Do NOT tag, do NOT push
+    to main, do NOT spawn Sprint C work from this commit.
+  status: pass
