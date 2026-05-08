@@ -154,7 +154,7 @@ export const ManualView = () => (
     <div style={{ padding: "24px 24px 48px", maxWidth: 760, margin: "0 auto" }}>
 
       <p style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", margin: "0 0 16px" }}>
-        Manual version: v0.8.9 · matches docs/user-manual.md
+        Manual version: v1.0.0 · matches docs/user-manual.md
       </p>
 
       <TableOfContents />

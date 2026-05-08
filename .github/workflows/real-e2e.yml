@@ -1,0 +1,91 @@
+name: real-e2e
+
+# Real-model agent E2E (v0.9 sprint 1) — runs the founder agent against a
+# real Ollama daemon with gemma4:e4b loaded. Slow (~5–15 min wall-clock)
+# so it doesn't run on every PR — only:
+#   - nightly cron (catches regressions within 24h)
+#   - tag pushes (gates releases)
+#   - PRs explicitly labeled `run-real-e2e` (opt-in for risky changes)
+#
+# The default ci.yml workflow excludes `real_ollama`-marked tests via
+# `-m "not real_ollama"`. This workflow is the only place they run in CI.
+#
+# Why a separate workflow (not a job in ci.yml):
+#   - Different trigger profile (cron + tag, not push/PR)
+#   - Different time budget (~15 min vs ~5 min for ci.yml)
+#   - Different backend env (no AGENTSUITE_LLM_PROVIDER_FACTORY — real
+#     provider construction is the whole point)
+
+on:
+  schedule:
+    # 04:00 UTC daily — quiet hours for most contributors, hot cache.
+    - cron: "0 4 * * *"
+  push:
+    tags:
+      - "v*"
+    # D4 / Sprint B B8: production trigger profile is cron + tag +
+    # labeled PR only. The sprint-time `release/v0.9.0` branches block
+    # was removed at the Sprint B calibration gate now that V4 has 8+
+    # consecutive green real-e2e runs. Future release branches will
+    # add their own opt-in trigger if needed.
+  pull_request:
+    types: [labeled, opened, reopened, synchronize]
+
+jobs:
+  real-e2e:
+    name: Real-model agent E2E
+    runs-on: ubuntu-latest
+
+    # Skip pull_request events unless the `run-real-e2e` label is present.
+    # cron + tag pushes always run.
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-real-e2e'))
+
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python deps
+        run: pip install -e ".[dev]"
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && break
+            sleep 0.5
+          done
+
+      - name: Pull gemma4:e4b (matches production default + reliable JSON output)
+        # Empirical findings from earlier iterations:
+        # - gemma4:e4b at 15-min run_timeout (b9d0e96): timed out on spec
+        #   stage. Free-tier CPU is too slow for the default 15-min window.
+        # - gemma4:e2b at 30-min run_timeout (9c4b283): completed without
+        #   timeout, but qa_score came back None — e2b's output is too
+        #   rough for the QA stage's JSON parse. README confirms this:
+        #   "Light tier — quality is rough, best for first drafts."
+        # Conclusion: stick with e4b (production default) and extend the
+        # window. Production target audience is solo founders on lower-
+        # end machines who tolerate longer waits, so a longer real-e2e
+        # cycle in CI is consistent with the actual user experience.
+        run: ollama pull gemma4:e4b
+        timeout-minutes: 10
+
+      - name: Run real-model E2E
+        # No AGENTSUITE_LLM_PROVIDER_FACTORY env var here — we want the
+        # REAL OllamaProvider construction path, not a mock. That's the
+        # whole point of this workflow.
+        run: pytest tests/ -v -m real_ollama --tb=short
+        env:
+          AGENTSUITE_WORKSPACE: /tmp/agentsuite-real-e2e
+        timeout-minutes: 75

@@ -43,6 +43,13 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
   // C1: override approval flow
   const [overrideConfirm, setOverrideConfirm] = useState(false);
   const [overrideDialog, setOverrideDialog] = useState(false);
+  // A6 (a11y): Esc closes the override dialog
+  useEffect(() => {
+    if (!overrideDialog) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setOverrideDialog(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [overrideDialog]);
   // D1: export path banner
   const [exportPath, setExportPath] = useState(null);
   // D4: export dropdown
@@ -165,12 +172,16 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
 
   const ag = AGENTS.find(a => a.id === run?.agent);
   const qaScore = run?.qa_score;
+  const qaStatus = run?.qa_status ?? "missing"; // "ok" | "failed" | "missing"
   const qaDims = run?.qa_dimensions || [];
   const artifacts = run?.artifacts || [];
 
   // C1: disable primary approve if below threshold (not when null)
   const belowThreshold = qaScore != null && qaScore < threshold;
-  const approveDisabled = belowThreshold;
+  // UX-001: also disable when qa_status indicates QA failed or is absent — a
+  // null score with no status context gives a false "eligible" signal.
+  const qaUnavailable = qaStatus === "failed" || qaStatus === "missing";
+  const approveDisabled = belowThreshold || qaUnavailable;
 
   const fmt = (n) => (typeof n === "number" ? n.toFixed(1) : "—");
 
@@ -185,7 +196,9 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
         subtitle={
           qaScore != null
             ? `QA ${fmt(qaScore)}/10 · Gate: ${threshold.toFixed(1)}/10 — ${qaScore >= threshold ? "eligible to approve" : "below gate"}`
-            : "Review artifacts below."
+            : qaStatus === "failed"
+              ? "QA evaluation failed — review artifacts manually."
+              : "QA score not available — review artifacts manually."
         }
         actions={
           <div style={{ display: "flex", gap: 8 }}>
@@ -228,15 +241,15 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
               className="btn btn-accent btn-sm"
               onClick={() => handleApprove(false)}
               disabled={approveDisabled || approving}
-              title={approveDisabled ? `Score ${fmt(qaScore)}/10 is below your ${threshold.toFixed(1)} gate` : ""}
+              title={qaUnavailable ? "QA score unavailable — run QA evaluation or use Override & Approve" : belowThreshold ? `Score ${fmt(qaScore)}/10 is below your ${threshold.toFixed(1)} gate` : ""}
             >
               {approving
                 ? "Approving…"
                 : <><Icon name="check" size={13} /> Approve & promote</>
               }
             </button>
-            {/* C1: Override & approve for below-threshold runs */}
-            {belowThreshold && (
+            {/* C1: Override & approve for below-threshold and QA-unavailable runs */}
+            {(belowThreshold || qaUnavailable) && (
               <button
                 className="btn btn-sm"
                 style={{ borderColor: "var(--warn)", color: "var(--warn)" }}
@@ -281,12 +294,15 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
 
       {/* C1: Override confirmation dialog */}
       {overrideDialog && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div role="dialog" aria-modal="true" aria-label="Override and approve confirmation"
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="card" style={{ padding: 24, maxWidth: 440, width: "100%" }}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Override & approve?</div>
             <div style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 16, lineHeight: 1.55 }}>
-              This run scored <strong>{fmt(qaScore)}/10</strong>, below your <strong>{threshold.toFixed(1)}</strong> gate.
-              Approve anyway?
+              {qaUnavailable
+                ? `QA evaluation ${qaStatus === "failed" ? "failed" : "did not produce a score"}. Approve without a QA score?`
+                : <>This run scored <strong>{fmt(qaScore)}/10</strong>, below your <strong>{threshold.toFixed(1)}</strong> gate. Approve anyway?</>
+              }
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button className="btn btn-sm" onClick={() => setOverrideDialog(false)}>Cancel</button>
@@ -310,7 +326,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
           )}
           {groupKeys.map(groupKey => (
             <details key={groupKey} open style={{ marginBottom: 4 }}>
-              <summary style={{ padding: "6px 16px", fontSize: 11, color: "var(--ink-3)", fontWeight: 600, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 6 }}>
+              <summary aria-label={`Expand ${groupKey} artifacts`} style={{ padding: "6px 16px", fontSize: 11, color: "var(--ink-3)", fontWeight: 600, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 6 }}>
                 <span className="mono">{groupKey}</span>
                 <span className="chip" style={{ fontSize: 9 }}>{artifactGroups[groupKey].length}</span>
               </summary>
@@ -386,7 +402,30 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "italic" }}>No QA score recorded.</div>
+              // UX-001 / UX-004: amber warning banner — replaces invisible italic gray text.
+              // The Approve button is already disabled (qaUnavailable=true above).
+              <div style={{
+                padding: "10px 12px",
+                background: "var(--warn-soft)",
+                border: "1px solid var(--warn)",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                fontSize: 13,
+              }}>
+                <Icon name="alert" size={16} style={{ color: "var(--warn)", flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <div style={{ fontWeight: 600, color: "var(--warn)", marginBottom: 2 }}>
+                    {qaStatus === "failed" ? "QA evaluation failed" : "No QA score"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-2)", lineHeight: 1.5 }}>
+                    {qaStatus === "failed"
+                      ? "The model's QA output could not be parsed. Review artifacts manually. You may Reject and retry, or use Override & approve."
+                      : "QA scoring did not run or produced no output. Review artifacts manually before approving."}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -400,7 +439,7 @@ export const ApprovalGateView = ({ runId, onApprove, onReject }) => {
                 Scores shown may not reflect full output quality. This is a known limitation of smaller models.
               </div>
               <details>
-                <summary style={{ cursor: "pointer", color: "var(--accent)", fontSize: 11 }}>What does this mean?</summary>
+                <summary aria-label="Expand explanation of partial QA scores" style={{ cursor: "pointer", color: "var(--accent)", fontSize: 11 }}>What does this mean?</summary>
                 <div style={{ marginTop: 6, color: "var(--ink-2)", lineHeight: 1.55 }}>
                   QA scoring evaluates multiple quality dimensions. When a smaller model returns fewer dimensions, only the available scores are shown. This does not mean the run failed — it means quality assessment is incomplete.
                 </div>

@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-These answers cover AgentSuiteLocal v0.8.x. For full details on any topic, see the [user manual](./user-manual.md) and the in-app **Manual** view.
+These answers cover AgentSuiteLocal v0.8.9 and the v0.9.0 work in progress. For full details on any topic, see the [user manual](./user-manual.md) and the in-app **Manual** view.
 
 ---
 
@@ -16,7 +16,7 @@ No. Download the installer from the [Releases page](https://github.com/scottconv
 The installer's hardware-probe step tells you which model tier fits — Light (8 GB), Balanced (16 GB), or Pro (24+ GB).
 
 **Does it work on macOS?**
-Yes — `AgentSuiteLocal-v0.8.8.dmg` is a macOS distributable. The DMG is currently unsigned, so on first run macOS may show "AgentSuiteLocal cannot be opened because it is from an unidentified developer." Right-click the app and choose **Open** to allow it. See the README's Gatekeeper section for the full procedure.
+Yes — the macOS DMG is published on the [Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest). The DMG is unsigned, so on first run macOS may show "AgentSuiteLocal cannot be opened because it is from an unidentified developer." Right-click the app and choose **Open** to allow it. See the README's Gatekeeper section for the full procedure.
 
 **Does it work on Linux?**
 There is no Linux distributable yet. Linux developers can run from source (`pip install -e .[dev]` and `npm run dev`) but the bundled installer artifacts ship for Windows and macOS only.
@@ -42,6 +42,9 @@ The most common cause is a vague goal. Sharpen it to be specific and concrete �
 
 **The Approve button is greyed out — why?**
 It enables only when the composite QA score meets the gate threshold (default 7.0). Either lower the threshold in **Settings → QA gate threshold**, sharpen the goal and re-run, or click **Override & approve** to bypass the gate with a confirmation dialog.
+
+**Can I run multiple agents at the same time?**
+Not in v1.0. AgentSuiteLocal supports one active run (or one in-progress pipeline step) per session. Starting a second run while another is in progress is not supported. Concurrent runs land in v1.1. (See also the user manual's [Limitations / FAQ section](./user-manual.md#10-faq).)
 
 ---
 
@@ -113,8 +116,8 @@ Override the workspace root with `AGENTSUITE_WORKSPACE=/your/path`.
 **The Retry button doesn't pre-fill the goal field.**
 Runs created before v0.7.0 may not have a `goal` field saved. Fill it in manually for those runs. All v0.7.0+ runs save the goal automatically.
 
-**PDF export returns a 501 error.**
-PDF export uses WeasyPrint, which on Windows requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). Install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) and the PDF option will work. ZIP and Markdown exports work without any extra runtime.
+**PDF export returns a 500 error.**
+PDF export uses reportlab (pure Python, no native runtime required). A 500 usually means the run has no artifacts yet — start a run and wait for it to reach the approval gate before exporting. If the error persists, check the backend log for the underlying exception.
 
 ---
 

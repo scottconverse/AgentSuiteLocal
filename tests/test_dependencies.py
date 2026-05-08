@@ -23,6 +23,7 @@ package, importing it must succeed.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import sys
 import tomllib
 from pathlib import Path
@@ -37,6 +38,17 @@ _DIST_TO_IMPORT = {
     "winotify":          "winotify",
     "pync":              "pync",
 }
+
+# Packages that require system-level native libraries (not pip packages).
+# On a dev machine without those libs the import raises OSError/ImportError
+# even though the Python package is correctly pip-installed.  The *pip
+# presence* test still runs — only the import step is skipped with a clear
+# message rather than a hard failure.
+#
+# Currently empty: weasyprint was replaced by reportlab (pure Python, no
+# native GTK/cairo/pango required).  Keep the set and the handling logic
+# in place — future deps with system-lib requirements belong here.
+_REQUIRES_SYSTEM_LIBS: set[str] = set()
 
 
 def _declared_deps() -> list[str]:
@@ -67,16 +79,39 @@ def _declared_deps() -> list[str]:
 
 @pytest.mark.parametrize("module", _declared_deps())
 def test_declared_dependency_is_importable(module: str) -> None:
-    """Every package in pyproject.toml [project.dependencies] must import."""
+    """Every package in pyproject.toml [project.dependencies] must import.
+
+    Packages in _REQUIRES_SYSTEM_LIBS are pip-installed but need native
+    system libraries (GTK+, etc.) beyond Python's package ecosystem.
+    If the system libs are absent the test skips with a clear diagnostic
+    rather than failing — the pip declaration is correct, the gap is the
+    system environment.  CI environments that have the native libs will
+    still run the import and catch real breakage.
+    """
     try:
         importlib.import_module(module)
-    except ImportError as exc:
-        pytest.fail(
-            f"Declared dependency '{module}' is not importable: {exc}\n"
-            f"This means pyproject.toml lists it but it isn't actually "
-            f"available — either pip didn't install it, or the package "
-            f"name in _DIST_TO_IMPORT is wrong."
-        )
+    except (ImportError, OSError) as exc:
+        if module in _REQUIRES_SYSTEM_LIBS:
+            # Distinguish "package not pip-installed" from "system libs absent".
+            if importlib.util.find_spec(module) is None:
+                pytest.fail(
+                    f"Declared dependency '{module}' is not installed via pip. "
+                    f"Run: pip install {module}"
+                )
+            pytest.skip(
+                f"'{module}' is pip-installed but requires system-level native "
+                f"libraries that are not present in this environment: {exc}. "
+                f"Install the native runtime (e.g. GTK3 on Windows) to enable "
+                f"PDF export and allow this test to run fully."
+            )
+        if isinstance(exc, ImportError):
+            pytest.fail(
+                f"Declared dependency '{module}' is not importable: {exc}\n"
+                f"This means pyproject.toml lists it but it isn't actually "
+                f"available — either pip didn't install it, or the package "
+                f"name in _DIST_TO_IMPORT is wrong."
+            )
+        raise  # unexpected OSError from a non-system-lib package — surface it
 
 
 # Hot-path imports the runtime depends on but which aren't always direct

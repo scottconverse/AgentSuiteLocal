@@ -68,7 +68,7 @@ make build-installer
 # equivalent to: iscc installer\AgentSuiteLocal.iss
 ```
 
-Output: `dist/AgentSuiteLocal-v0.7.1-Setup.exe`
+Output: `dist/AgentSuiteLocal-1.0.0-setup.exe`
 
 The installer embeds the full `dist/AgentSuiteLocal/` folder produced by PyInstaller, so the PyInstaller build must complete before running Inno Setup.
 

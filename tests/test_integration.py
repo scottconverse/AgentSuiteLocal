@@ -79,6 +79,10 @@ def test_live_run_404(live_server):
 
 
 def test_live_reject(live_server):
+    # QA-002: reject now requires status="waiting". A newly started run is in
+    # "running" state, so reject must return 400. Integration tests cannot
+    # directly set server-side state, so this test covers the state guard path.
+    # Happy-path rejection (status="waiting") is covered by test_api.py::test_reject_run.
     r = httpx.post(
         f"{live_server}/api/run",
         json={"agent_id": "design", "goal": "Reject me", "project": "p"},
@@ -86,8 +90,8 @@ def test_live_reject(live_server):
     )
     run_id = r.json()["run_id"]
     r2 = httpx.post(f"{live_server}/api/run/{run_id}/reject", timeout=5)
-    assert r2.status_code == 200
-    assert r2.json()["status"] == "rejected"
+    assert r2.status_code == 400
+    assert "Cannot reject run in state:" in r2.json()["detail"]
 
 
 def test_live_list_runs(live_server):

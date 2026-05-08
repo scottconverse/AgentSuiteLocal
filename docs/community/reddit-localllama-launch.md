@@ -32,7 +32,7 @@ Models are managed through Ollama. The installer walks you through pulling a mod
 
 - Output quality is entirely dependent on your model. The Light tier (`gemma4:e2b`, 8 GB RAM) is enough to see the workflow but not for outputs you'd ship. The Balanced tier (`gemma4:e4b`, 16 GB RAM) is a reasonable middle ground. The Pro tier (`gemma4:26b`, 32 GB RAM) is the best locally available option but takes longer.
 - Runs take 8–25 minutes depending on model and hardware. The live view shows per-stage progress, but there's no magic speed-up.
-- PDF export requires weasyprint, which has its own system dependencies. If PDF export fails, ZIP and Markdown export work without any extra dependencies.
+- PDF export uses reportlab (pure Python, no system runtime). ZIP and Markdown export are also available.
 - macOS build is `.app` only for now — no signed DMG yet, so Gatekeeper will block it on first launch until you right-click-open.
 
 **Installation**
@@ -46,7 +46,7 @@ Either way you need Ollama installed and 8 GB RAM minimum. 16 GB is comfortable 
 **What I'd love feedback on**
 
 - Are there agent types that would be more useful to you than the current seven?
-- The QA scoring system rates output on 5 dimensions (accuracy, completeness, clarity, structure, actionability). Does this match how you'd evaluate agent output?
+- The QA scoring system rates output on 9 dimensions (clarity, completeness, coherence, specificity, brand alignment, feasibility, differentiation, depth, actionability). Does this match how you'd evaluate agent output?
 - Performance on different hardware. I've only tested on two machines (Windows/Intel and macOS/Apple Silicon).
 
 Repo: github.com/scottconverse/AgentSuiteLocal

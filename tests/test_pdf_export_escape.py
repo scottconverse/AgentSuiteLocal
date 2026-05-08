@@ -1,15 +1,18 @@
 """
-Regression test for ENG-088-001 (audit-AgentSuiteLocal-2026-05-05-v088).
+Regression tests for PDF export safety (ENG-088-001 and its successor).
 
-Class of bug: artifact content interpolated into the PDF-export HTML
-template without escaping. LLM-produced artifacts routinely contain
-`<`, `>`, `&`, or literal `</pre>` (markdown with embedded HTML, code
-blocks). Without escaping, weasyprint parses them as live HTML and
-the PDF renders incorrectly. With a malicious artifact, injected
-`<style>` / `<a href="javascript:">` / `<img onerror=...>` would
-execute against the rendering context.
+ENG-088-001 class of bug: artifact content containing `<`, `>`, `&`, or
+literal `</pre>` (markdown with embedded HTML, code blocks) corrupts an
+HTML-based PDF renderer or injects content.
 
-Tests the helper directly so weasyprint isn't needed.
+Two layers of protection:
+1. ``_build_pdf_html`` — HTML string builder; all interpolated values are
+   html.escape()d.  Tested here to lock the escaping contract in place even
+   though this function is no longer used by the live rendering path.
+2. ``_build_pdf_bytes`` — reportlab-based renderer; Preformatted flowable
+   treats artifact text as literal characters (no HTML parsing), so the
+   injection surface is eliminated by design.  Tested here to verify
+   injection-like artifact content never crashes the generator.
 """
 from __future__ import annotations
 
@@ -17,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from agentsuitelocal.api.routers.runs import _build_pdf_html
+from agentsuitelocal.api.routers.runs import _build_pdf_bytes, _build_pdf_html
 
 
 @pytest.fixture
@@ -74,3 +77,48 @@ def test_pdf_html_handles_binary_file(outputs_dir: Path) -> None:
     # Binary content is replaced with a placeholder; not escape-relevant
     # but exercise the path so the helper never crashes on weird files.
     assert "image.bin" in html
+
+
+# ---------------------------------------------------------------------------
+# _build_pdf_bytes — reportlab renderer (live path since weasyprint removal)
+# Injection-like content must not crash the generator; the Preformatted
+# flowable treats artifact text as literal characters (no HTML parsing).
+# ---------------------------------------------------------------------------
+
+
+def test_pdf_bytes_returns_pdf_magic_bytes(outputs_dir: Path) -> None:
+    (outputs_dir / "report.md").write_text("# Hello")
+    pdf = _build_pdf_bytes("run-1", outputs_dir)
+    assert isinstance(pdf, bytes)
+    assert pdf[:4] == b"%PDF", "reportlab must produce a valid PDF"
+
+
+def test_pdf_bytes_handles_xss_payload_in_artifact(outputs_dir: Path) -> None:
+    """Injection-like artifact content must not crash the PDF generator."""
+    (outputs_dir / "evil.md").write_text("</pre><script>alert('xss')</script><pre>")
+    pdf = _build_pdf_bytes("run-1", outputs_dir)
+    assert pdf[:4] == b"%PDF"
+
+
+def test_pdf_bytes_handles_script_tag_in_run_id(outputs_dir: Path) -> None:
+    """run_id with embedded angle brackets must not crash Paragraph XML parsing."""
+    pdf = _build_pdf_bytes("run-<script>alert(1)</script>-id", outputs_dir)
+    assert pdf[:4] == b"%PDF"
+
+
+def test_pdf_bytes_handles_ampersand_in_filename(outputs_dir: Path) -> None:
+    (outputs_dir / "fish & chips.md").write_text("content")
+    pdf = _build_pdf_bytes("run-1", outputs_dir)
+    assert pdf[:4] == b"%PDF"
+
+
+def test_pdf_bytes_handles_missing_outputs_dir(tmp_path: Path) -> None:
+    """Non-existent outputs dir should produce a valid (artifact-free) PDF."""
+    pdf = _build_pdf_bytes("run-empty", tmp_path / "nope")
+    assert pdf[:4] == b"%PDF"
+
+
+def test_pdf_bytes_handles_binary_artifact(outputs_dir: Path) -> None:
+    (outputs_dir / "image.bin").write_bytes(b"\x00\x01\x02\xff")
+    pdf = _build_pdf_bytes("run-1", outputs_dir)
+    assert pdf[:4] == b"%PDF"

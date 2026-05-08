@@ -1,10 +1,10 @@
-# User Manual — AgentSuiteLocal v0.8.9
+# User Manual — AgentSuiteLocal v1.0.0
 
 AgentSuiteLocal runs seven specialist AI agents on your machine. Each agent takes a one-sentence business goal, walks a five-stage pipeline (intake → extract → spec → execute → QA), and writes a folder of structured markdown artifacts to your disk. You review them, approve what's good, and the approved output feeds every future run on that project.
 
 That's the whole loop. Everything in this app is a UI on top of it. All processing happens locally — nothing leaves your machine unless you explicitly configure a cloud API key.
 
-**Manual version:** v0.8.9 · **Last updated:** 2026-05-06
+**Manual version:** v1.0.0 · **Last updated:** 2026-05-08
 
 ---
 
@@ -150,7 +150,7 @@ The kernel is the canonical store of approved artifacts. Every run loads the ker
 **Exporting:** in the Approval Gate and Run Detail views, an **Export** dropdown offers:
 - **ZIP — all artifacts** — downloads a zip of the entire run output folder
 - **Markdown bundle** — concatenates all artifacts into a single `.md` file with `---` separators
-- **PDF** — renders the markdown bundle as a PDF (requires GTK+ runtime on Windows; see Troubleshooting below)
+- **PDF** — renders all artifacts as a PDF (pure Python via reportlab; no system runtime required)
 
 ---
 
@@ -159,7 +159,7 @@ The kernel is the canonical store of approved artifacts. Every run loads the ker
 Pipelines chain multiple agents end-to-end. The output of each agent is passed as context to the next.
 
 - **Creating a pipeline:** in the Pipelines view, select the agents you want to chain and set the order. Typical sequence: Founder → Design → Product → Engineering.
-- **Running a pipeline:** each step pauses at an approval gate before advancing. Approve a step to run the next agent. Enable **Auto-approve** in Settings to skip the gates.
+- **Running a pipeline:** each step pauses at an approval gate before advancing. Approve a step to run the next agent, or click **Override & approve** to bypass the QA threshold on that step.
 - **Resuming after error:** if a step fails, click **Resume from step N** in the Pipelines view to restart from the failed step without re-running earlier ones.
 
 ---
@@ -191,7 +191,6 @@ Any model already in your Ollama library shows up in the Models view — click *
 |---------|---------|-------------|
 | Model tier | balanced | Which tier to use for all runs |
 | Run timeout | 15 min | Max time before a run is killed with an error |
-| Auto-approve | off | Skip the Approval Gate and promote artifacts automatically |
 | QA gate threshold | 7.0 | Minimum composite QA score to enable the Approve button |
 | Workspace path | ~/AgentSuite | Where runs and the kernel are stored |
 | Desktop notifications | on | OS toast when a run reaches a terminal state |
@@ -254,8 +253,8 @@ Windows: Settings → System → Notifications → AgentSuiteLocal. macOS: Syste
 **The app opens to the installer on every launch.**
 The setup-complete state is stored in the browser's `localStorage` under `agentsuite_setup_complete`. If the value is cleared (private browsing, profile reset, etc.) the installer reappears. Walk through the installer once and it persists.
 
-**PDF export returns a 501 error.**
-PDF export uses WeasyPrint, which on Windows requires the GTK+ runtime (libcairo, libpango, libgdk-pixbuf). Install the [GTK3 runtime for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases). ZIP and Markdown export work without any extra runtime.
+**PDF export fails.**
+PDF export uses reportlab, which is pure Python and requires no system runtime. A failure usually means the run has no artifact files yet. Ensure the run has completed at least one step and reached the approval gate before exporting. If the error persists, the backend log will show the underlying exception.
 
 **Antivirus flags the installer or `.exe`.**
 Some AV tools flag PyInstaller-bundled executables as suspicious — a known false positive. Add the install folder to your AV exclusion list, or upload the `.exe` to [virustotal.com](https://virustotal.com) to verify independently.
@@ -273,6 +272,7 @@ See [docs/FAQ.md](./FAQ.md) for the full list. Short answers to the most common 
 - **Can I edit artifacts before approving?** Yes — they're plain markdown at `~/AgentSuite/.agentsuite/runs/{run-id}/`. The Approval Gate re-reads the files at approve time.
 - **How do I update?** A non-blocking banner appears on the Dashboard when a new release is available. Click **Download** to open the Releases page.
 - **Can I run multiple agents in parallel?** Not yet. Pipelines queue agents sequentially with approval gates between steps.
+- **Can I run multiple runs at the same time?** No. v1.0 supports one active run (or pipeline step) at a time per session. Concurrent runs land in v1.1.
 - **What Python version is required?** 3.11 or 3.12 — but only for development. The bundled distributable ships its own Python runtime.
 
 ---

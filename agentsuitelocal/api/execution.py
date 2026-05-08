@@ -73,6 +73,20 @@ _resolver_lock = asyncio.Lock()
 _QA_KEY_RE = re.compile(r"[./]")
 
 
+def _first_defined(*values):
+    """Return the first value that is not None.
+
+    ENG-0907-002: replaces falsy or-chaining (`a or b or c`) so that a
+    legitimate qa_score of 0.0 is preserved instead of being promoted to
+    None.  Falsy or-chaining treats 0, 0.0, False, and "" identically to
+    None — any zero score would silently fall through to the next key.
+    """
+    for v in values:
+        if v is not None:
+            return v
+    return None
+
+
 def _sanitize_qa_dimensions(dims: dict) -> list[dict]:
     result = []
     for k, v in dims.items():
@@ -114,8 +128,8 @@ def _move_partial_artifacts(run: dict) -> None:
             shutil.move(str(outputs_dir), str(cancelled_dir))
             run["partial_artifacts"] = True
             _save_state()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("_move_partial_artifacts failed for run %s: %s", run.get("id"), exc)
 
 
 def _emit_pipeline(pipeline_id: str, event_type: str, **kwargs) -> None:
@@ -267,10 +281,28 @@ def _friendly_error(raw: str) -> str:
 
 
 async def _execute_run(
-    run_id: str, req: RunRequest, cancel_token: threading.Event | None = None
+    run_id: str,
+    req: RunRequest,
+    cancel_token: threading.Event | None = None,
+    *,
+    # Sprint B B7 (MOCKING_AUDIT INTERNAL-SUSPECT-REFACTOR closure): optional
+    # injected callables for test substitution. Defaults at call time bind to
+    # the module-level helpers so that:
+    #   (a) production callers continue to work unchanged
+    #   (b) `unittest.mock.patch("agentsuitelocal.api.execution._save_state")`
+    #       still works for any remaining callers (the kwarg is None, so the
+    #       `or` falls through to a fresh module-attribute lookup)
+    #   (c) tests can pass a fake callable via kwarg and bypass module-level
+    #       patching entirely (the audit's preferred shape)
+    save_state=None,
+    log_telemetry=None,
+    load_settings=None,
 ) -> None:
+    save_state = save_state or _save_state
+    log_telemetry = log_telemetry or _log_telemetry
+    load_settings = load_settings or _load_settings
     run = _runs[run_id]
-    settings = _load_settings()
+    settings = load_settings()
     timeout_secs = int(settings.get("run_timeout_seconds", 900))
 
     def emit(event_type: str, **kwargs):
@@ -323,6 +355,9 @@ async def _execute_run(
         artifacts: list[str] = []
         qa_score: float | None = None
         qa_dimensions: list[dict] = []
+        # "ok" = score parsed cleanly; "failed" = JSON error or schema rejection;
+        # "missing" = qa_scores.json absent (model didn't produce it)
+        qa_status: str = "missing"
 
         if state and state.run_id:
             run_dir = _workspace() / ".agentsuite" / "runs" / state.run_id
@@ -336,28 +371,45 @@ async def _execute_run(
                 if qa_file.exists():
                     try:
                         qa_data = json.loads(qa_file.read_text())
-                        qa_score = (
-                            qa_data.get("weighted_score")
-                            or qa_data.get("overall_score")
-                            or qa_data.get("score")
-                            or qa_data.get("overall")
+                        # ENG-0907-002 / V3: use explicit None-check instead of falsy
+                        # or-chaining so qa_score=0.0 is preserved (not promoted to None).
+                        # Sprint A V4: agentsuite QAReport schema uses `average` as the
+                        # canonical composite-score field (kernel/qa.py). Older legacy
+                        # field names kept as fallbacks for forward compat.
+                        qa_score = _first_defined(
+                            qa_data.get("average"),
+                            qa_data.get("weighted_score"),
+                            qa_data.get("overall_score"),
+                            qa_data.get("score"),
+                            qa_data.get("overall"),
                         )
                         dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
                         if isinstance(dims, dict):
                             qa_dimensions = _sanitize_qa_dimensions(dims)
                         elif isinstance(dims, list):
                             qa_dimensions = dims
-                    except Exception:
-                        pass
+                        qa_status = "ok"
+                    except (json.JSONDecodeError, ValueError) as exc:
+                        # V1: non-JSON output; V2: agentsuite validator rejects dimensions.
+                        # Surface as qa_status="failed" — do NOT swallow silently.
+                        logger.warning(
+                            "QA score parsing failed for run %s: %s — qa_score will be None",
+                            run.get("id"), exc,
+                        )
+                        qa_status = "failed"
+                    except Exception as exc:
+                        logger.warning("Unexpected QA score error for run %s: %s", run.get("id"), exc)
+                        qa_status = "failed"
 
         run["agentsuite_run_id"] = state.run_id if state else None
         run["artifacts"] = artifacts
         run["qa_score"] = qa_score
         run["qa_dimensions"] = qa_dimensions
+        run["qa_status"] = qa_status
         run["status"] = "waiting"
         emit("agent_waiting", qa_score=qa_score, artifacts=artifacts)
-        _save_state()
-        _log_telemetry("run_completed", agent=req.agent_id, project=req.project,
+        save_state()
+        log_telemetry("run_completed", agent=req.agent_id, project=req.project,
                        duration=time.time() - run["started_at"])
         # QA-001: read live launcher port instead of hardcoding 8765 — the
         # launcher falls back to a free port if 8765 is in use, and a stale
@@ -375,15 +427,15 @@ async def _execute_run(
         run["error_message"] = timeout_msg
         run["finished_at"] = time.time()
         emit("timeout", message=timeout_msg)
-        _save_state()
-        _log_telemetry("run_errored", agent=req.agent_id, project=req.project, error="timeout")
+        save_state()
+        log_telemetry("run_errored", agent=req.agent_id, project=req.project, error="timeout")
         _send_notification("AgentSuiteLocal", f"{req.agent_id} run timed out after {timeout_secs // 60} min.")
 
     except asyncio.CancelledError:
         if run["status"] == "running":
             run["status"] = "cancelled"
             run["cancelled_at"] = time.time()
-        _save_state()
+        save_state()
 
     except Exception as exc:
         friendly = _friendly_error(str(exc))
@@ -392,8 +444,8 @@ async def _execute_run(
         run["error_message"] = friendly
         run["finished_at"] = time.time()
         emit("error", message=friendly)
-        _save_state()
-        _log_telemetry("run_errored", agent=req.agent_id, project=req.project, error=friendly[:100])
+        save_state()
+        log_telemetry("run_errored", agent=req.agent_id, project=req.project, error=friendly[:100])
         _send_notification("AgentSuiteLocal", f"{req.agent_id} run on {req.project} errored.")
 
 
@@ -415,29 +467,42 @@ def _collect_step_artifacts(
         if qa_file.exists():
             try:
                 qa_data = json.loads(qa_file.read_text())
-                qa_score = (
-                    qa_data.get("weighted_score")
-                    or qa_data.get("overall_score")
-                    or qa_data.get("score")
-                    or qa_data.get("overall")
+                # ENG-0907-002 / V3: use _first_defined to preserve qa_score=0.0.
+                # Sprint A V4: agentsuite QAReport schema uses `average` (see
+                # kernel/qa.py); legacy field names are fallbacks.
+                qa_score = _first_defined(
+                    qa_data.get("average"),
+                    qa_data.get("weighted_score"),
+                    qa_data.get("overall_score"),
+                    qa_data.get("score"),
+                    qa_data.get("overall"),
                 )
                 dims = qa_data.get("dimensions") or qa_data.get("scores") or {}
                 if isinstance(dims, dict):
                     qa_dimensions = _sanitize_qa_dimensions(dims)
                 elif isinstance(dims, list):
                     qa_dimensions = dims
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("_collect_step_artifacts: QA score error for run %s: %s", run_id, exc)
     return artifacts, qa_score, qa_dimensions
 
 
-async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
+async def _execute_pipeline_step(
+    pipeline_id: str,
+    step_idx: int,
+    *,
+    # Sprint B B7 (MOCKING_AUDIT closure): see _execute_run for rationale.
+    save_state=None,
+    load_settings=None,
+) -> None:
+    save_state = save_state or _save_state
+    load_settings = load_settings or _load_settings
     pipeline = _pipelines[pipeline_id]
     if step_idx >= len(pipeline["steps"]):
         pipeline["status"] = "error"
         pipeline["updated_at"] = time.time()
         _emit_pipeline(pipeline_id, "pipeline_error", error="step index out of range", step=step_idx)
-        _save_state()
+        save_state()
         return
 
     pipeline["status"] = "running"
@@ -451,7 +516,7 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
 
     # Primary path (step 0): PipelineOrchestrator provides K1 cross-stage context.
     try:
-        settings = _load_settings()
+        settings = load_settings()
         llm = await _resolve_llm(settings)
         output_root = _workspace() / ".agentsuite"
         loop = asyncio.get_running_loop()
@@ -528,21 +593,21 @@ async def _execute_pipeline_step(pipeline_id: str, step_idx: int) -> None:
             pipeline["current_step"] = i
             _emit_pipeline(pipeline_id, "agent_waiting",
                            agent=pipeline["steps"][i]["agent"], step=i, qa_score=qa_score)
-            _save_state()
+            save_state()
 
         elif orch_state.status == "done":
             # on_progress("agent_done") callbacks already updated individual steps.
             pipeline["status"] = "done"
             pipeline["current_step"] = len(pipeline["steps"])
             _emit_pipeline(pipeline_id, "pipeline_done")
-            _save_state()
+            save_state()
 
     except Exception as exc:
         pipeline["status"] = "error"
         pipeline["updated_at"] = time.time()
         pipeline["error_message"] = str(exc)
         _emit_pipeline(pipeline_id, "pipeline_error", error=str(exc), step=step_idx)
-        _save_state()
+        save_state()
 
 
 async def _execute_pipeline_step_direct(pipeline_id: str, step_idx: int) -> None:

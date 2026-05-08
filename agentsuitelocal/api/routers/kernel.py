@@ -54,13 +54,20 @@ async def get_kernel_artifact(project: str, agent: str, path: str):
 
 @router.get("/api/kernel/diff")
 async def kernel_diff(a: str, b: str):
-    """D3: Return unified diff between two kernel artifact paths."""
+    """D3: Return unified diff between two kernel artifact paths.
+
+    ENG-0907-001: restrict both paths to kernel_root (not home or workspace).
+    The previous guard used str.startswith(str(home)) which allowed reading
+    any file under the user's home directory — including ~/.ssh/id_rsa.
+    Using is_relative_to(kernel_root) tightens the scope to only
+    workspace/.agentsuite/_kernel/ as intended.
+    """
     workspace = _workspace().resolve()
-    home = Path.home().resolve()
+    kernel_root = workspace / ".agentsuite" / "_kernel"
 
     def safe_read(p_str: str) -> str:
         p = Path(p_str).resolve()
-        if not (str(p).startswith(str(workspace)) or str(p).startswith(str(home))):
+        if not p.is_relative_to(kernel_root):
             raise HTTPException(status_code=403, detail=f"Path not allowed: {p_str}")
         if not p.exists():
             raise HTTPException(status_code=404, detail=f"File not found: {p_str}")

@@ -44,7 +44,7 @@ endif
 # ── Tests ───────────────────────────────────────────────────────────────────
 
 test:
-	pytest tests/ -m "not e2e and not ollama" -v
+	pytest tests/ -m "not e2e and not ollama and not real_ollama" -v
 
 test-frontend:
 	cd web && npm run test

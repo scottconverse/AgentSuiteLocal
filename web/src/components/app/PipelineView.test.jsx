@@ -10,8 +10,11 @@ const mockPipeline = {
   status: "done",
   agents: ["founder", "design"],
   steps: [
-    { run_id: "run-a", agent_id: "founder", status: "done", qa_score: 8.0 },
-    { run_id: "run-b", agent_id: "design", status: "done", qa_score: 7.5 },
+    // Production data shape (per agentsuitelocal/api/routers/pipelines.py:37,102)
+    // uses `agent`, not `agent_id`. The earlier mock used the wrong field name,
+    // which masked UX-B-001 (the React key warning) until Sprint B audit.
+    { run_id: "run-a", agent: "founder", status: "done", qa_score: 8.0 },
+    { run_id: "run-b", agent: "design", status: "done", qa_score: 7.5 },
   ],
 };
 

@@ -29,19 +29,59 @@ if _MOCK_SENTINEL.exists():
 def _mock_provider_factory():
     """Returns a MockLLMProvider preloaded with substring-keyed responses
     that satisfy the founder agent's stage prompts. Touches a sentinel file
-    on every invocation so the E2E test can verify the mock actually ran."""
+    on every invocation so the E2E test can verify the mock actually ran.
+
+    Sprint A loose-end #1: the original prose-only responses satisfied the
+    pre-v0.7 contract but were rejected by the post-v0.7 stages that parse
+    JSON (extract, spec consistency check, qa). Each stage now gets a
+    response shape that the corresponding agentsuite stage handler accepts:
+      - extract: JSON with `gaps: []` (founder/stages/extract.py:74 reads it)
+      - spec consistency: JSON with `mismatches: []` (kernel/stages/spec.py:161)
+      - qa: JSON shaped like agentsuite.kernel.qa.QAReport with the
+        canonical Founder rubric dimensions and `average` >= threshold so
+        the Approve button is enabled
+      - intake / per-artifact spec / execute: prose markdown (no JSON parse)
+
+    This closes the e2e xfail in this same module — the test was failing
+    because the mock returned prose for `extract`, `extract_json` raised,
+    the stage raised "extract stage produced invalid JSON", _execute_run
+    set status="error", and "Run failed" surfaced in <3s.
+    """
     from agentsuite.llm.mock import MockLLMProvider
     try:
         _MOCK_SENTINEL.touch(exist_ok=True)
     except Exception:
         pass
+    # Founder rubric canonical dimensions (agentsuite/agents/founder/rubric.py).
+    # Score every dimension at 8.0 so average == 8.0 (>= default threshold 7.0)
+    # → the Approve button is enabled and the e2e can exercise the success path.
+    _founder_dims = (
+        "reusability", "brand_consistency", "claims_grounded", "voice_fit",
+        "template_specificity", "goal_alignment", "anti_genericity",
+        "constraint_adherence", "completeness",
+    )
+    qa_scores = ", ".join(f'"{d}": 8.0' for d in _founder_dims)
+    qa_response = (
+        '{"scores": {' + qa_scores + '}, '
+        '"average": 8.0, "passed": true, '
+        '"revision_instructions": [], "requires_revision": false}'
+    )
     return MockLLMProvider(
         responses={
+            # intake stage: prose markdown is fine (no JSON parse).
             "intake": "Test intake artifact",
-            "extract": "Test extract artifact",
+            # extract stage: parsed by extract_json → must be valid JSON.
+            # `gaps` is read by founder/stages/extract.py:74.
+            "extract": '{"facts": ["test fact"], "gaps": []}',
+            # spec consistency check: parsed by extract_json → must be valid JSON.
+            # `mismatches: []` keeps the consistency check happy with no critical findings.
+            "consistency": '{"mismatches": []}',
+            # spec per-artifact + execute: markdown content (no JSON parse).
             "spec": "Test spec artifact",
             "execute": "Test execute artifact",
-            "qa": '{"score": 0.9, "dimensions": []}',
+            # qa stage: must match agentsuite.kernel.qa.QAReport shape with
+            # canonical Founder dims so the rubric scores cleanly.
+            "qa": qa_response,
             "": "Generic stub response for any prompt",
         },
         default_model="mock-1",
@@ -73,7 +113,13 @@ def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str
     """TEST-003: clicking New Run → submitting a goal must reach a state
     where the orchestrator is running (the LiveRunView heading is visible
     and the SSE stream is connected). This is the path that the v0.8.7
-    missing-`ollama`-SDK bug killed — no test exercised it before today."""
+    missing-`ollama`-SDK bug killed — no test exercised it before today.
+
+    Sprint A loose-end #1 (closed): the mock-LLM contract was previously
+    returning prose for stages that parse JSON, causing "Run failed" to
+    surface in <3s. The mock factory above now returns valid JSON for
+    extract / consistency / qa, so this test runs the real success path
+    against a deterministic mock LLM."""
     _walk_installer(page, base_url)
 
     # Navigate to New Run.
@@ -103,14 +149,16 @@ def test_new_run_dispatches_orchestrator_with_mock_llm(page: Page, base_url: str
     # original test goal.
     expect(page.get_by_text("Five-stage pipeline")).to_be_visible(timeout=10000)
 
-    # NOT asserting "Run failed never appears" beyond this point: the
-    # substring-router MockLLMProvider returns prose for the founder agent's
-    # extract stage, which expects parseable JSON. Production correctly
-    # raises "extract stage produced invalid JSON: ..." — that's a
-    # test-fixture limitation, not a production bug. Same class as the
-    # xfail in tests/test_execution_integration.py. Hardening the mock to
-    # return canonical JSON for stages that demand it lives on the audit
-    # watchlist (W-1).
+    # Assert the run did NOT immediately crash with the v0.8.7 bug-class
+    # ("Run failed" within the first 3s = orchestrator never started).
+    page.wait_for_timeout(3000)
+    failed = page.get_by_text("Run failed")
+    assert not failed.is_visible(), (
+        "Run failed within 3s of dispatch — orchestrator likely never started. "
+        "Check that AGENTSUITE_LLM_PROVIDER_FACTORY is honored by "
+        "agentsuitelocal/api/execution.py:_resolve_llm (TEST-003 "
+        "implementation note in next-sprint-watchlist.md)."
+    )
 
     # TEST2-001: assert the mock factory actually ran. Without this check, a
     # CI job where the env var didn't propagate to the backend subprocess

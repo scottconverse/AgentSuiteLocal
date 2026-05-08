@@ -270,10 +270,35 @@ The backend uses `agentsuite_run_id` (AgentSuite's internal ID) to find the run 
 - **Dynamic version sourcing from `__version__.py`** (v0.8.3)
 - **AgentSuite K1 cross-stage context** (v0.8.5) — intra-stage progress events
 - **`PipelineOrchestrator` re-migration** (v0.8.7) — for the multi-agent path
+- **Smoke test screen** (v0.8.8) — re-introduced as installer step 5; four sequential checks with fix cards
+- **`launcher.port.json`** (v0.8.8) — replaces the legacy plaintext `launcher.log` as the canonical bound-port file; E2E conftest, the uninstaller, and CONTRIBUTING.md all read from it
+- **`utils/sseStream.js`** (v0.8.8) — extracted shared SSE fetch+ReadableStream parser; eliminates duplicate code across four installer screens; handles `: ping` keepalive comments and unparseable payloads
+- **QA score robustness** (v0.8.9) — `_first_defined()` helper replaces falsy or-chains that promoted score `0.0` to `None`; `json.JSONDecodeError` and `ValueError` now surface as `qa_status="failed"` with logging instead of being silently swallowed
+- **`qa_status` field** (v0.8.9) — new run dict field (`"ok" | "failed" | "missing"`) exposed via `GET /api/run/{id}`; ApprovalGateView disables Approve and shows an amber warning banner when QA parsing failed or was absent
+- **QA gate enforcement in approve_run** (v0.8.9) — `POST /api/run/{id}/approve` now checks `qa_score` against the configured `qa_gate_threshold` and returns HTTP 422 when below threshold unless `override=true`
+- **Path traversal guard on kernel diff** (v0.8.9) — `kernel/diff` now validates requested paths using `p.is_relative_to(kernel_root)` scoped to `workspace/.agentsuite/_kernel/`, replacing the looser home-dir prefix check
+- **SettingsPatch input bounds** (v0.8.9) — Pydantic `Field(ge=60, le=86400)` on `run_timeout_seconds`, `Field(ge=0.0, le=10.0)` on `qa_gate_threshold`; rejects unsafe values at the API layer
+- **reject_run state guard** (v0.8.9) — `POST /api/run/{id}/reject` now returns HTTP 400 for runs not in `waiting` or `done` state
+- **rename_project slug validation** (v0.8.9) — normalised slug validated against `_SLUG_RE` before storing; rejects names with invalid characters
+
+### v0.9 Sprint A (in progress on `release/v0.9.0`)
+
+- **`qa_score` reads `agentsuite.kernel.qa.QAReport.average`** (V4) — both call sites in `agentsuitelocal/api/execution.py` (L361-367, L455-461) read the canonical field; legacy field names (`weighted_score`, `overall_score`, `score`, `overall`) kept as forward-compat fallbacks. `tests/test_qa_score_schema_contract.py` (4 tests) locks the contract against future agentsuite schema drift.
+- **`RunRequest.constraints` removed** (A1, D1) — dead field deleted from `agentsuitelocal/api/schemas.py`. Wire-compat preserved (Pydantic v2 default `extra="ignore"`).
+- **Mocking-discipline classification** (A4) — `docs/MOCKING_AUDIT.md` classifies all 48 real mock call sites: 23 BOUNDARY-OK, 16 INTERNAL-JUSTIFIED, 9 INTERNAL-SUSPECT-REFACTOR. Sprint B B7 actions the 9 refactor sites.
+- **One-run-per-session limitation declared** (A5, D3) — README `Known issues`, `docs/user-manual.md`, `docs/FAQ.md` all state v1.0 supports one active run per session; concurrent runs land in v1.1.
+- **A11y Bar 1, code-only** (A6, D2) — `aria-current="page"` on Sidebar (top + bottom nav); `role="dialog"` + `aria-modal="true"` + Esc-to-close on the override dialog; `:focus-visible` 2px outline regression-guarded. Vitest tests in `Sidebar.test.jsx`, `ApprovalGateView.test.jsx`, `styles.test.js`. Playwright runtime tests in `tests/e2e/test_a11y.py`.
+- **Bundle smoke CI on macOS + Windows** (A7) — `build-macos` and new `build-windows` jobs launch the PyInstaller bundle, poll `~/.agentsuitelocal/launcher.port.json`, GET `/api/health`, verify clean exit. Catches v0.8.7-class missing-hidden-import regressions. Triggers on `main || tags || release/* || (PR to main)`.
+- **Mock LLM per-stage JSON contract** (loose-end #1) — `tests/e2e/test_new_run.py::_mock_provider_factory` returns valid agentsuite-shaped JSON for `extract`, `consistency`, and `qa` stages. The previously-xfailed dispatch test now passes the real success path.
+- **E2E test-isolation pollution fixed** (loose-end #5) — `tests/e2e/conftest.py` env-var leak (set at module import time) replaced with a session-scoped autouse fixture confined to the e2e directory. `tests/test_dependencies.py` no longer sees factory env-vars from the e2e suite.
 
 ## Roadmap
 
-- **Tauri wrapper** — native window, tray icon, single-binary distribution
-- **Go tray daemon** — background model, one-click launch from menu bar
-- **Streaming artifact preview** — render markdown live during the run
-- **Authenticode (Windows) and Apple Developer ID (macOS) signing** — eliminate SmartScreen / Gatekeeper warnings on first run
+- **Tauri wrapper** — native window, tray icon, single-binary distribution (v1.1+ exploratory).
+- **Go tray daemon** — background model, one-click launch from menu bar (v1.1+ exploratory).
+- **Streaming artifact preview** — render markdown live during the run (v1.1).
+- **Concurrent runs** — multiple runs per session (v1.1; current limitation documented in README and the user manual FAQ).
+- **A11y Bar 2** — focus management on dialog open, screen-reader pass, full WCAG AA (v1.1).
+- **Recovery sweeps** — Ollama crash, model corruption, disk full, key revoke, concurrent-runs robustness (v1.1).
+
+**Not on the roadmap:** code-signing certs (Authenticode for Windows, Apple Developer ID for macOS). AgentSuiteLocal is free open-source; users follow the SmartScreen / Gatekeeper instructions in the README on first run.

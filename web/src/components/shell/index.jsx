@@ -89,7 +89,9 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
         {items.map(i => {
           const active = view === i.id;
           return (
-            <button key={i.id} onClick={() => setView(i.id)} className="btn-card" style={{
+            <button key={i.id} onClick={() => setView(i.id)} className="btn-card"
+              aria-current={active ? "page" : undefined}
+              style={{
               cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
               padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%", marginBottom: 2,
               background: active ? "var(--bg-elev)" : "transparent",
@@ -108,7 +110,9 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
 
       <div style={{ padding: 10, borderTop: "1px solid var(--line)" }}>
         {bottom.map(i => (
-          <button key={i.id} onClick={() => setView(i.id)} className="btn-card" style={{
+          <button key={i.id} onClick={() => setView(i.id)} className="btn-card"
+            aria-current={view === i.id ? "page" : undefined}
+            style={{
             cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
             padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%",
             color: i.danger ? "var(--bad)" : "var(--ink-3)",

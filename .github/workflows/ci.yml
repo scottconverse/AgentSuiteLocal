@@ -66,7 +66,7 @@ jobs:
         # when each new module gets its own test file.
         # RATCHET RULE: this number may only increase, never decrease.
         # Lowering it requires a commit explaining why, reviewed in PR.
-        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=58
+        run: pytest tests/ -v --ignore=tests/e2e -m "not ollama and not real_ollama" --cov=agentsuitelocal --cov-report=term-missing --cov-fail-under=58
 
   frontend:
     name: Frontend (build + test)
@@ -97,10 +97,20 @@ jobs:
 
   build-macos:
     # D-1: macOS build verification — runs on main + version tags
+    # A7: also runs on release/* branches so the v1.0 milestone gets the
+    # bundle smoke before merging to main.
+    # Sprint-A loose-end #4: also runs on PRs targeting main, so bundle
+    # regressions are caught at PR time instead of post-merge. The cost
+    # is ~5-10 extra min per PR; the v0.8.7-class regression that
+    # motivates this job shipped because no PR-time gate caught it.
     name: macOS build (PyInstaller)
     runs-on: macos-latest
     needs: [test, frontend]
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    if: |
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      startsWith(github.ref, 'refs/heads/release/') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -135,11 +145,137 @@ jobs:
           echo "Bundle structure verified."
           file dist/AgentSuiteLocal.app/Contents/MacOS/AgentSuiteLocal
 
+      # A7: post-PyInstaller bundle smoke — catches v0.8.7-class regressions
+      # where the .app ships missing a hidden import. Launches the bundled
+      # binary, waits for launcher.port.json, hits /api/health, then kills.
+      - name: Bundle smoke (launch + /api/health)
+        run: |
+          set -e
+          rm -f ~/.agentsuitelocal/launcher.port.json
+          # BROWSER=echo prevents webbrowser.open from blocking on headless macOS
+          BROWSER=echo dist/AgentSuiteLocal.app/Contents/MacOS/AgentSuiteLocal &
+          BUNDLE_PID=$!
+          echo "Bundle PID: $BUNDLE_PID"
+          # Wait up to 30s for launcher.port.json
+          for i in $(seq 1 60); do
+            if [ -f ~/.agentsuitelocal/launcher.port.json ]; then
+              echo "launcher.port.json found after ${i} polls (~$((i*500))ms)"
+              break
+            fi
+            sleep 0.5
+          done
+          if [ ! -f ~/.agentsuitelocal/launcher.port.json ]; then
+            echo "FAIL: launcher.port.json not written within 30s"
+            kill $BUNDLE_PID 2>/dev/null || true
+            exit 1
+          fi
+          PORT=$(python3 -c "import json; print(json.load(open('$HOME/.agentsuitelocal/launcher.port.json'))['port'])")
+          echo "Bundle bound to port: $PORT"
+          # Hit /api/health
+          curl -fsS "http://127.0.0.1:${PORT}/api/health"
+          echo ""
+          echo "OK: /api/health returned 200"
+          # Clean shutdown
+          kill $BUNDLE_PID
+          wait $BUNDLE_PID 2>/dev/null || true
+          echo "Bundle exited cleanly."
+
+  build-windows:
+    # A7: Windows bundle smoke — catches v0.8.7-class regressions on the
+    # Windows distributable (the platform that originally shipped the broken
+    # bundle missing the `ollama` SDK hidden import).
+    # Sprint-A loose-end #4: also runs on PRs targeting main — same reason
+    # as build-macos. Bundle smoke at PR time is cheap insurance against
+    # the class of bug this job exists to catch.
+    name: Windows build (PyInstaller)
+    runs-on: windows-latest
+    needs: [test, frontend]
+    if: |
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      startsWith(github.ref, 'refs/heads/release/') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Python deps + PyInstaller
+        run: pip install -e ".[dev]" pyinstaller==6.20.0
+
+      - name: Build frontend
+        run: npm ci && npm run build
+        working-directory: web
+
+      - name: PyInstaller build
+        run: pyinstaller AgentSuiteLocal.spec
+
+      - name: Verify .exe bundle exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/AgentSuiteLocal/AgentSuiteLocal.exe")) {
+            throw "AgentSuiteLocal.exe not found in dist/"
+          }
+          Write-Host "Bundle structure verified."
+
+      - name: Bundle smoke (launch + /api/health)
+        shell: pwsh
+        run: |
+          $portFile = "$env:USERPROFILE\.agentsuitelocal\launcher.port.json"
+          if (Test-Path $portFile) { Remove-Item $portFile -Force }
+          # BROWSER=echo prevents webbrowser.open from blocking
+          $env:BROWSER = "echo"
+          $proc = Start-Process -FilePath "dist/AgentSuiteLocal/AgentSuiteLocal.exe" -PassThru
+          Write-Host "Bundle PID: $($proc.Id)"
+          # Wait up to 30s for launcher.port.json
+          $found = $false
+          for ($i = 1; $i -le 60; $i++) {
+            if (Test-Path $portFile) {
+              Write-Host "launcher.port.json found after $i polls (~$($i*500)ms)"
+              $found = $true
+              break
+            }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $found) {
+            Write-Host "FAIL: launcher.port.json not written within 30s"
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+          $port = (Get-Content $portFile | ConvertFrom-Json).port
+          Write-Host "Bundle bound to port: $port"
+          $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/health" -UseBasicParsing
+          if ($resp.StatusCode -ne 200) {
+            Write-Host "FAIL: /api/health returned $($resp.StatusCode)"
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+          Write-Host "OK: /api/health returned 200"
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          Write-Host "Bundle exited cleanly."
+
   e2e:
-    # J3: E2E job — runs on PRs to main only (too slow for every push)
+    # J3: E2E job — PRs to main + release/v0.9.0 push (TEST-004)
+    # Extended from "PRs to main only" so the milestone branch gets
+    # Playwright E2E coverage before it merges. Remove the push branch
+    # filter after release/v0.9.0 merges to main.
     name: Playwright E2E
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    if: |
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/release/v0.9.0')
     needs: [test, frontend]
 
     steps:

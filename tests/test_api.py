@@ -145,15 +145,34 @@ def test_approve_run_in_waiting_state():
 
 
 def test_reject_run():
+    # QA-002: reject only succeeds when the run is at the approval gate ("waiting").
+    # Set status to "waiting" to simulate a completed run awaiting human decision.
     r = client.post("/api/run", json={
         "agent_id": "founder",
         "goal": "Test",
         "project": "proj",
     })
     run_id = r.json()["run_id"]
+    from agentsuitelocal.api.state import _runs
+    _runs[run_id]["status"] = "waiting"
     r2 = client.post(f"/api/run/{run_id}/reject")
     assert r2.status_code == 200
     assert r2.json()["status"] == "rejected"
+
+
+def test_reject_run_from_running_state_returns_400():
+    """QA-002: rejecting a run not at the approval gate ("waiting") must return 400."""
+    r = client.post("/api/run", json={
+        "agent_id": "founder",
+        "goal": "Test",
+        "project": "proj",
+    })
+    run_id = r.json()["run_id"]
+    # Do NOT set status to "waiting" — run is in a non-waiting state (running or
+    # error, depending on background task timing). Either way, reject is blocked.
+    r2 = client.post(f"/api/run/{run_id}/reject")
+    assert r2.status_code == 400
+    assert "Cannot reject run in state:" in r2.json()["detail"]
 
 
 def test_list_runs_empty():
