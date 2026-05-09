@@ -2,7 +2,7 @@
 
 AgentSuiteLocal is a thin local desktop shell around [AgentSuite](https://github.com/scottconverse/AgentSuite). The backend is a FastAPI app split across nine routers and a handful of support modules under `agentsuitelocal/api/`. The frontend is React + Vite. They speak REST + SSE. Everything runs on-device — no cloud required. An optional Anthropic API key enables cloud-model fallback.
 
-> **A note on doc currency.** The CHANGELOG is the canonical source of truth for "what does this project actually do today". Where this document and the CHANGELOG disagree, trust the CHANGELOG and file an issue. As of v0.8.9 this document was reconciled against `App.jsx`, the `agentsuitelocal/api/` package, and the v0.8.0 → v0.8.9 changelog entries.
+> **A note on doc currency.** The CHANGELOG is the canonical source of truth for "what does this project actually do today". Where this document and the CHANGELOG disagree, trust the CHANGELOG and file an issue. As of v1.0.0 this document was reconciled against `App.jsx`, the `agentsuitelocal/api/` package, and the v0.8.0 → v1.0.0 changelog entries.
 
 ---
 
@@ -281,16 +281,16 @@ The backend uses `agentsuite_run_id` (AgentSuite's internal ID) to find the run 
 - **reject_run state guard** (v0.8.9) — `POST /api/run/{id}/reject` now returns HTTP 400 for runs not in `waiting` or `done` state
 - **rename_project slug validation** (v0.8.9) — normalised slug validated against `_SLUG_RE` before storing; rejects names with invalid characters
 
-### v0.9 Sprint A (in progress on `release/v0.9.0`)
+### v1.0.0 (shipped 2026-05-08)
 
 - **`qa_score` reads `agentsuite.kernel.qa.QAReport.average`** (V4) — both call sites in `agentsuitelocal/api/execution.py` (L361-367, L455-461) read the canonical field; legacy field names (`weighted_score`, `overall_score`, `score`, `overall`) kept as forward-compat fallbacks. `tests/test_qa_score_schema_contract.py` (4 tests) locks the contract against future agentsuite schema drift.
 - **`RunRequest.constraints` removed** (A1, D1) — dead field deleted from `agentsuitelocal/api/schemas.py`. Wire-compat preserved (Pydantic v2 default `extra="ignore"`).
-- **Mocking-discipline classification** (A4) — `docs/MOCKING_AUDIT.md` classifies all 48 real mock call sites: 23 BOUNDARY-OK, 16 INTERNAL-JUSTIFIED, 9 INTERNAL-SUSPECT-REFACTOR. Sprint B B7 actions the 9 refactor sites.
-- **One-run-per-session limitation declared** (A5, D3) — README `Known issues`, `docs/user-manual.md`, `docs/FAQ.md` all state v1.0 supports one active run per session; concurrent runs land in v1.1.
-- **A11y Bar 1, code-only** (A6, D2) — `aria-current="page"` on Sidebar (top + bottom nav); `role="dialog"` + `aria-modal="true"` + Esc-to-close on the override dialog; `:focus-visible` 2px outline regression-guarded. Vitest tests in `Sidebar.test.jsx`, `ApprovalGateView.test.jsx`, `styles.test.js`. Playwright runtime tests in `tests/e2e/test_a11y.py`.
-- **Bundle smoke CI on macOS + Windows** (A7) — `build-macos` and new `build-windows` jobs launch the PyInstaller bundle, poll `~/.agentsuitelocal/launcher.port.json`, GET `/api/health`, verify clean exit. Catches v0.8.7-class missing-hidden-import regressions. Triggers on `main || tags || release/* || (PR to main)`.
-- **Mock LLM per-stage JSON contract** (loose-end #1) — `tests/e2e/test_new_run.py::_mock_provider_factory` returns valid agentsuite-shaped JSON for `extract`, `consistency`, and `qa` stages. The previously-xfailed dispatch test now passes the real success path.
-- **E2E test-isolation pollution fixed** (loose-end #5) — `tests/e2e/conftest.py` env-var leak (set at module import time) replaced with a session-scoped autouse fixture confined to the e2e directory. `tests/test_dependencies.py` no longer sees factory env-vars from the e2e suite.
+- **DI refactor for `_save_state`/`_log_telemetry`/`_send_notification`/`_load_settings`** — 9 INTERNAL-SUSPECT-REFACTOR sites closed; internal helpers are now injectable for cleaner testing without patching.
+- **One-run-per-session limitation declared** — README `Known issues`, `docs/user-manual.md`, `docs/FAQ.md` all state v1.0 supports one active run per session; concurrent runs land in v1.1.
+- **A11y Bar 1** — `aria-current="page"` on Sidebar (top + bottom nav); `role="dialog"` + `aria-modal="true"` + Esc-to-close on the override dialog; `:focus-visible` 2px outline regression-guarded. Vitest tests in `Sidebar.test.jsx`, `ApprovalGateView.test.jsx`, `styles.test.js`. Playwright runtime tests in `tests/e2e/test_a11y.py`.
+- **Bundle smoke CI on macOS + Windows** — `build-macos` and new `build-windows` jobs launch the PyInstaller bundle, poll `~/.agentsuitelocal/launcher.port.json`, GET `/api/health`, verify clean exit. Catches v0.8.7-class missing-hidden-import regressions. Triggers on `main || tags || release/* || (PR to main)`.
+- **Mock LLM per-stage JSON contract** — `tests/e2e/test_new_run.py::_mock_provider_factory` returns valid agentsuite-shaped JSON for `extract`, `consistency`, and `qa` stages. The previously-xfailed dispatch test now passes the real success path.
+- **E2E test-isolation pollution fixed** — `tests/e2e/conftest.py` env-var leak replaced with a session-scoped autouse fixture confined to the e2e directory.
 
 ## Roadmap
 
