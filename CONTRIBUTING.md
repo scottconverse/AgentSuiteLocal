@@ -125,7 +125,7 @@ Open an issue at https://github.com/scottconverse/AgentSuiteLocal/issues. Includ
 - OS and RAM
 - AgentSuiteLocal version (shown in Settings or `agentsuitelocal --version`)
 - What you did and what you expected
-- What happened — paste logs from `~/.agentsuitelocal/launcher.log` (general events) and the bound port from `~/.agentsuitelocal/launcher.port.json` if relevant
+- What happened — paste the bound port from `~/.agentsuitelocal/launcher.port.json` if relevant, and any relevant entries from your system log
 - Crash report JSON if one was captured (Settings shows a banner when a crash report exists)
 
 ---
