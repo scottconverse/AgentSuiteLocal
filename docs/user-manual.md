@@ -10,6 +10,9 @@ That's the whole loop. Everything in this app is a UI on top of it. All processi
 
 ## 1. Installation walkthrough
 
+![Installer welcome screen](assets/screenshot-installer-welcome.png)
+*The installer welcome screen — your first view when you launch AgentSuiteLocal for the first time.*
+
 The installer runs once and walks **6 short steps**. After setup completes it doesn't appear again unless you reinstall.
 
 | Step | Screen | What happens |
@@ -27,6 +30,9 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 
 ## 2. First run — from Dashboard to approved artifact
 
+![Dashboard overview](assets/screenshot-dashboard.png)
+*The Dashboard shows your projects, recent runs, engine status, and any runs waiting for your review.*
+
 **Step 1: Open the app.** You'll see the Dashboard with an engine status card and a "Start a new run" prompt.
 
 **Step 2: Click New run** (or click an agent card in the Agents view). The New Run screen appears.
@@ -41,6 +47,9 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 **Step 5: Wait — or come back later.** The pipeline runs five stages. Each lights up when it starts and shows a checkmark when complete. The whole pipeline takes 9–16 minutes on typical hardware. Closing the Live Run view does **not** stop the run — it continues in the background. You can also click **Cancel** at any time to stop the run and save partial artifacts.
 
 **Step 6: Review.** When QA completes, the Approval Gate opens automatically.
+
+![Approval gate](assets/screenshot-approval-gate.png)
+*The approval gate shows every artifact with rendered markdown preview, QA scores across nine dimensions, and the Approve / Reject buttons.*
 
 **Step 7: Read the artifacts.** The file tree on the left lists every artifact the agent produced. Click any file to read it in the centre panel. The right panel shows QA scores across nine dimensions.
 
@@ -101,6 +110,9 @@ The installer runs once and walks **6 short steps**. After setup completes it do
 
 ## 4. The live view — understanding what you're seeing
 
+![Live run view](assets/screenshot-live-run.png)
+*The live run view shows the five-stage pipeline as it progresses, with elapsed timers and a live output log.*
+
 ### Stage indicators
 Each of the five stages has a row in the left panel:
 - **Gray dot:** waiting
@@ -119,15 +131,15 @@ Each of the five stages has a row in the left panel:
 
 ### QA scores
 After the QA stage, nine dimensions appear in the right panel:
-- **Clarity** — how readable the artifacts are
-- **Completeness** — whether all required sections are present
-- **Coherence** — whether the artifacts are internally consistent
 - **Specificity** — how concrete and actionable the content is
-- **Brand alignment** — whether the output matches your stated positioning
-- **Feasibility** — whether the artifacts are realistic to implement
-- **Differentiation** — whether the output takes a distinct point of view
-- **Depth** — whether it goes beyond surface-level analysis
+- **Voice consistency** — whether the output maintains a consistent tone throughout
+- **Audience fit** — whether the content speaks to the right people in the right way
+- **Evidence** — whether claims are backed by reasoning or data
+- **Internal consistency** — whether the artifacts agree with each other
+- **Reusability** — how well the artifacts serve as templates for future work
 - **Actionability** — whether there are clear next steps
+- **Originality** — whether the output takes a distinct point of view
+- **Coverage** — whether all required sections and topics are addressed
 
 Each dimension scores 0–10. The composite is a weighted average. The default approval threshold is 7.0 (configurable in Settings).
 
@@ -136,6 +148,9 @@ If the model returns fewer than 9 dimensions, an amber notice appears: "Partial 
 ---
 
 ## 5. The kernel — what it is and how to use it
+
+![Kernel view](assets/screenshot-kernel-view.png)
+*The Kernel view shows all your approved artifacts grouped by project and agent. Click any file to preview it inline.*
 
 The kernel is the canonical store of approved artifacts. Every run loads the kernel for its project as context before starting.
 
@@ -166,6 +181,9 @@ Pipelines chain multiple agents end-to-end. The output of each agent is passed a
 
 ## 7. Model management
 
+![Model management](assets/screenshot-model-management.png)
+*The Model Management screen lets you pull new models, see which is active, and delete ones you no longer need.*
+
 Open **Settings → Models** (or click **Models** in the sidebar) to manage your local models.
 
 **Installed models:** lists all models Ollama has pulled, with size and last-used date. **Set as active** switches the model used for future runs; **Delete** (with confirmation) removes a model from disk.
@@ -174,7 +192,7 @@ Open **Settings → Models** (or click **Models** in the sidebar) to manage your
 
 | Tier | Model | Disk | Min RAM |
 |------|-------|------|---------|
-| Light    | `gemma4:e2b`     | ~2 GB | 8 GB  |
+| Light    | `gemma4:e2b`     | ~3 GB | 8 GB  |
 | Balanced | `gemma4:e4b`     | ~5 GB | 16 GB |
 | Pro      | `gemma4:26b`     | ~17 GB | 32 GB |
 
