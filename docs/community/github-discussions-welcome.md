@@ -4,7 +4,7 @@ Hello and welcome. This is the place for questions, bug reports, feature request
 
 ## What AgentSuiteLocal is
 
-AgentSuiteLocal is a desktop application that runs multi-agent AI workflows entirely on your machine using Ollama. Seven specialist agents — Founder, Design, Product, Engineering, Marketing, Trust/Risk, and CIO — each run structured 5–7 stage pipelines and produce artifact sets that you approve before they're stored anywhere permanent. No cloud, no subscription, no data leaving your machine.
+AgentSuiteLocal is a desktop application that runs multi-agent AI workflows entirely on your machine using Ollama. Seven specialist agents — Founder, Design, Product, Engineering, Marketing, Trust/Risk, and CIO — each run a structured five-stage pipeline and produce artifact sets that you approve before they're stored anywhere permanent. No cloud, no subscription, no data leaving your machine.
 
 The goal is to make multi-agent AI useful for solo founders and small teams who want the output quality of structured prompting without building custom pipelines themselves, and who care about keeping their work private.
 
@@ -12,15 +12,15 @@ The goal is to make multi-agent AI useful for solo founders and small teams who 
 
 | Agent | What it produces | Typical runtime |
 |---|---|---|
-| Founder | Brand system, positioning, ICP definition | 12–18 min |
-| Design | Visual design brief, component inventory, style guide | 10–15 min |
-| Product | PRD, feature prioritization, acceptance criteria | 14–20 min |
-| Engineering | Technical spec, architecture decisions, implementation plan | 15–22 min |
-| Marketing | Launch strategy, channel plan, messaging hierarchy | 10–14 min |
-| Trust / Risk | Compliance checklist, risk register, mitigation plan | 8–12 min |
-| CIO | Infrastructure assessment, toolchain evaluation, security posture | 8–12 min |
+| Founder | Brand system, positioning, voice guidelines | ~14 min |
+| Design | Design briefs, visual language spec, brand QA checklist | ~9 min |
+| Product | UI/UX spec, feature specs, user stories, handoff docs | ~12 min |
+| Engineering | ADRs, system design, API specs, runbooks | ~16 min |
+| Marketing | Launch plan, campaign briefs, messaging matrix, content plan | ~11 min |
+| Trust / Risk | Threat model, controls register, compliance checklist, risk register | ~13 min |
+| CIO | IT strategy, technology roadmap, vendor evaluation matrix | ~14 min |
 
-Runtimes are estimates on the balanced tier (gemma4:e4b) with 16 GB RAM. Faster models are faster; larger models produce better output but take longer.
+Runtimes are estimates on the Balanced tier (gemma4:e4b) with 16 GB RAM. Lighter models are faster; larger models produce better output but take longer.
 
 ## Reporting a bug
 
@@ -49,22 +49,16 @@ We don't commit to timelines on feature requests, but we do read them all.
 
 ## Rough roadmap
 
-**v0.8 (released — current)**
-- Pipeline templates — save and reuse agent sequences as named pipelines
-- Batch runs — run the same agent across multiple input folders
-- Kernel search — full-text search across all approved artifacts
-- Better QA explanations — per-dimension explanations of what the score means
+**v1.0 (released — current)**
+- First stable release with full seven-agent support
+- Installer, approval gate, kernel, model management, pipelines, and projects all stable
+- One active run per session (concurrent runs ship in v1.1)
 
-**v0.9 (in progress)**
-- Team workspace — shared kernel across multiple users on a local network (no cloud)
-- Plugin system — bring your own agent definition as a YAML file
-- Custom stages — add, remove, or reorder stages within an agent
-
-**v1.0 (planned)**
-- Signed installers on both platforms
-- Auto-update through the installer (not just the in-app banner)
-- Windows arm64 build
-- Accessibility pass — keyboard navigation, screen reader support
+**v1.1 (planned)**
+- Concurrent runs — multiple agent runs in parallel per session
+- Streaming artifact preview — render markdown live during the run
+- Tauri wrapper — native window, tray icon, single-binary distribution (exploratory)
+- A11y Bar 2 — focus management, screen reader pass, WCAG AA
 
 This roadmap is aspirational, not a commitment. Things move based on what the community finds most useful.
 
@@ -86,4 +80,4 @@ We're working on better model guidance in the docs as we learn more about what m
 
 ---
 
-Thanks for trying AgentSuiteLocal. The current release is v0.8.9 — the v0.7.0 line was the first that was feature-complete enough to use for real work, and the v0.8.x line has been hardening reliability, supply-chain posture, and the pipeline orchestrator. We still expect bugs and rough edges; the issues list is the right place for them.
+Thanks for trying AgentSuiteLocal. The current release is v1.0.0 — the first stable release. We still expect bugs and rough edges; the issues list is the right place for them.

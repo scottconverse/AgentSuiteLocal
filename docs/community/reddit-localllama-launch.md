@@ -1,10 +1,10 @@
 # r/LocalLLaMA — Intro post
 
-**AgentSuiteLocal — seven AI agents that run entirely on your machine, with a proper installer and approval workflow** (current release: v0.8.9)
+**AgentSuiteLocal — seven AI agents that run entirely on your machine, with a proper installer and approval workflow** (v1.0.0 — first stable release)
 
 ---
 
-I've been building a desktop app that wraps local LLMs in a structured multi-agent workflow. The v0.7.0 line was the first feature-complete release; the v0.8.x line (currently v0.8.9) has been hardening reliability, supply-chain posture, and the pipeline orchestrator. Sharing it here since this community is exactly the audience.
+I've been building a desktop app that wraps local LLMs in a structured multi-agent workflow. v1.0.0 shipped this week — the first stable release after several months of hardening reliability, supply-chain posture, and the pipeline orchestrator. Sharing it here since this community is exactly the audience.
 
 **What it is**
 
@@ -20,7 +20,7 @@ The seven agents are:
 - **Trust / Risk** — compliance checklist, risk register, mitigation plan
 - **CIO** — infrastructure assessment, toolchain evaluation, security posture
 
-Each agent runs a 5–7 stage pipeline. Between the pipeline completing and the output being saved anywhere permanent, you get an approval gate — you can read the full output, see QA scores, export as ZIP/Markdown/PDF, and either approve (which promotes to a versioned kernel) or reject (which keeps the run for retry).
+Each agent runs a five-stage pipeline (intake → extract → spec → execute → QA). Between the pipeline completing and the output being saved anywhere permanent, you get an approval gate — you can read the full output, see QA scores, export as ZIP/Markdown/PDF, and either approve (which promotes to a versioned kernel) or reject (which keeps the run for retry).
 
 **How it actually works**
 
@@ -37,7 +37,7 @@ Models are managed through Ollama. The installer walks you through pulling a mod
 
 **Installation**
 
-Windows: download `AgentSuiteLocal-0.8.9-setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
+Windows: download `AgentSuiteLocal-1.0.0-setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
 
 macOS: download the `.app`, right-click and open to bypass Gatekeeper on first launch.
 
