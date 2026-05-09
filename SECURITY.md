@@ -6,9 +6,9 @@ AgentSuiteLocal follows a rolling-release model. Only the latest minor line rece
 
 | Version | Supported |
 |---------|-----------|
-| 0.8.x   | ✓ Current — receives all security patches |
-| 0.7.x   | Best-effort backports for high-severity issues only, through 2026-08 |
-| ≤ 0.1.x | Unsupported |
+| 1.0.x   | ✓ Current — receives all security patches |
+| 0.8.x   | Best-effort backports for high-severity issues only, through 2026-11 |
+| ≤ 0.7.x | Unsupported |
 
 We recommend running the latest tagged release. Auto-update notifications appear in the Dashboard when a new version is published; check **Settings → About** for your installed version.
 
