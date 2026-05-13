@@ -18,8 +18,12 @@ name: real-e2e
 
 on:
   schedule:
-    # 04:00 UTC daily — quiet hours for most contributors, hot cache.
-    - cron: "0 4 * * *"
+    # Sundays 04:00 UTC — weekly drift catcher. Daily cron was burning
+    # ~1,300 Linux-equivalent minutes per month on a 2,000-min free tier
+    # (45-50 min/run × 30 runs). Weekly catches drift between manual
+    # CI runs while staying inside the budget. Tag + labeled-PR triggers
+    # are unchanged, so the release-gate path is fully preserved.
+    - cron: "0 4 * * 0"
   push:
     tags:
       - "v*"
@@ -30,6 +34,10 @@ on:
     # add their own opt-in trigger if needed.
   pull_request:
     types: [labeled, opened, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   real-e2e:
