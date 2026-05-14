@@ -14,7 +14,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
@@ -40,7 +40,7 @@ jobs:
 
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     needs: lint
     strategy:
       matrix:
@@ -70,7 +70,7 @@ jobs:
 
   frontend:
     name: Frontend (build + test)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     needs: lint
 
     steps:
@@ -272,7 +272,7 @@ jobs:
     # Playwright E2E coverage before it merges. Remove the push branch
     # filter after release/v0.9.0 merges to main.
     name: Playwright E2E
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     if: |
       (github.event_name == 'pull_request' && github.base_ref == 'main') ||
       (github.event_name == 'push' && github.ref == 'refs/heads/release/v0.9.0')

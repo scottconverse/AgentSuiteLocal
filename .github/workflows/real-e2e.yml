@@ -34,8 +34,7 @@ on:
 jobs:
   real-e2e:
     name: Real-model agent E2E
-    runs-on: ubuntu-latest
-
+    runs-on: [self-hosted, linux, x64]
     # Skip pull_request events unless the `run-real-e2e` label is present.
     # cron + tag pushes always run.
     if: |
