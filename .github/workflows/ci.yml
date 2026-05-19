@@ -1,10 +1,18 @@
 name: CI
 
+# Trigger profile: PR validation only on main. Direct pushes to main go
+# through PRs; release/** branches use the release.yml workflow. Dropping
+# the duplicate `push: branches: [main]` saves a full CI run per merge
+# (was running once on PR + once on post-merge push).
 on:
-  push:
-    branches: ["main", "release/**"]
   pull_request:
     branches: ["main"]
+  push:
+    branches: ["release/**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # SHA pins — update via: gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'
 # actions/checkout@v6       → de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -44,7 +52,11 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        # PRs: 3.12 only (production target). Cross-version regression coverage
+        # against 3.11 still gates on release/** push (see release.yml + the
+        # `if:` below). Was matrix: ["3.11", "3.12"] — doubled CI minutes on
+        # every PR without catching anything PRs were actually breaking.
+        python-version: ${{ github.event_name == 'pull_request' && fromJson('["3.12"]') || fromJson('["3.11", "3.12"]') }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
