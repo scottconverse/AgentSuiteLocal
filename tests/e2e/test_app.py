@@ -135,12 +135,12 @@ def test_new_run_cancel_returns_to_dashboard(app_page: Page):
 
 
 @pytest.mark.e2e
-def test_runs_list_shows_seeded_run(app_page: Page):
+def test_runs_list_shows_seeded_run(app_page: Page, base_url: str):
     # Seed a run via API and verify it appears in the Runs view.
     # Full approval-gate flow requires a waiting run from actual agent execution;
     # tested separately when Ollama is available and agents complete.
     r = httpx.post(
-        "http://127.0.0.1:8765/api/run",
+        f"{base_url}/api/run",
         json={"agent_id": "founder", "goal": "E2E runs list test", "project": "e2e-test"},
     )
     assert r.status_code == 200

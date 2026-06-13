@@ -59,7 +59,7 @@ export const Dashboard = ({ onNew, onOpen }) => {
   };
 
   const model = ollamaStatus?.loaded?.[0] || ollamaStatus?.models?.[0] || "—";
-  const engineOk = ollamaStatus?.running;
+  const engineOk = ollamaStatus?.running === true;
 
   return (
     <div style={{ flex: 1, overflow: "auto" }}>
@@ -68,15 +68,17 @@ export const Dashboard = ({ onNew, onOpen }) => {
         subtitle={loading ? "Loading…" : `${projects.length} project${projects.length !== 1 ? "s" : ""} · ${runs.length} runs · ${totalArtifacts} approved artifacts`}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-accent btn-sm" onClick={onNew}><Icon name="plus" size={13} /> New run</button>
+            <button className="btn btn-accent btn-sm" onClick={onNew} disabled={!engineOk}>
+              <Icon name={engineOk ? "plus" : "zap"} size={13} /> {engineOk ? "New run" : "New run locked"}
+            </button>
           </div>
         }
       />
-      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="dashboard-body" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Hero — pending approval or empty state */}
         {waiting ? (
-          <div className="card" style={{ padding: 24, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 24, background: "linear-gradient(135deg, var(--bg-elev) 0%, var(--accent-soft) 140%)", overflow: "hidden" }}>
+          <div className="card dashboard-hero-grid" style={{ padding: 24, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 24, background: "linear-gradient(135deg, var(--bg-elev) 0%, var(--accent-soft) 140%)", overflow: "hidden" }}>
             <div>
               <div className="mono" style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Pick up where you left off</div>
               <h2 className="display" style={{ fontSize: 28, margin: 0, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
@@ -110,21 +112,29 @@ export const Dashboard = ({ onNew, onOpen }) => {
           </div>
         ) : (
           <div className="card" style={{ padding: 24, background: "linear-gradient(135deg, var(--bg-elev) 0%, var(--accent-soft) 140%)" }}>
-            <div className="mono" style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Ready to go</div>
+            <div className="mono" style={{ fontSize: 11, color: engineOk ? "var(--accent)" : "var(--bad)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
+              {engineOk ? "Ready to go" : "Local engine offline"}
+            </div>
             <h2 className="display" style={{ fontSize: 28, margin: 0, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-              {runs.length === 0 ? "Start your first run." : "No runs waiting for review."}
+              {engineOk
+                ? (runs.length === 0 ? "Start your first run." : "No runs waiting for review.")
+                : "Start Ollama before running agents."}
             </h2>
             <div style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 12 }}>
-              {runs.length === 0
+              {!engineOk
+                ? "The run launcher is locked until the local model is reachable. Open Ollama, then return here."
+                : runs.length === 0
                 ? "Pick an agent, write one sentence, and let it run."
                 : "All runs are either approved, rejected, or in progress."}
             </div>
-            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onNew}><Icon name="play" size={14} /> New run</button>
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onNew} disabled={!engineOk}>
+              <Icon name={engineOk ? "play" : "zap"} size={14} /> {engineOk ? "New run" : "New run locked"}
+            </button>
           </div>
         )}
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div className="dashboard-metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           <MetricCard icon="folder"   label="Projects"         value={projects.length}   sub="active" />
           <MetricCard icon="activity" label="Total runs"       value={runs.length}        sub="all time" />
           <MetricCard icon="layers"   label="Approved artifacts" value={totalArtifacts}  sub="in kernel" />
@@ -135,7 +145,7 @@ export const Dashboard = ({ onNew, onOpen }) => {
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
+        <div className="dashboard-panels-grid" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
           {/* Recent runs */}
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center" }}>

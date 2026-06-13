@@ -25,3 +25,15 @@ describe("styles.css :focus-visible (A6)", () => {
     expect(css).toMatch(/:focus:not\(:focus-visible\)\s*\{\s*outline:\s*none/);
   });
 });
+
+describe("styles.css responsive app shell", () => {
+  const cssPath = path.resolve(__dirname, "styles.css");
+  const css = fs.readFileSync(cssPath, "utf8");
+
+  it("has a mobile breakpoint for the app shell and dashboard grids", () => {
+    expect(css).toMatch(/@media\s*\(max-width:\s*720px\)/);
+    expect(css).toMatch(/\.app-main-row\s*\{[^}]*flex-direction:\s*column/s);
+    expect(css).toMatch(/\.app-sidebar\s*\{[^}]*width:\s*100%/s);
+    expect(css).toMatch(/\.dashboard-metrics-grid,[\s\S]*grid-template-columns:\s*1fr\s*!important/);
+  });
+});

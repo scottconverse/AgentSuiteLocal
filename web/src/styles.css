@@ -74,6 +74,20 @@ body {
 }
 #root { height: 100%; display: flex; flex-direction: column; }
 
+.app-root {
+  --app-window-height: calc(100vh - 48px);
+  padding: 24px;
+}
+
+.app-sidebar {
+  width: 220px;
+  border-right: 1px solid var(--line);
+}
+
+.app-sidebar-item {
+  width: 100%;
+}
+
 button { font-family: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; color: var(--ink); }
 
@@ -249,6 +263,84 @@ input, textarea, select { font-family: inherit; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   .spin, .pulse-dot, .fade-up, .shimmer {
     animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-root {
+    --app-window-height: 100vh;
+    padding: 0;
+  }
+
+  .app-main-row {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    max-height: 152px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: auto;
+  }
+
+  .app-sidebar-brand,
+  .app-sidebar-workspace {
+    display: none;
+  }
+
+  .app-sidebar-nav {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto !important;
+    padding: 10px !important;
+    overflow-x: auto;
+  }
+
+  .app-sidebar-item {
+    width: auto;
+    flex: 0 0 auto;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+  }
+
+  .app-sidebar-footer {
+    display: flex;
+    gap: 6px;
+    border-top: 0 !important;
+    padding: 0 10px 10px !important;
+    overflow-x: auto;
+  }
+
+  .app-sidebar-footer > div {
+    display: none;
+  }
+
+  .app-topbar {
+    min-height: 64px;
+    height: auto !important;
+    padding: 10px 14px !important;
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .app-topbar > div:first-child {
+    flex-basis: 100%;
+  }
+
+  .dashboard-body {
+    padding: 14px !important;
+    gap: 14px !important;
+  }
+
+  .dashboard-hero-grid,
+  .dashboard-metrics-grid,
+  .dashboard-panels-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .display {
+    letter-spacing: 0;
   }
 }
 

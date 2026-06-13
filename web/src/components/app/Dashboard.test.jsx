@@ -45,6 +45,19 @@ describe("Dashboard", () => {
     );
   });
 
+  it("does not claim the app is ready when Ollama is offline", async () => {
+    mockFetch({ runs: [], ollama: { running: false, loaded: [], models: [] } });
+    render(<Dashboard onNew={vi.fn()} onOpen={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText(/local engine offline/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/ready to go/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/start ollama before running agents/i)).toBeInTheDocument();
+    for (const button of screen.getAllByRole("button", { name: /new run locked/i })) {
+      expect(button).toBeDisabled();
+    }
+  });
+
   it("shows 'No runs waiting for review' when all runs are done", async () => {
     render(<Dashboard onNew={vi.fn()} onOpen={vi.fn()} />);
     await waitFor(() =>

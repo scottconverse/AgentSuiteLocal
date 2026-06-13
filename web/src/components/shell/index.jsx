@@ -64,15 +64,15 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
     { id: "uninstall", icon: "x",        label: "Uninstall", danger: true },
   ];
   return (
-    <div style={{
-      width: 220, background: "var(--bg-sunk)", borderRight: "1px solid var(--line)",
+    <div className="app-sidebar" style={{
+      background: "var(--bg-sunk)",
       display: "flex", flexDirection: "column", flexShrink: 0,
     }}>
-      <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--line)" }}>
+      <div className="app-sidebar-brand" style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--line)" }}>
         <Brand size={13} />
       </div>
 
-      <div style={{ padding: 10 }}>
+      <div className="app-sidebar-workspace" style={{ padding: 10 }}>
         <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.08em", padding: "8px 10px 4px", textTransform: "uppercase", fontWeight: 600 }}>Workspace</div>
         <div style={{
           padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
@@ -85,15 +85,15 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
         </div>
       </div>
 
-      <nav style={{ padding: "0 10px", flex: 1 }}>
+      <nav className="app-sidebar-nav" style={{ padding: "0 10px", flex: 1 }}>
         {items.map(i => {
           const active = view === i.id;
           return (
-            <button key={i.id} onClick={() => setView(i.id)} className="btn-card"
+            <button key={i.id} onClick={() => setView(i.id)} className="btn-card app-sidebar-item"
               aria-current={active ? "page" : undefined}
               style={{
               cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
-              padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%", marginBottom: 2,
+              padding: "8px 10px", borderRadius: 6, fontSize: 13, marginBottom: 2,
               background: active ? "var(--bg-elev)" : "transparent",
               boxShadow: active ? "var(--sh-1)" : "none",
               border: active ? "1px solid var(--line)" : "1px solid transparent",
@@ -108,13 +108,13 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
         })}
       </nav>
 
-      <div style={{ padding: 10, borderTop: "1px solid var(--line)" }}>
+      <div className="app-sidebar-footer" style={{ padding: 10, borderTop: "1px solid var(--line)" }}>
         {bottom.map(i => (
-          <button key={i.id} onClick={() => setView(i.id)} className="btn-card"
+          <button key={i.id} onClick={() => setView(i.id)} className="btn-card app-sidebar-item"
             aria-current={view === i.id ? "page" : undefined}
             style={{
             cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
-            padding: "8px 10px", borderRadius: 6, fontSize: 13, width: "100%",
+            padding: "8px 10px", borderRadius: 6, fontSize: 13,
             color: i.danger ? "var(--bad)" : "var(--ink-3)",
           }}>
             <Icon name={i.icon} size={14} /> {i.label}
@@ -135,7 +135,7 @@ export const Sidebar = ({ view, setView, projectSlug, waitingCount = 0, model = 
 };
 
 export const TopBar = ({ title, subtitle, actions }) => (
-  <div style={{
+  <div className="app-topbar" style={{
     height: 56, borderBottom: "1px solid var(--line)", padding: "0 24px",
     display: "flex", alignItems: "center", gap: 16,
     background: "var(--bg)", flexShrink: 0,

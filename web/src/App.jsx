@@ -269,10 +269,10 @@ export default function App() {
   const showSidebar = mode === "app" && scene === "main";
 
   return (
-    <div style={{
+    <div className="app-root" style={{
       width: "100vw", height: "100vh",
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: "var(--bg-sunk)", padding: 24,
+      background: "var(--bg-sunk)",
     }}>
       {actionToast && (
         <div className="fade-up" style={{
@@ -289,7 +289,7 @@ export default function App() {
       <WindowChrome
         title="AgentSuiteLocal"
         subtitle={mode === "installer" ? `Setup · ${STEP_LABELS[step]}` : "Local AI workspace"}
-        height="calc(100vh - 48px)"
+        height="var(--app-window-height)"
       >
         {mode === "boot" ? (
           <div style={{
@@ -323,7 +323,7 @@ export default function App() {
                 <button className="btn btn-sm" onClick={() => setUpdateDismissed(true)}>Dismiss</button>
               </div>
             )}
-            <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+            <div className="app-main-row" style={{ display: "flex", flex: 1, minHeight: 0 }}>
               {showSidebar && (
                 <Sidebar view={view} setView={navTo} projectSlug="agentsuitelocal" waitingCount={waitingCount} model={liveModel} />
               )}
