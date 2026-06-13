@@ -1,0 +1,11 @@
+Windows may show a SmartScreen warning before this installer opens.
+
+Why this happens:
+AgentSuiteLocal is free, open-source beta software. The Windows installer is not code-signed yet, so Windows may show "Windows protected your PC" even when the file came from the official GitHub Releases page.
+
+If you downloaded AgentSuiteLocal from the official release:
+1. Click "More info".
+2. Click "Run anyway".
+
+If you downloaded it from anywhere else, cancel and get the installer from:
+https://github.com/scottconverse/AgentSuiteLocal/releases/latest

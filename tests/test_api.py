@@ -232,6 +232,8 @@ def test_get_settings_returns_schema():
     assert r.status_code == 200
     data = r.json()
     assert "model_tier" in data
+    assert "workspace_path" in data
+    assert data["setup_complete"] is False
 
 
 def test_settings_patch_updates_field():
@@ -247,6 +249,21 @@ def test_settings_patch_does_not_wipe_other_fields():
     data = r.json()
     assert data["model_tier"] == "light"
     assert data["open_on_launch"] is True
+
+
+def test_settings_patch_workspace_path_creates_folder(tmp_path):
+    workspace = tmp_path / "chosen-workspace"
+    r = client.patch("/api/settings", json={"workspace_path": str(workspace)})
+    assert r.status_code == 200
+    assert r.json()["workspace_path"] == str(workspace.resolve())
+    assert workspace.exists()
+
+
+def test_settings_patch_workspace_path_rejects_system_folder():
+    import sys
+    path = "C:\\Windows\\System32" if sys.platform == "win32" else "/etc"
+    r = client.patch("/api/settings", json={"workspace_path": path})
+    assert r.status_code == 422
 
 
 def test_settings_patch_redacts_api_key():
@@ -1246,3 +1263,103 @@ def test_approve_run_running_state_returns_400():
 def test_reject_run_404_for_unknown():
     r = client.post("/api/run/does-not-exist/reject")
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Installer lifecycle hard gates
+# ---------------------------------------------------------------------------
+
+def test_uninstall_phase3_launches_real_windows_uninstaller(monkeypatch, tmp_path):
+    """The app uninstall flow must delegate to Inno's real unins000.exe."""
+    from agentsuitelocal.api.routers import uninstall
+
+    uninstaller = tmp_path / "unins000.exe"
+    uninstaller.write_text("stub")
+    launched = {}
+
+    monkeypatch.setattr(uninstall.sys, "platform", "win32")
+    monkeypatch.setattr(uninstall, "_windows_uninstaller_candidates", lambda: [uninstaller])
+    monkeypatch.setattr(uninstall, "_shell_execute_runas", lambda file, parameters, show=1: launched.update({
+        "file": file,
+        "parameters": parameters,
+        "show": show,
+    }) or 33)
+
+    r = client.post("/api/uninstall/phase3", json={"delete_model": False, "model_name": "gemma4:e4b"})
+
+    assert r.status_code == 200
+    assert r.json() == {
+        "uninstaller_launched": True,
+        "progress_window_launched": True,
+        "path": str(uninstaller),
+        "message": "A visible uninstall progress window was opened.",
+    }
+    assert launched["file"] == "powershell.exe"
+    assert "-NoExit" in launched["parameters"]
+    assert "-EncodedCommand" in launched["parameters"]
+    assert launched["show"] == 1
+
+
+def test_visible_windows_uninstaller_progress_script_reports_done(monkeypatch, tmp_path):
+    """The Windows uninstall launcher must show progress and final status."""
+    import base64
+
+    from agentsuitelocal.api.routers import uninstall
+
+    launched = {}
+    uninstaller = tmp_path / "unins000.exe"
+    uninstaller.write_text("stub")
+
+    monkeypatch.setattr(uninstall, "_shell_execute_runas", lambda file, parameters, show=1: launched.update({
+        "file": file,
+        "parameters": parameters,
+        "show": show,
+    }) or 33)
+
+    assert uninstall._launch_visible_windows_uninstaller(uninstaller)
+
+    encoded = launched["parameters"].split("-EncodedCommand ", 1)[1]
+    script = base64.b64decode(encoded).decode("utf-16le")
+    assert launched["file"] == "powershell.exe"
+    assert launched["show"] == 1
+    assert "AgentSuiteLocal uninstall is starting" in script
+    assert "Write-Progress -Activity 'Uninstalling AgentSuiteLocal'" in script
+    assert "Done: AgentSuiteLocal was removed." in script
+    assert "Uninstall needs attention." in script
+    assert "/VERYSILENT" in script
+    assert str(uninstaller) in script
+
+
+def test_inno_uninstall_kills_running_agent_process():
+    """The packaged uninstaller must not leave AgentSuiteLocal.exe running."""
+    from pathlib import Path
+
+    script = Path("installer/AgentSuiteLocal.iss").read_text(encoding="utf-8")
+
+    assert "function InitializeUninstall" in script
+    assert "AgentSuiteLocal.exe" in script
+    assert "if not UninstallSilent then begin" in script
+    assert "WizardSilent" not in script
+    assert "Invoke-RestMethod -Method POST" in script
+    assert "taskkill" in script
+    assert "/IM AgentSuiteLocal.exe /F /T" in script
+    assert "Remove-Item -LiteralPath $f" in script
+    assert "procedure DeinitializeUninstall" in script
+    assert "DelTree(ExpandConstant('{app}'), True, True, True)" in script
+
+
+def test_uninstall_hook_removes_stale_launcher_port_file(monkeypatch, tmp_path):
+    """Uninstall should clear the liveness marker before the backend exits."""
+    from agentsuitelocal.api.routers import uninstall
+
+    port_file = tmp_path / "launcher.port.json"
+    port_file.write_text('{"port": 8765}')
+
+    monkeypatch.setattr(uninstall, "_LAUNCHER_PORT_FILE", port_file)
+    monkeypatch.setattr(uninstall.asyncio, "create_task", lambda coro: coro.close())
+
+    r = client.post("/api/uninstall")
+
+    assert r.status_code == 200
+    assert r.json() == {"message": "Shutting down"}
+    assert not port_file.exists()

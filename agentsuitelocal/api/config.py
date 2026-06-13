@@ -48,9 +48,22 @@ _TIER_MODEL_MAP = {
     "pro":       "gemma4:26b",
 }
 
+
+def _default_workspace_path() -> Path:
+    """Return the user-facing default save location for generated files."""
+    home = Path.home()
+    for folder in ("Desktop", "Downloads"):
+        candidate = home / folder
+        if candidate.exists() and candidate.is_dir():
+            return candidate / "AgentSuiteLocal"
+    return home / "AgentSuiteLocal"
+
+
 _SETTINGS_DEFAULTS: dict[str, Any] = {
     "model_tier": "balanced",
     "model_name": "gemma4:e4b",
+    "workspace_path": str(_default_workspace_path()),
+    "setup_complete": False,
     "open_on_launch": True,
     "telemetry": False,
     "enabled_agents": ["founder", "design", "product", "engineering", "marketing", "trust_risk", "cio"],

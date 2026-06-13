@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Icon, Toggle } from "../ui/index.jsx";
+import { WorkspacePicker } from "../ui/WorkspacePicker.jsx";
 import { TopBar } from "../shell/index.jsx";
 import { AGENTS, MODELS } from "../../data.js";
 
 // A6: Uninstall panel — 3-phase flow
-const UninstallPanel = () => {
+export const UninstallPanel = () => {
   const [phase, setPhase] = useState(0); // 0=idle, 1=workspace confirm, 2=model confirm, 3=done
   const [wsInfo, setWsInfo] = useState(null);
   const [deleteWorkspace, setDeleteWorkspace] = useState(false);
   const [deleteModel, setDeleteModel] = useState(false);
   const [working, setWorking] = useState(false);
+  const [error, setError] = useState(null);
+  const [uninstallResult, setUninstallResult] = useState(null);
 
   const fmt = (bytes) => bytes < 1024 * 1024
     ? `${(bytes / 1024).toFixed(1)} KB`
@@ -17,46 +20,86 @@ const UninstallPanel = () => {
 
   const beginUninstall = async () => {
     setWorking(true);
-    const info = await fetch("/api/uninstall/workspace-info").then(r => r.json()).catch(() => null);
-    setWsInfo(info);
-    setWorking(false);
-    setPhase(1);
+    setError(null);
+    try {
+      const res = await fetch("/api/uninstall/workspace-info");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      setWsInfo(await res.json());
+      setPhase(1);
+    } catch (err) {
+      setError(err?.message || "Could not prepare uninstall.");
+    } finally {
+      setWorking(false);
+    }
   };
 
   const phase2 = async () => {
     setWorking(true);
-    await fetch("/api/uninstall/phase2", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ delete_workspace: deleteWorkspace }),
-    });
-    setWorking(false);
-    setPhase(2);
+    setError(null);
+    try {
+      const res = await fetch("/api/uninstall/phase2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete_workspace: deleteWorkspace }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      setPhase(2);
+    } catch (err) {
+      setError(err?.message || "Could not remove workspace data.");
+    } finally {
+      setWorking(false);
+    }
   };
 
   const phase3 = async () => {
     setWorking(true);
+    setError(null);
     // Fallback aligned with the canonical default in agentsuitelocal/api/config.py
     // (_DEFAULT_SETTINGS.model_name = "gemma4:e4b"). The Balanced tier is the
     // recommended default; using a stale gemma2:2b here would target the wrong
     // model on uninstall.
     const modelName = localStorage.getItem("active_model") || "gemma4:e4b";
-    await fetch("/api/uninstall/phase3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ delete_model: deleteModel, model_name: modelName }),
-    });
-    // G4: clear setup flag so next launch shows the installer again
-    localStorage.removeItem("agentsuite_setup_complete");
-    setWorking(false);
-    setPhase(3);
+    try {
+      const res = await fetch("/api/uninstall/phase3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete_model: deleteModel, model_name: modelName }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      localStorage.removeItem("agentsuite_setup_complete");
+      setUninstallResult(body);
+      setPhase(3);
+    } catch (err) {
+      setError(err?.message || "Could not open the Windows uninstaller.");
+    } finally {
+      setWorking(false);
+    }
   };
 
   if (phase === 3) {
+    const repairMode = uninstallResult?.fallback_cleanup_launched;
+    const progressMode = uninstallResult?.progress_window_launched;
     return (
       <div className="card" style={{ padding: 18, borderColor: "var(--bad)" }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>AgentSuiteLocal has been uninstalled.</div>
-        <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Close this window to finish.</div>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
+          {repairMode ? "Repair cleanup is running" : progressMode ? "Uninstall progress window opened" : "Windows uninstaller opened"}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.45 }}>
+          {repairMode
+            ? "Approve the Windows prompt if asked. A PowerShell cleanup window will show progress and this app may close."
+            : progressMode
+              ? "Approve the Windows prompt if asked. Keep the AgentSuiteLocal uninstall progress window open until it says Done or needs attention."
+              : "Approve the Windows prompt if asked, then follow the uninstaller window. This app will close when removal finishes."}
+        </div>
       </div>
     );
   }
@@ -66,13 +109,18 @@ const UninstallPanel = () => {
       <div className="card" style={{ padding: 18, borderColor: "var(--bad)" }}>
         <div className="mono" style={{ fontSize: 11, color: "var(--bad)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Step 3 of 3 — Ollama model</div>
         <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 12 }}>Optionally remove the Ollama model to free disk space.</div>
+        {error && (
+          <div style={{ fontSize: 12, color: "var(--bad)", marginBottom: 12, lineHeight: 1.45 }}>
+            {error}
+          </div>
+        )}
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>
           <input type="checkbox" checked={deleteModel} onChange={e => setDeleteModel(e.target.checked)} />
           Delete Ollama model from disk
         </label>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn-primary btn-danger" onClick={phase3} disabled={working} style={{ fontSize: 12 }}>
-            {working ? "Working..." : "Finish uninstall"}
+            {working ? "Opening progress window..." : "Open uninstall progress"}
           </button>
           <button className="btn-ghost" onClick={() => { setPhase(0); setWorking(false); }} style={{ fontSize: 12 }}>Cancel</button>
         </div>
@@ -88,6 +136,11 @@ const UninstallPanel = () => {
           <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 12 }}>
             Workspace: <strong>{wsInfo.workspace_path}</strong> ({fmt(wsInfo.workspace_size_bytes)})<br />
             Config: <strong>{wsInfo.config_path}</strong> ({fmt(wsInfo.config_size_bytes)})
+          </div>
+        )}
+        {error && (
+          <div style={{ fontSize: 12, color: "var(--bad)", marginBottom: 12, lineHeight: 1.45 }}>
+            {error}
           </div>
         )}
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", marginBottom: 6 }}>
@@ -117,6 +170,11 @@ const UninstallPanel = () => {
           {working ? "Loading..." : "Uninstall..."}
         </button>
       </div>
+      {error && (
+        <div style={{ fontSize: 12, color: "var(--bad)", marginTop: 12, lineHeight: 1.45 }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 };
@@ -150,6 +208,7 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [apiKeyDirty, setApiKeyDirty] = useState(false);
   const [showWorkspaceInfo, setShowWorkspaceInfo] = useState(false);
+  const [workspaceDraft, setWorkspaceDraft] = useState("");
   // G1: tier model warning
   const [tierModelWarning, setTierModelWarning] = useState(null);
   // A5: actual bound port (may differ from 8765 if port was in use at launch)
@@ -162,6 +221,7 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
       fetch("/api/launcher/port").then(r => r.json()).catch(() => ({ port: 8765 })),
     ]).then(([s, o, p]) => {
       setSettings(s);
+      setWorkspaceDraft(s.workspace_path || "");
       setOllamaStatus(o);
       setLivePort(p.port ?? 8765);
       const stored = s.api_key && s.api_key !== "****" ? s.api_key : "";
@@ -205,6 +265,11 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
   const saveApiKey = async () => {
     await patch({ api_key: apiKeyDraft || null });
     setApiKeyDirty(false);
+  };
+
+  const saveWorkspace = async (path) => {
+    await patch({ workspace_path: path });
+    setWorkspaceDraft(path);
   };
 
   const toggleAgent = (id) => {
@@ -375,15 +440,19 @@ export const SettingsView = ({ onGoToModels, focusUninstall = false }) => {
         {/* Workspace */}
         <div className="card" style={{ padding: 18 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>Workspace</div>
-          <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 8 }}>Where artifacts and runs are stored. Set via AGENTSUITE_WORKSPACE env var.</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input readOnly value="~/AgentSuite" className="mono"
-              style={{ flex: 1, padding: "8px 10px", fontSize: 12, border: "1px solid var(--line-2)", borderRadius: 8, background: "var(--bg-tint)" }} />
-            <button className="btn btn-sm" onClick={() => setShowWorkspaceInfo(v => !v)}>Change</button>
-          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 8 }}>Where runs, approvals, and generated files are saved.</div>
+          <WorkspacePicker
+            value={settings.workspace_path || ""}
+            onChange={setWorkspaceDraft}
+            onSave={saveWorkspace}
+            saving={saving}
+          />
+          <button className="btn btn-sm" onClick={() => setShowWorkspaceInfo(v => !v)} style={{ marginTop: 8 }}>
+            <Icon name="info" size={13} /> Details
+          </button>
           {showWorkspaceInfo && (
             <div style={{ marginTop: 10, padding: 12, background: "var(--info-soft)", borderRadius: 8, border: "1px solid var(--info)", fontSize: 12, color: "var(--info)", lineHeight: 1.55 }}>
-              <strong>To change the workspace path:</strong> set the <span className="mono">AGENTSUITE_WORKSPACE</span> environment variable before starting AgentSuiteLocal, then restart.
+              AgentSuiteLocal writes a <span className="mono">.agentsuite</span> folder inside this location. For development and tests, <span className="mono">AGENTSUITE_WORKSPACE</span> still overrides this setting.
             </div>
           )}
         </div>

@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import platform
 import subprocess
+import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from agentsuitelocal.api.config import _CRASH_DIR, _read_launcher_port
-from agentsuitelocal.api.schemas import OpenFolderRequest, PathValidateRequest, _validate_inputs_dir
+from agentsuitelocal.api.config import _CRASH_DIR, _default_workspace_path, _read_launcher_port
+from agentsuitelocal.api.schemas import OpenFolderRequest, PathValidateRequest, _validate_inputs_dir, _validate_workspace_path
 from agentsuitelocal.api.workspace import _workspace
 
 router = APIRouter()
@@ -52,6 +53,50 @@ async def open_folder(body: OpenFolderRequest):
         return {"opened": str(p)}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/api/system/default-folders")
+async def default_folders():
+    home = Path.home()
+    return {
+        "default_workspace": str(_default_workspace_path()),
+        "desktop_workspace": str(home / "Desktop" / "AgentSuiteLocal"),
+        "downloads_workspace": str(home / "Downloads" / "AgentSuiteLocal"),
+    }
+
+
+@router.post("/api/system/select-folder")
+async def select_folder(body: dict):
+    """Open a native folder picker and return the selected workspace folder."""
+    initial = body.get("initial") or str(_workspace())
+
+    def _askdirectory() -> str:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        try:
+            selected = filedialog.askdirectory(
+                title="Choose where AgentSuiteLocal saves files",
+                initialdir=str(Path(initial).expanduser().parent),
+                mustexist=True,
+            )
+            return selected or ""
+        finally:
+            root.destroy()
+
+    try:
+        selected = await asyncio.to_thread(_askdirectory)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Folder picker unavailable: {exc}") from exc
+    if not selected:
+        return {"path": None, "cancelled": True}
+    try:
+        return {"path": _validate_workspace_path(selected), "cancelled": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 _ALLOWED_OPEN_APPS = {"Ollama"}

@@ -37,7 +37,7 @@ Models are managed through Ollama. The installer walks you through pulling a mod
 
 **Installation**
 
-Windows: download `AgentSuiteLocal-1.0.0-setup.exe` from the GitHub releases page and run it. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
+Windows: download `AgentSuiteLocal-1.0.0-setup.exe` from the GitHub releases page and run it. Windows may show "Windows protected your PC" because this free OSS beta installer is unsigned; click **More info** → **Run anyway** if you downloaded it from the official release. The installer walks through Ollama detection, model selection, and a smoke test before entering the app.
 
 macOS: download the `.app`, right-click and open to bypass Gatekeeper on first launch.
 

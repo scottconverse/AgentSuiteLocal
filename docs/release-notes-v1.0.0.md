@@ -76,7 +76,7 @@ The headline improvements in this release are the V4 `qa_score` fix (every real-
 
 - **One run at a time per session.** v1.0 supports a single active agent run (or pipeline step) per AgentSuiteLocal session. Starting a second run while one is in progress is not supported in the UI and is unsafe in the backend. Concurrent runs land in v1.1.
 
-- **No code-signing certificate.** The Windows `.exe` and macOS `.dmg` are unsigned. Windows users will see a SmartScreen warning ("Windows protected your PC") on first run — click "More info" → "Run anyway". macOS users will see a Gatekeeper warning — right-click the app → "Open" → "Open". This is a permanent decision for the free/OSS edition; see the README for full guidance.
+- **No code-signing certificate.** The Windows `.exe` and macOS `.dmg` are unsigned. Windows users may see a SmartScreen warning ("Windows protected your PC") on first run. This is expected for free, open-source beta software without a signing certificate: click **More info** → **Run anyway** if you downloaded it from the official Releases page. macOS users will see a Gatekeeper warning — right-click the app → "Open" → "Open". See the README for full guidance.
 
 - **Recovery sweeps deferred to v1.1.** Ollama crash mid-run, model corruption, disk-full mid-write, API key revoke mid-run, and concurrent-runs robustness are all v1.1 scope. The current crash-recovery (startup repair of `running` → `error`) handles the common restart case.
 

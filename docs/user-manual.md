@@ -15,6 +15,8 @@ That's the whole loop. Everything in this app is a UI on top of it. All processi
 
 The installer runs once and walks **6 short steps**. After setup completes it doesn't appear again unless you reinstall.
 
+**Windows SmartScreen note:** Windows may show "Windows protected your PC" before the installer opens because AgentSuiteLocal is free, open-source beta software and the installer is unsigned. If you downloaded it from the official GitHub Releases page, click **More info** and then **Run anyway** to continue.
+
 | Step | Screen | What happens |
 |------|--------|--------------|
 | 1 | Welcome | Intro screen. Click **Get started**. |

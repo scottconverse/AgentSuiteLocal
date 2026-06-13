@@ -102,7 +102,7 @@ The backend failed to start, typically due to a port conflict. Check `~/.agentsu
 Usually a network or Ollama-registry transient. Wait a few minutes and click **Try again**. Partial downloads are resumed where Ollama supports it.
 
 **The distributable shows a "Windows protected your PC" warning.**
-The Windows build is unsigned. Click **More info** → **Run anyway**. You only see this once per machine. To verify the binary independently, compare its SHA-256 against the hash on the [release page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest).
+The Windows build is unsigned because AgentSuiteLocal is free, open-source beta software without a code-signing certificate yet. If you downloaded it from the official [Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest), this warning is expected. Click **More info** → **Run anyway**. To verify the binary independently, compare its SHA-256 against the hash on the release page.
 
 **The macOS DMG won't open.**
 The DMG is unsigned. In Finder, right-click (or Control-click) the app inside the mounted DMG and choose **Open**, then **Open** in the warning dialog. If macOS has already quarantined it, go to **System Settings → Privacy & Security**, scroll down to the blocked-app entry, and click **Open Anyway**.

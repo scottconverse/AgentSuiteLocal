@@ -61,6 +61,42 @@ describe("LiveRunView", () => {
     );
   });
 
+  it("shows agent_start events in the live output", async () => {
+    useSSE.mockReturnValue({
+      events: [{ type: "agent_start", agent: "founder", project: "test-project" }],
+      status: "streaming",
+      error: null,
+    });
+    render(<LiveRunView runId="run-live-001" onApprovalReady={vi.fn()} onCancel={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText(/run started: founder/i)).toBeInTheDocument()
+    );
+  });
+
+  it("keeps the current stage active when a stage start event arrives", async () => {
+    useSSE.mockReturnValue({
+      events: [{ type: "stage_update", stage: "intake", step: 1, total: 5, message: "Starting Intake" }],
+      status: "streaming",
+      error: null,
+    });
+    render(<LiveRunView runId="run-live-001" onApprovalReady={vi.fn()} onCancel={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText(/Stage 1 of 5/i)).toBeInTheDocument()
+    );
+  });
+
+  it("advances to the next stage when a stage complete event arrives", async () => {
+    useSSE.mockReturnValue({
+      events: [{ type: "stage_update", stage: "intake", step: 1, total: 5, message: "Intake complete" }],
+      status: "streaming",
+      error: null,
+    });
+    render(<LiveRunView runId="run-live-001" onApprovalReady={vi.fn()} onCancel={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText(/Stage 2 of 5/i)).toBeInTheDocument()
+    );
+  });
+
   it("shows error message when error event fires", async () => {
     useSSE.mockReturnValue({
       events: [{ type: "error", message: "LLM timeout" }],

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from agentsuitelocal.api.config import (
     _TELEMETRY_FILE,
@@ -42,6 +43,11 @@ async def _apply_settings_patch(body: SettingsPatch) -> dict:
         # G1: when tier changes, derive model_name from tier map unless explicitly overridden
         if "model_tier" in patch and "model_name" not in patch:
             patch["model_name"] = _TIER_MODEL_MAP.get(patch["model_tier"], patch.get("model_name", current.get("model_name")))
+        if "workspace_path" in patch:
+            try:
+                Path(patch["workspace_path"]).mkdir(parents=True, exist_ok=True)
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Could not create workspace folder: {exc}") from exc
         current.update(patch)
         _save_settings(current)
         result = dict(current)

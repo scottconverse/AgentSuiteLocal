@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+import os
 from pathlib import Path
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 _SLUG_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -20,6 +21,42 @@ def _validate_inputs_dir(raw: str) -> None:
         raise ValueError("inputs_dir must be within your home directory")
     if not p.exists() or not p.is_dir():
         raise ValueError("inputs_dir must be an existing directory")
+
+
+def _validate_workspace_path(raw: str) -> str:
+    if len(raw) > 512:
+        raise ValueError("workspace_path path is too long (max 512 characters)")
+    p = Path(raw).expanduser()
+    if not p.is_absolute():
+        raise ValueError("workspace_path must be an absolute path")
+    resolved = p.resolve(strict=False)
+    if resolved.parent == resolved:
+        raise ValueError("workspace_path cannot be a drive or filesystem root")
+    if resolved.exists() and not resolved.is_dir():
+        raise ValueError("workspace_path must be a folder")
+
+    parent = resolved if resolved.exists() else resolved.parent
+    if not parent.exists() or not parent.is_dir():
+        raise ValueError("workspace_path parent folder does not exist")
+
+    protected_roots = [
+        os.environ.get("SystemRoot"),
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+        "/bin",
+        "/etc",
+        "/sbin",
+        "/usr",
+    ]
+    for root in protected_roots:
+        if not root:
+            continue
+        try:
+            if resolved.is_relative_to(Path(root).resolve(strict=False)):
+                raise ValueError("workspace_path cannot be inside a system or application folder")
+        except OSError:
+            continue
+    return str(resolved)
 
 
 class RunRequest(BaseModel):
@@ -57,6 +94,15 @@ class SettingsPatch(BaseModel):
     run_timeout_seconds: int | None = Field(None, ge=60, le=86400)
     qa_gate_threshold: float | None = Field(None, ge=0.0, le=10.0)
     dismissed_update_version: str | None = None
+    workspace_path: str | None = None
+    setup_complete: bool | None = None
+
+    @field_validator("workspace_path")
+    @classmethod
+    def validate_workspace_path(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        return _validate_workspace_path(value)
 
 
 class PullRequest(BaseModel):

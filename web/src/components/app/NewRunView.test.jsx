@@ -3,12 +3,18 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NewRunView } from "./NewRunView.jsx";
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn(() =>
-    Promise.resolve({
+  vi.stubGlobal("fetch", vi.fn((url) => {
+    if (url === "/api/health") {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: "ready" }),
+      });
+    }
+    return Promise.resolve({
       ok: true,
       json: () => Promise.resolve({ run_id: "run-new-001" }),
-    })
-  ));
+    });
+  }));
 });
 
 describe("NewRunView", () => {
@@ -49,19 +55,28 @@ describe("NewRunView", () => {
     const onLaunch = vi.fn();
     render(<NewRunView agentId="founder" onCancel={vi.fn()} onLaunch={onLaunch} />);
     const startBtn = screen.getByRole("button", { name: /start run/i });
+    await waitFor(() => expect(startBtn).not.toBeDisabled());
     fireEvent.click(startBtn);
     await waitFor(() => expect(onLaunch).toHaveBeenCalledWith("run-new-001"));
   });
 
   it("shows error banner when fetch fails", async () => {
-    vi.stubGlobal("fetch", vi.fn(() =>
-      Promise.resolve({
+    vi.stubGlobal("fetch", vi.fn((url) => {
+      if (url === "/api/health") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ready" }),
+        });
+      }
+      return Promise.resolve({
         ok: false,
         json: () => Promise.resolve({ detail: "Agent not enabled" }),
-      })
-    ));
+      });
+    }));
     render(<NewRunView agentId="founder" onCancel={vi.fn()} onLaunch={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /start run/i }));
+    const startBtn = screen.getByRole("button", { name: /start run/i });
+    await waitFor(() => expect(startBtn).not.toBeDisabled());
+    fireEvent.click(startBtn);
     await waitFor(() =>
       expect(screen.getByText(/could not start run/i)).toBeInTheDocument()
     );
@@ -75,20 +90,39 @@ describe("NewRunView", () => {
   });
 
   it("does not double-submit on rapid clicks", async () => {
-    const fetchMock = vi.fn(() =>
-      new Promise(res =>
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/health") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ready" }),
+        });
+      }
+      return new Promise(res =>
         setTimeout(() =>
           res({ ok: true, json: () => Promise.resolve({ run_id: "r1" }) }),
           100
         )
-      )
-    );
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
     render(<NewRunView agentId="founder" onCancel={vi.fn()} onLaunch={vi.fn()} />);
     const startBtn = screen.getByRole("button", { name: /start run/i });
+    await waitFor(() => expect(startBtn).not.toBeDisabled());
     fireEvent.click(startBtn);
     fireEvent.click(startBtn);
     fireEvent.click(startBtn);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("blocks launch when the local model is not ready", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: "no_daemon" }),
+      })
+    ));
+    render(<NewRunView agentId="founder" onCancel={vi.fn()} onLaunch={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/local model is not ready/i)).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /start run/i })).toBeDisabled();
   });
 });

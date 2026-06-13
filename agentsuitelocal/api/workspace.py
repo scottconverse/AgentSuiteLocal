@@ -7,11 +7,21 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from agentsuitelocal.api.config import _default_workspace_path, _load_settings
 from agentsuitelocal.api.schemas import _SLUG_RE
 
 
 def _workspace() -> Path:
-    return Path(os.environ.get("AGENTSUITE_WORKSPACE", Path.home() / "AgentSuite"))
+    env_workspace = os.environ.get("AGENTSUITE_WORKSPACE")
+    if env_workspace:
+        return Path(env_workspace).expanduser()
+    try:
+        configured = _load_settings().get("workspace_path")
+        if configured:
+            return Path(configured).expanduser()
+    except Exception:
+        pass
+    return _default_workspace_path()
 
 
 def _push_to_kernel(run: dict) -> Path | None:

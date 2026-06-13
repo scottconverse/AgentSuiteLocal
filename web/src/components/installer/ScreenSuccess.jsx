@@ -1,9 +1,10 @@
 import React from "react";
 import { Icon } from "../ui/index.jsx";
+import { WorkspacePicker } from "../ui/WorkspacePicker.jsx";
 import { InstallerShell } from "./InstallerShell.jsx";
 
 // onNext is enterApp from App.jsx — it persists settings before switching to the app
-export const ScreenSuccess = ({ onBack, onNext, totalSteps }) => (
+export const ScreenSuccess = ({ onBack, onNext, totalSteps, workspacePath, setWorkspacePath, launchError }) => (
   <InstallerShell step={6} totalSteps={totalSteps} onBack={onBack} onNext={onNext} nextLabel="Launch AgentSuiteLocal" accent>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", paddingTop: 24 }}>
       <div style={{ width: 72, height: 72, borderRadius: 18, background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24, boxShadow: "0 12px 32px rgba(194, 86, 43, 0.32)" }}>
@@ -14,10 +15,23 @@ export const ScreenSuccess = ({ onBack, onNext, totalSteps }) => (
         Seven agents are loaded and waiting. The model is local, the runtime is verified, and the first run is a click away.
       </p>
 
+      <div className="card" style={{ padding: 16, marginTop: 24, width: "100%" }}>
+        <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginBottom: 8, letterSpacing: "0.06em" }}>SAVE FILES TO</div>
+        <WorkspacePicker value={workspacePath} onChange={setWorkspacePath} compact />
+        <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 8, lineHeight: 1.45 }}>
+          Runs and approved artifacts are saved in a <span className="mono">.agentsuite</span> folder inside this location.
+        </div>
+        {launchError && (
+          <div style={{ fontSize: 12, color: "var(--bad)", marginTop: 10, lineHeight: 1.45 }}>
+            {launchError}
+          </div>
+        )}
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 28, width: "100%" }}>
         <div className="card" style={{ padding: 14 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginBottom: 6, letterSpacing: "0.06em" }}>WORKSPACE</div>
-          <div className="mono" style={{ fontSize: 13, color: "var(--ink)", wordBreak: "break-all" }}>~/AgentSuite</div>
+          <div className="mono" style={{ fontSize: 13, color: "var(--ink)", wordBreak: "break-all" }}>{workspacePath || "Desktop/AgentSuiteLocal"}</div>
         </div>
         <div className="card" style={{ padding: 14 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginBottom: 6, letterSpacing: "0.06em" }}>STATUS</div>

@@ -26,6 +26,11 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel, onRetry, onOpenS
 
   const logRef = useRef(null);
 
+  const isStageComplete = (evt) => {
+    const message = String(evt.message || "").toLowerCase();
+    return message.includes("complete") || evt.phase === "complete" || evt.status === "complete";
+  };
+
   // Fetch run metadata once on mount
   useEffect(() => {
     if (!runId) return;
@@ -54,18 +59,24 @@ export const LiveRunView = ({ runId, onApprovalReady, onCancel, onRetry, onOpenS
     const stageOrder = STAGES.map(s => s.id);
 
     for (const evt of events) {
+      if (evt.type === "agent_start") {
+        setStreamLines(prev => [...prev, `Run started: ${evt.agent || "agent"}${evt.project ? " · " + evt.project : ""}`]);
+      }
       if (evt.type === "stage_update") {
         const idx = stageOrder.indexOf(evt.stage);
         if (idx >= 0) {
-          setStageIdx(idx + 1);
+          setStageIdx(isStageComplete(evt) ? idx + 1 : idx);
           stageStartRef.current = Date.now(); // E2: reset stage timer
           setStageElapsed(0);
         }
-        setStreamLines(prev => [...prev, `▸ ${evt.stage}${evt.message ? ": " + evt.message : ""}`]);
+        setStreamLines(prev => [...prev, `${isStageComplete(evt) ? "✓" : "▸"} ${evt.stage}${evt.message ? ": " + evt.message : ""}`]);
         // UX-004: only update token count from real telemetry. The stage_update
         // event carries `tokens` when the orchestrator has counted them; otherwise
         // leave the counter alone. Fabricating +18 per stage misled users.
         if (typeof evt.tokens === "number") setTokens(evt.tokens);
+      }
+      if (evt.type === "context_update") {
+        setStreamLines(prev => [...prev, `Context updated: ${evt.stage}${evt.summary ? " · " + evt.summary : ""}`]);
       }
       if (evt.type === "agent_waiting") {
         setStageIdx(STAGES.length);

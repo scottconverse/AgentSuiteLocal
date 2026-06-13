@@ -24,16 +24,22 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}/releases
+UninstallDisplayName={#MyAppName}
+UninstallDisplayIcon={app}\{#MyAppExeName}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\LICENSE
+InfoBeforeFile=windows-smartscreen-note.txt
 OutputDir={#MyOutputDir}
 OutputBaseFilename={#MyAppName}-{#MyAppVersion}-setup
 SetupIconFile=..\agentsuitelocal\assets\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+CloseApplications=yes
+CloseApplicationsFilter={#MyAppExeName}
+RestartApplications=no
 ; Require admin for Program Files installation
 PrivilegesRequired=admin
 ; Minimum Windows version: Windows 10 (6.2 = Win 8 minimum for winotify; 10.0 required for modern shell)
@@ -71,26 +77,32 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 ; The previous flow killed the process in InitializeUninstall before this hook
 ; ran, so the POST always hit a dead socket and workspace cleanup never fired.
 ;
-; QA-001: Read the actually-bound port from launcher.port.json. Hardcoding 8765
-; was silently broken whenever the launcher fell back to a free port. The
-; PowerShell parses the port file (defaults to 8765 if missing) and POSTs to
-; the live endpoint, then waits up to 3s for the backend to exit on its own,
-; then force-kills as a fallback.
-Filename: "powershell.exe"; Parameters: "-NonInteractive -WindowStyle Hidden -Command ""try {{ $f = Join-Path $env:USERPROFILE '.agentsuitelocal\launcher.port.json'; $port = 8765; if (Test-Path $f) {{ $port = (Get-Content $f -Raw | ConvertFrom-Json).port }}; try {{ Invoke-RestMethod -Method POST -Uri ('http://127.0.0.1:' + $port + '/api/uninstall') -TimeoutSec 3 }} catch {{ }}; Start-Sleep -Seconds 3; Get-Process AgentSuiteLocal -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }} catch {{ }}"" "; Flags: runhidden
+; Remove any stale liveness marker after files are removed. The graceful POST
+; and fallback taskkill run in InitializeUninstall while the backend is alive.
+Filename: "powershell.exe"; Parameters: "-NonInteractive -WindowStyle Hidden -Command ""try {{ $f = Join-Path $env:USERPROFILE '.agentsuitelocal\launcher.port.json'; Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }} catch {{ }}"" "; Flags: runhidden; RunOnceId: "RemoveAgentSuiteLocalPortMarker"
 
 [Code]
 // A6 (QA-202 corrected): warn if AgentSuiteLocal is running, but DO NOT kill
 // it here — the [UninstallRun] hook needs the backend alive to POST a graceful
 // shutdown signal. The POST is followed by a 3-second wait and then a fallback
-// taskkill, all inside the hook itself.
+// taskkill.
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
 begin
   Result := True;
-  if Exec('tasklist', '/FI "IMAGENAME eq AgentSuiteLocal.exe" /NH', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
-    if ResultCode = 0 then begin
-      MsgBox('AgentSuiteLocal is running. The uninstaller will ask it to shut down gracefully and then proceed.', mbInformation, MB_OK);
+  if not UninstallSilent then begin
+    if Exec('tasklist', '/FI "IMAGENAME eq AgentSuiteLocal.exe" /NH', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
+      if ResultCode = 0 then begin
+        MsgBox('AgentSuiteLocal is running. The uninstaller will ask it to shut down gracefully and then proceed.', mbInformation, MB_OK);
+      end;
     end;
   end;
+  Exec('powershell.exe', '-NonInteractive -WindowStyle Hidden -Command "try { $f = Join-Path $env:USERPROFILE ''.agentsuitelocal\launcher.port.json''; $port = 8765; if (Test-Path $f) { $port = (Get-Content $f -Raw | ConvertFrom-Json).port }; try { Invoke-RestMethod -Method POST -Uri (''http://127.0.0.1:'' + $port + ''/api/uninstall'') -TimeoutSec 3 } catch { }; Start-Sleep -Seconds 3; Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue } catch { }"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill', '/IM AgentSuiteLocal.exe /F /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+procedure DeinitializeUninstall();
+begin
+  DelTree(ExpandConstant('{app}'), True, True, True);
 end;

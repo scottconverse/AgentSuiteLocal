@@ -5,6 +5,7 @@ import { SettingsView } from "./SettingsView.jsx";
 const mockSettings = {
   model_tier: "medium",
   model_name: "gemma4:e4b",
+  workspace_path: "C:\\Users\\Test\\Desktop\\AgentSuiteLocal",
   enabled_agents: ["founder", "design"],
   open_on_launch: true,
   telemetry: false,
@@ -44,11 +45,59 @@ describe("SettingsView", () => {
     expect(screen.getByText("Design")).toBeInTheDocument();
   });
 
-  it("shows workspace info card when Change is clicked", async () => {
+  it("shows workspace details when Details is clicked", async () => {
     render(<SettingsView />);
-    await waitFor(() => screen.getByText("Change"));
-    fireEvent.click(screen.getByText("Change"));
-    expect(screen.getByText(/To change the workspace path/i)).toBeInTheDocument();
+    await waitFor(() => screen.getByText("Details"));
+    fireEvent.click(screen.getByText("Details"));
+    expect(screen.getByText(/AGENTSUITE_WORKSPACE/i)).toBeInTheDocument();
+  });
+
+  it("saves a changed workspace folder", async () => {
+    let patchBody = null;
+    vi.stubGlobal("fetch", vi.fn((url, opts) => {
+      if (url.includes("/api/settings")) {
+        if (opts?.method === "PATCH") {
+          patchBody = JSON.parse(opts.body);
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...mockSettings, ...patchBody }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSettings) });
+      }
+      if (url.includes("/api/ollama/status")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOllama) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ desktop_workspace: "C:\\Users\\Test\\Desktop\\AgentSuiteLocal" }) });
+    }));
+    render(<SettingsView />);
+    await waitFor(() => screen.getByLabelText(/workspace folder/i));
+    fireEvent.change(screen.getByLabelText(/workspace folder/i), { target: { value: "C:\\Users\\Test\\Downloads\\AgentSuiteLocal" } });
+    fireEvent.click(screen.getByRole("button", { name: /save folder/i }));
+    await waitFor(() => expect(patchBody).toEqual({ workspace_path: "C:\\Users\\Test\\Downloads\\AgentSuiteLocal" }));
+  });
+
+  it("persists a workspace folder selected with Browse", async () => {
+    let patchBody = null;
+    vi.stubGlobal("fetch", vi.fn((url, opts) => {
+      if (url.includes("/api/settings")) {
+        if (opts?.method === "PATCH") {
+          patchBody = JSON.parse(opts.body);
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...mockSettings, ...patchBody }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSettings) });
+      }
+      if (url.includes("/api/ollama/status")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOllama) });
+      }
+      if (url.includes("/api/system/select-folder")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ cancelled: false, path: "D:\\AgentSuiteLocal" }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ desktop_workspace: "C:\\Users\\Test\\Desktop\\AgentSuiteLocal" }) });
+    }));
+    render(<SettingsView />);
+    await waitFor(() => screen.getByRole("button", { name: /browse/i }));
+    fireEvent.click(screen.getByRole("button", { name: /browse/i }));
+    await waitFor(() => expect(screen.getByLabelText(/workspace folder/i)).toHaveValue("D:\\AgentSuiteLocal"));
+    fireEvent.click(screen.getByRole("button", { name: /save folder/i }));
+    await waitFor(() => expect(patchBody).toEqual({ workspace_path: "D:\\AgentSuiteLocal" }));
   });
 
   it("shows Save button only after API key input is dirtied", async () => {
@@ -109,5 +158,89 @@ describe("SettingsView", () => {
     await waitFor(() => screen.getByRole("switch", { name: /Open browser on launch/i }));
     fireEvent.click(screen.getByRole("switch", { name: /Open browser on launch/i }));
     await waitFor(() => expect(screen.getByText(/Couldn't save: Failed to fetch/i)).toBeInTheDocument());
+  });
+
+  it("shows uninstall launch progress and final visibility", async () => {
+    vi.stubGlobal("fetch", vi.fn((url, opts) => {
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSettings) });
+      }
+      if (url.includes("/api/ollama/status")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOllama) });
+      }
+      if (url.includes("/api/uninstall/workspace-info")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            workspace_path: "C:\\Users\\Test\\AgentSuite\\.agentsuite",
+            workspace_size_bytes: 2048,
+            config_path: "C:\\Users\\Test\\.agentsuitelocal",
+            config_size_bytes: 1024,
+          }),
+        });
+      }
+      if (url.includes("/api/uninstall/phase2")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ deleted: false }) });
+      }
+      if (url.includes("/api/uninstall/phase3")) {
+        expect(JSON.parse(opts.body)).toEqual({ delete_model: false, model_name: "gemma4:e4b" });
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            uninstaller_launched: true,
+            progress_window_launched: true,
+            path: "C:\\Program Files\\AgentSuiteLocal\\unins000.exe",
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    }));
+    render(<SettingsView />);
+    await waitFor(() => screen.getByRole("button", { name: /uninstall/i }));
+    fireEvent.click(screen.getByRole("button", { name: /uninstall/i }));
+    await waitFor(() => screen.getByText(/workspace:/i));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /open uninstall progress/i }));
+    fireEvent.click(screen.getByRole("button", { name: /open uninstall progress/i }));
+    await waitFor(() => expect(screen.getByText(/uninstall progress window opened/i)).toBeInTheDocument());
+    expect(screen.getByText(/until it says done or needs attention/i)).toBeInTheDocument();
+  });
+
+  it("shows an uninstall error instead of pretending the uninstaller opened", async () => {
+    vi.stubGlobal("fetch", vi.fn((url) => {
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSettings) });
+      }
+      if (url.includes("/api/ollama/status")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOllama) });
+      }
+      if (url.includes("/api/uninstall/workspace-info")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            workspace_path: "C:\\Users\\Test\\AgentSuite\\.agentsuite",
+            workspace_size_bytes: 0,
+            config_path: "C:\\Users\\Test\\.agentsuitelocal",
+            config_size_bytes: 0,
+          }),
+        });
+      }
+      if (url.includes("/api/uninstall/phase2")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ deleted: false }) });
+      }
+      if (url.includes("/api/uninstall/phase3")) {
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: "Could not open the Windows uninstaller: access denied" }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    }));
+    render(<SettingsView />);
+    await waitFor(() => screen.getByRole("button", { name: /uninstall/i }));
+    fireEvent.click(screen.getByRole("button", { name: /uninstall/i }));
+    await waitFor(() => screen.getByText(/workspace:/i));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /open uninstall progress/i }));
+    fireEvent.click(screen.getByRole("button", { name: /open uninstall progress/i }));
+    await waitFor(() => expect(screen.getByText(/access denied/i)).toBeInTheDocument());
+    expect(screen.queryByText(/uninstall progress window opened/i)).not.toBeInTheDocument();
   });
 });

@@ -46,19 +46,17 @@ const STEP_LABELS = [
   "", "Welcome", "License", "Hardware & model tier", "Ollama & model download", "Smoke test", "Ready",
 ];
 
-const SETUP_KEY = "agentsuite_setup_complete";
-
 export default function App() {
   // ── Installer ─────────────────────────────────────────────────────────────
   // G4: skip installer on subsequent launches — check localStorage on mount
-  const [mode, setMode]     = useState(() =>
-    localStorage.getItem(SETUP_KEY) === "1" ? "app" : "installer"
-  );
+  const [mode, setMode]     = useState("boot");
   const [step, setStep]     = useState(1);
   const [tier, setTier]     = useState("balanced");
   const [agents, setAgents] = useState(() => AGENTS.map(a => a.id));
   // QA-002: capture apiKey during installer so we can persist it to the backend
   const [apiKey, setApiKey] = useState("");
+  const [workspacePath, setWorkspacePath] = useState("");
+  const [installerError, setInstallerError] = useState(null);
 
   // ── App ───────────────────────────────────────────────────────────────────
   const [view, setView]             = useState("home");
@@ -81,6 +79,37 @@ export default function App() {
   const showToast = (msg, kind = "good") => {
     setActionToast({ msg, kind });
     setTimeout(() => setActionToast(null), 4000);
+  };
+
+  useEffect(() => {
+    localStorage.removeItem("agentsuite_setup_complete");
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(s => {
+        if (s.workspace_path) setWorkspacePath(s.workspace_path);
+        setMode(s.setup_complete ? "app" : "installer");
+      })
+      .catch(() => setMode("installer"));
+  }, []);
+
+  const persistInstallerSettings = async (updates = {}) => {
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model_tier: tier,
+        enabled_agents: agents,
+        ...(workspacePath ? { workspace_path: workspacePath } : {}),
+        ...updates,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `HTTP ${res.status}`);
+    }
+    const saved = await res.json();
+    if (saved.workspace_path) setWorkspacePath(saved.workspace_path);
+    return saved;
   };
 
   useEffect(() => {
@@ -111,39 +140,69 @@ export default function App() {
   // ── Installer nav ─────────────────────────────────────────────────────────
   const enterApp = async () => {
     // QA-002: persist all installer-captured config to the backend before entering the app
+    setInstallerError(null);
     try {
-      await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model_tier: tier,
-          enabled_agents: agents,
-          ...(apiKey ? { api_key: apiKey } : {}),
-        }),
+      await persistInstallerSettings({
+        setup_complete: true,
+        ...(apiKey ? { api_key: apiKey } : {}),
       });
-    } catch {
-      // settings persist is best-effort; don't block app entry
+    } catch (err) {
+      setInstallerError(`Could not save the workspace folder: ${err?.message || "unknown error"}`);
+      return;
     }
     // N-3: Clear apiKey from React state after persist — don't hold credentials in memory longer than needed
     setApiKey("");
-    localStorage.setItem(SETUP_KEY, "1");
+    localStorage.removeItem("agentsuite_setup_complete");
     setMode("app");
     setScene("main");
     setView("home");
   };
 
-  const goNext = () => step < TOTAL_STEPS ? setStep(s => s + 1) : enterApp();
+  const goNext = async () => {
+    if (step === 1) {
+      setInstallerError(null);
+      try {
+        await persistInstallerSettings();
+      } catch (err) {
+        setInstallerError(`Could not save the workspace folder: ${err?.message || "unknown error"}`);
+        return;
+      }
+    }
+    if (step < TOTAL_STEPS) {
+      setStep(s => s + 1);
+    } else {
+      enterApp();
+    }
+  };
   const goBack = () => step > 1 && setStep(s => s - 1);
 
   const installerStep = () => {
     const ts = TOTAL_STEPS;
     switch (step) {
-      case 1: return <ScreenWelcome onNext={goNext} totalSteps={ts} />;
+      case 1: return (
+        <ScreenWelcome
+          onNext={goNext}
+          onUninstall={() => setMode("uninstall")}
+          totalSteps={ts}
+          workspacePath={workspacePath}
+          setWorkspacePath={setWorkspacePath}
+          setupError={installerError}
+        />
+      );
       case 2: return <ScreenLicense onBack={goBack} onNext={goNext} totalSteps={ts} />;
       case 3: return <ScreenHardwareTier onBack={goBack} onNext={goNext} tier={tier} setTier={setTier} totalSteps={ts} />;
       case 4: return <ScreenOllamaModel  onBack={goBack} onNext={goNext} tier={tier} totalSteps={ts} />;
       case 5: return <ScreenSmoke onBack={goBack} onNext={goNext} totalSteps={ts} />;
-      case 6: return <ScreenSuccess onBack={goBack} onNext={enterApp} totalSteps={ts} />;
+      case 6: return (
+        <ScreenSuccess
+          onBack={goBack}
+          onNext={enterApp}
+          totalSteps={ts}
+          workspacePath={workspacePath}
+          setWorkspacePath={setWorkspacePath}
+          launchError={installerError}
+        />
+      );
       default: return null;
     }
   };
@@ -232,8 +291,21 @@ export default function App() {
         subtitle={mode === "installer" ? `Setup · ${STEP_LABELS[step]}` : "Local AI workspace"}
         height="calc(100vh - 48px)"
       >
-        {mode === "installer" ? (
+        {mode === "boot" ? (
+          <div style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--ink-3)",
+            fontSize: 13,
+          }}>
+            Loading setup...
+          </div>
+        ) : mode === "installer" ? (
           installerStep()
+        ) : mode === "uninstall" ? (
+          <ScreenUninstall onBack={() => setMode("installer")} />
         ) : (
           <div style={{ display: "flex", flex: 1, minHeight: 0, flexDirection: "column" }}>
             {/* H2: update available banner */}

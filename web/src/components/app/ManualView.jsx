@@ -193,7 +193,7 @@ export const ManualView = () => (
               ["3", "Hardware & model tier", "The app probes your CPU, RAM, and disk and recommends a tier (Light / Balanced / Pro). Pick one — Balanced (16 GB RAM, gemma4:e4b) works for most people."],
               ["4", "Ollama & model download", "Confirms Ollama is running, then pulls the model for the tier you chose. The pull includes a 3-attempt retry loop with backoff. If Ollama isn't running yet, click Install Ollama and the screen will unlock automatically."],
               ["5", "Smoke test", "Runs four sequential checks: Ollama daemon reachable, target model loaded, API health endpoint responding, and a real test inference through the Python kernel (the same _resolve_llm path New Run uses). Each check shows a green tick or, on failure, an actionable fix card. v0.8.8 added the kernel inference check — the prior version only verified the environment, not the app."],
-              ["6", "You're set up", "Click Launch AgentSuiteLocal to open the main app."],
+              ["6", "You're set up", "Choose where files are saved, then click Launch AgentSuiteLocal."],
             ].map(([step, screen, desc]) => (
               <tr key={step}>
                 <td style={{ ...tdStyle, color: "var(--ink-3)", fontFamily: "var(--font-mono)", fontSize: 12 }}>{step}</td>
@@ -456,7 +456,7 @@ export const ManualView = () => (
               ["Run timeout", "15 min", "Max time before a run is killed with an error"],
               ["Auto-approve", "off", "Skip the Approval Gate and promote artifacts automatically"],
               ["QA gate threshold", "7.0", "Minimum composite QA score to enable the Approve button"],
-              ["Workspace path", "~/AgentSuite", "Where runs and the kernel are stored"],
+              ["Workspace path", "Desktop/AgentSuiteLocal", "Where runs and the kernel are stored"],
               ["Desktop notifications", "on", "OS toast when a run reaches a terminal state"],
               ["Telemetry", "off", "Local-only JSONL log of app events"],
             ].map(([s, d, desc]) => (
@@ -505,6 +505,10 @@ export const ManualView = () => (
 
       {/* ── Troubleshooting ── */}
       <Section id="troubleshooting" title="9. Troubleshooting">
+
+        <TroubleEntry title={'Windows shows "Windows protected your PC"'}>
+          AgentSuiteLocal is free, open-source beta software and the Windows installer is unsigned, so SmartScreen may show this warning before the installer opens. If you downloaded it from the official GitHub Releases page, click <strong>More info</strong>, then <strong>Run anyway</strong>.
+        </TroubleEntry>
 
         <TroubleEntry title="The installer is stuck on 'Ollama runtime' and Continue never lights up">
           The AI engine isn&#x2019;t running yet. Look for an Ollama icon in your system tray (Windows) — it looks like a small llama. If you don&#x2019;t see it, open the Ollama app and wait for it to appear. Once the icon is visible, go back to the installer and it should unlock within a few seconds.

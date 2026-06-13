@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Icon } from "../ui/index.jsx";
 import { TopBar } from "../shell/index.jsx";
 import { AGENTS } from "../../data.js";
@@ -14,6 +14,21 @@ export const NewRunView = ({ agentId, onCancel, onLaunch, initialGoal, initialPr
   // QA-005: loading guard prevents double-submission
   const [loading, setLoading] = useState(false);
   const [launchError, setLaunchError] = useState(null);
+  const [modelReady, setModelReady] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/health")
+      .then(r => r.json())
+      .then(d => {
+        if (!alive) return;
+        setModelReady(d.status === "ready");
+      })
+      .catch(() => {
+        if (alive) setModelReady(false);
+      });
+    return () => { alive = false; };
+  }, []);
 
   // B6: validate inputs_dir path on blur
   const validatePath = async (val) => {
@@ -87,6 +102,18 @@ export const NewRunView = ({ agentId, onCancel, onLaunch, initialGoal, initialPr
           </div>
         )}
 
+        {modelReady === false && (
+          <div className="card" style={{ padding: 14, borderColor: "var(--bad)", background: "var(--bad-soft)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <Icon name="alert" size={16} style={{ color: "var(--bad)", flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad)", marginBottom: 4 }}>Local model is not ready</div>
+              <div style={{ fontSize: 12, color: "var(--ink-2)" }}>
+                Finish setup or open Settings to install/start Ollama and download the selected model.
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label htmlFor="nr-goal" style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Business goal</label>
@@ -136,7 +163,7 @@ export const NewRunView = ({ agentId, onCancel, onLaunch, initialGoal, initialPr
           <button
             className="btn btn-accent"
             onClick={handleLaunch}
-            disabled={loading || !goal.trim() || !project.trim() || !!pathError}
+            disabled={loading || modelReady !== true || !goal.trim() || !project.trim() || !!pathError}
           >
             {loading
               ? <><span className="pulse-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: "white", display: "inline-block" }} /> Starting…</>

@@ -50,12 +50,14 @@ Runs entirely on-device — no internet connection required after setup.
 
 ### Windows SmartScreen warning
 
-Because the distributable is unsigned, Windows may show a SmartScreen popup ("Windows protected your PC") the first time you run it. To proceed:
+AgentSuiteLocal is free, open-source beta software and the Windows build is not code-signed yet. Because of that, Windows may show the scary SmartScreen popup ("Windows protected your PC") the first time you run the installer. This is expected for unsigned OSS beta builds downloaded from GitHub Releases.
+
+Only continue if you downloaded the installer from the official [AgentSuiteLocal Releases page](https://github.com/scottconverse/AgentSuiteLocal/releases/latest). To proceed:
 
 1. Click **More info** (below the warning text).
 2. Click **Run anyway**.
 
-You will only see this once per machine. If you prefer to verify the binary before running, check the SHA-256 hash in the release notes against the file you downloaded:
+You will usually only see this once per machine. If you prefer to verify the binary before running, check the SHA-256 hash in the release notes against the file you downloaded:
 
 ```powershell
 Get-FileHash .\AgentSuiteLocal.exe -Algorithm SHA256
